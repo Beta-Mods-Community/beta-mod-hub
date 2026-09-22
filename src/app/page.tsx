@@ -1,68 +1,119 @@
-import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, Bug, CheckCircle2, Package } from "lucide-react";
+
+const features = [
+  {
+    icon: Package,
+    title: "Post your beta",
+    description:
+      "Upload WIP builds with real changelogs. Alpha, beta, RC — your first Nexus release stays your one shot.",
+  },
+  {
+    icon: Bug,
+    title: "Get structured feedback",
+    description:
+      "Testers file severity-graded bug reports with repro steps and attachments — not a comments wall.",
+  },
+  {
+    icon: CheckCircle2,
+    title: "Know when you're ready",
+    description:
+      "Ready / not-ready votes from real testers give you a signal before you spend your big launch.",
+  },
+];
+
+const steps = [
+  {
+    step: "01",
+    title: "Post a beta",
+    body: "Create a Beta Mod page, upload a build, say what kind of testing you want.",
+  },
+  {
+    step: "02",
+    title: "Testers find it in Browse",
+    body: "Live list of active betas, filterable by game, sorted by who needs testers most.",
+  },
+  {
+    step: "03",
+    title: "Promote to Nexus",
+    body: "Generate a package with BBCode description, readme, changelog and files — paste top to bottom and you're live.",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <div className="flex flex-1 flex-col">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4">
+        {/* Hero */}
+        <section className="flex flex-col items-center gap-6 py-24 text-center">
+          <span className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+            Pre-release mod hosting for the Nexus community
+          </span>
+          <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-5xl">
+            Test mods before they go live. Launch them properly.
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="max-w-xl text-base leading-7 text-zinc-600 dark:text-zinc-400">
+            Your first Nexus release is your only shot at the spotlight.
+            Beta Mod Hub lets you get real testing and structured bug reports on
+            a work-in-progress build — then promotes to Nexus with minimum
+            friction.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/browse"
+              className="inline-flex items-center gap-2 rounded-md bg-zinc-950 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-zinc-50 dark:text-zinc-950"
+            >
+              Browse active betas
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/signup"
+              className="inline-flex items-center rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500"
+            >
+              Create an account
+            </Link>
+          </div>
+        </section>
+
+        {/* Features */}
+        <section className="grid gap-4 pb-20 sm:grid-cols-3">
+          {features.map((feature) => (
+            <div
+              key={feature.title}
+              className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
+            >
+              <feature.icon className="mb-4 h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+              <h2 className="mb-1.5 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+                {feature.title}
+              </h2>
+              <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                {feature.description}
+              </p>
+            </div>
+          ))}
+        </section>
+
+        {/* How it works */}
+        <section className="border-t border-zinc-200 py-20 dark:border-zinc-800">
+          <h2 className="mb-10 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+            How it works
+          </h2>
+          <div className="grid gap-10 sm:grid-cols-3">
+            {steps.map((item) => (
+              <div key={item.step} className="flex flex-col gap-2">
+                <span className="font-mono text-sm text-zinc-400">
+                  {item.step}
+                </span>
+                <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+                  {item.title}
+                </h3>
+                <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                  {item.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
     </div>
   );

@@ -1,3 +1,43 @@
+# Agent Instructions
+
+Read `beta-mod-hub-spec.md` first — that's the product/technical spec. This file is operational: how to work in this repo, not what to build.
+
+## Setup
+
+Scaffolded with Next.js 16 (App Router, TypeScript, Tailwind v4, ESLint flat config) + Drizzle ORM (`postgres` driver). Read the version-matched docs in `node_modules/next/dist/docs/` before writing Next-specific code — Next 16 has breaking changes vs older training data.
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server at http://localhost:3000 (Turbopack, hot reload) |
+| `npm run build` | Production build (Turbopack) |
+| `npm run start` | Serve the production build |
+| `npm run lint` | ESLint (Next 16 removed `next lint` — run eslint directly) |
+| `npm run typecheck` | `tsc --noEmit` — the type gate to run before hand-offs |
+| `npx drizzle-kit generate` | Generate a migration from `db/schema.ts` (needs `DATABASE_URL`) |
+| `npx drizzle-kit push` | Push schema to the database |
+
+Windows note: call npm as `npm.cmd` inside a shell — PowerShell's execution policy blocks the `.ps1` shim.
+
+`db/schema.ts` mirrors `schema.sql` — keep them in sync. `lib/db.ts` returns a null `db` until `DATABASE_URL` is set, so the app boots before the Neon project exists; guard queries on `db` being non-null.
+
+## Working style
+
+- Build in the phase order the spec lays out (Build order, phases 1-4). Don't start Nexus integration before the core loop (BetaMod CRUD, Build uploads, feedback) actually works.
+- Small, logical commits — one feature or fix per commit, not one giant commit per phase.
+- Before considering any change done: it builds, lints clean, and (once tests exist) passes tests. Add tests alongside the code that needs them, not as a separate pass at the end.
+- Never commit real secrets. `.env.example` documents what's needed; actual values stay in a local, gitignored `.env.local`.
+- If something in the spec turns out to be wrong once you're working against Nexus's live API (rate limits, field names, response shapes), fix the code to match reality and leave a short note in the spec's relevant section rather than silently diverging from it.
+
+## Hosting decision (locked with the owner)
+
+Cloud from day one: **Railway** app (Next.js + ClamAV sidecar), **Neon** Postgres, **Cloudflare R2** storage. No Docker/WSL on the dev machine. Local dev uses `STORAGE_DRIVER=local`; the deployed app must use `r2`. See `env.example`.
+
+## Hard constraints (from the spec, repeated here because they're easy to accidentally violate mid-build)
+
+- No browser automation against nexusmods.com. API only.
+- The Upload API pushes files to a mod page that already exists — never write code that assumes it can create a new Nexus page.
+- Every uploaded file gets malware-scanned before it's stored or served. No exceptions during development, either — build this in from phase 1, not bolted on later. The upload pipeline is always quarantine → scan → serve; never serve directly from the upload path.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
