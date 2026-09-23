@@ -7,6 +7,7 @@ import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { db } from "./db";
 import { decrypt } from "./session";
+import { emptyReputationHistory, type ReputationHistory } from "./reputation";
 import { betaMods, bugReports, builds, readySignals, requirements, users } from "../db/schema";
 
 /**
@@ -37,6 +38,7 @@ export const getUser = cache(async () => {
       displayName: users.displayName,
       email: users.email,
       avatarUrl: users.avatarUrl,
+      bio: users.bio,
       createdAt: users.createdAt,
     })
     .from(users)
@@ -75,7 +77,8 @@ export const getBetaMod = cache(async (id: string) => {
   return rows[0] ?? null;
 });
 
-export const getOwnBetaMods = cache(async (userId: string) => {
+/** Mods a given user owns — dashboard "Building" tab and profile pages. */
+export const getModsByOwner = cache(async (userId: string) => {
   if (!db) return [];
 
   return db
@@ -175,6 +178,7 @@ export const getBugReportsByModId = cache(async (betaModId: string) => {
       reproSteps: bugReports.reproSteps,
       status: bugReports.status,
       createdAt: bugReports.createdAt,
+      reporterId: bugReports.reporterId,
       reporterName: users.displayName,
       buildVersion: builds.versionLabel,
     })
@@ -421,3 +425,132 @@ export const getMyBugReports = cache(async (userId: string) => {
     .orderBy(desc(bugReports.createdAt))
     .limit(50);
 });
+
+// --- Profiles + reputation (Phase 4: richer profiles) ---
+
+/** Public profile fields — deliberately excludes email/password/keys. */
+export const getUserProfile = cache(async (userId: string) => {
+  if (!db) return null;
+
+  const rows = await db
+    .select({
+      id: users.id,
+      displayName: users.displayName,
+      avatarUrl: users.avatarUrl,
+      bio: users.bio,
+      createdAt: users.createdAt,
+      nexusUserId: users.nexusUserId,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  return rows[0] ?? null;
+});
+
+/**
+ * Aggregates the raw ReadySignal + BugReport rows that feed a user's derived
+ * reputation (see lib/reputation.ts). Returns the count shape the pure
+ * scorer expects — caller computes the score/tier.
+ */
+export const getReputationHistory = cache(
+  async (userId: string): Promise<ReputationHistory> => {
+    if (!db) return emptyReputationHistory;
+
+    const [votes, bugs] = await Promise.all([
+      db
+        .select({
+          betaModId: readySignals.betaModId,
+          isReady: readySignals.isReady,
+        })
+        .from(readySignals)
+        .where(eq(readySignals.testerId, userId)),
+      db
+        .select({ severity: bugReports.severity })
+        .from(bugReports)
+        .where(eq(bugReports.reporterId, userId)),
+    ]);
+
+    const distinctMods = new Set(votes.map((v) => v.betaModId));
+    const readyVotes = votes.filter((v) => v.isReady).length;
+    const notReadyVotes = votes.length - readyVotes;
+    const minorBugs = bugs.filter((b) => b.severity === "minor").length;
+    const majorBugs = bugs.filter((b) => b.severity === "major").length;
+    const blockingBugs = bugs.filter((b) => b.severity === "blocking").length;
+
+    return {
+      distinctModsTested: distinctMods.size,
+      readyVotes,
+      notReadyVotes,
+      minorBugs,
+      majorBugs,
+      blockingBugs,
+    };
+  },
+);
+
+/**
+ * Reputation history for a batch of users — powers per-reporter reputation
+ * badges on mod pages without N+1 queries. Users with no activity get their
+ * id in the map with an empty history, so callers don't need to guess.
+ */
+export const getReputationHistoryByUserIds = cache(
+  async (userIds: string[]): Promise<Map<string, ReputationHistory>> => {
+    const map = new Map<string, ReputationHistory>();
+    if (!db || userIds.length === 0) return map;
+
+    for (const id of userIds) map.set(id, emptyReputationHistory);
+
+    const [votes, bugs] = await Promise.all([
+      db
+        .select({
+          testerId: readySignals.testerId,
+          betaModId: readySignals.betaModId,
+          isReady: readySignals.isReady,
+        })
+        .from(readySignals)
+        .where(inArray(readySignals.testerId, userIds)),
+      db
+        .select({
+          reporterId: bugReports.reporterId,
+          severity: bugReports.severity,
+        })
+        .from(bugReports)
+        .where(inArray(bugReports.reporterId, userIds)),
+    ]);
+
+    const distinct = new Map<string, Set<string>>();
+    const ready = new Map<string, number>();
+    const notReady = new Map<string, number>();
+    const minor = new Map<string, number>();
+    const major = new Map<string, number>();
+    const blocking = new Map<string, number>();
+
+    const bump = (m: Map<string, number>, key: string) =>
+      m.set(key, (m.get(key) ?? 0) + 1);
+
+    for (const v of votes) {
+      if (!distinct.has(v.testerId)) distinct.set(v.testerId, new Set());
+      distinct.get(v.testerId)!.add(v.betaModId);
+      if (v.isReady) bump(ready, v.testerId);
+      else bump(notReady, v.testerId);
+    }
+    for (const b of bugs) {
+      if (b.severity === "minor") bump(minor, b.reporterId);
+      else if (b.severity === "major") bump(major, b.reporterId);
+      else bump(blocking, b.reporterId);
+    }
+
+    for (const id of userIds) {
+      map.set(id, {
+        distinctModsTested: distinct.get(id)?.size ?? 0,
+        readyVotes: ready.get(id) ?? 0,
+        notReadyVotes: notReady.get(id) ?? 0,
+        minorBugs: minor.get(id) ?? 0,
+        majorBugs: major.get(id) ?? 0,
+        blockingBugs: blocking.get(id) ?? 0,
+      });
+    }
+    return map;
+  },
+);

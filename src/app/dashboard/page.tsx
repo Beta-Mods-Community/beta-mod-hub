@@ -7,7 +7,7 @@ import ReportStatusBadge from "@/components/report-status-badge";
 import {
   getFeedbackSummaryByModIds,
   getMyBugReports,
-  getOwnBetaMods,
+  getModsByOwner,
   getUser,
   getVotedModsByUser,
   verifySession,
@@ -37,7 +37,7 @@ export default async function DashboardPage({
     getUser(),
     tab === "building"
       ? (async () => {
-          const myMods = await getOwnBetaMods(session.userId);
+          const myMods = await getModsByOwner(session.userId);
           const summary = await getFeedbackSummaryByModIds(
             myMods.map((m) => m.id),
           );
@@ -115,7 +115,7 @@ function BuildingPanel({
   myMods,
   summary,
 }: {
-  myMods: Awaited<ReturnType<typeof getOwnBetaMods>>;
+  myMods: Awaited<ReturnType<typeof getModsByOwner>>;
   summary: FeedbackSummary;
 }) {
   return (

@@ -136,3 +136,30 @@ export const RequirementFormSchema = z.object({
     })
     .transform((value) => (value ? value : null)),
 });
+
+export const ProfileFormSchema = z.object({
+  displayName: z
+    .string()
+    .min(2, { error: "Name must be at least 2 characters long." })
+    .max(40, { error: "Name must be 40 characters or fewer." })
+    .trim(),
+  bio: z
+    .string()
+    .max(1000, { error: "Bio must be 1,000 characters or fewer." })
+    .trim(),
+  avatarUrl: z
+    .string()
+    .trim()
+    .max(500, { error: "Avatar URL must be 500 characters or fewer." })
+    .refine((value) => value === "" || URL.canParse(value), {
+      error: "Enter a valid image URL, or leave it blank.",
+    })
+    .transform((value) => (value ? value : null)),
+});
+
+export type ProfileFormState =
+  | {
+      errors?: FieldErrors<"displayName" | "bio" | "avatarUrl">;
+      message?: string;
+    }
+  | undefined;

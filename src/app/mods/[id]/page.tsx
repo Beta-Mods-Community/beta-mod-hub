@@ -5,6 +5,7 @@ import { Bug, Download, Package } from "lucide-react";
 import StatusBadge from "@/components/status-badge";
 import SeverityBadge from "@/components/severity-badge";
 import ReportStatusBadge from "@/components/report-status-badge";
+import ReputationBadge from "@/components/reputation-badge";
 import DeleteModButton from "@/components/delete-mod-button";
 import BuildUploadForm from "@/components/build-upload-form";
 import BugReportForm from "@/components/bug-report-form";
@@ -14,8 +15,10 @@ import {
   getBugReportsByModId,
   getMyReadyVote,
   getReadyTally,
+  getReputationHistoryByUserIds,
   getRequirementsByModId,
 } from "@lib/dal";
+import { computeReputation } from "@lib/reputation";
 import { setBugReportStatus, voteReady } from "@lib/feedback";
 import { formatDate } from "@lib/format";
 import { confirmPromotion } from "@lib/promote";
@@ -45,6 +48,18 @@ export default async function BetaModPage({
   const isPromoted = mod.status === "promoted";
   const isOwner = session?.userId === mod.ownerId;
   const myVote = !isOwner && session ? await getMyReadyVote(id, session.userId) : null;
+
+  // Reputation for every reporter who filed on this page — authors use it to
+  // weigh how much to trust a report or its reporter's ready vote.
+  const reporterIds = [...new Set(bugReports.map((r) => r.reporterId).filter(Boolean))];
+  const reputationByUser =
+    reporterIds.length > 0
+      ? await getReputationHistoryByUserIds(reporterIds)
+      : new Map();
+  const reporterScore = (userId: string | null) =>
+    userId && reputationByUser.has(userId)
+      ? computeReputation(reputationByUser.get(userId)!)
+      : null;
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
@@ -80,8 +95,14 @@ export default async function BetaModPage({
               {mod.title}
             </h1>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              by {mod.ownerName ?? "unknown"} · updated{" "}
-              {formatDate(mod.updatedAt)}
+              by{" "}
+              <Link
+                href={`/users/${mod.ownerId}`}
+                className="text-zinc-700 underline-offset-4 hover:underline dark:text-zinc-300"
+              >
+                {mod.ownerName ?? "unknown"}
+              </Link>{" "}
+              · updated {formatDate(mod.updatedAt)}
             </p>
             {mod.tags.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
@@ -436,9 +457,21 @@ export default async function BetaModPage({
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <SeverityBadge severity={report.severity} />
                   <ReportStatusBadge status={report.status} />
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {report.reporterName ?? "unknown"} ·{" "}
-                    {formatDate(report.createdAt)}
+                  <span className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                    {report.reporterId ? (
+                      <Link
+                        href={`/users/${report.reporterId}`}
+                        className="text-zinc-700 underline-offset-4 hover:underline dark:text-zinc-300"
+                      >
+                        {report.reporterName ?? "unknown"}
+                      </Link>
+                    ) : (
+                      report.reporterName ?? "unknown"
+                    )}
+                    {reporterScore(report.reporterId) !== null && (
+                      <ReputationBadge score={reporterScore(report.reporterId)!} />
+                    )}
+                    · {formatDate(report.createdAt)}
                   </span>
                   {report.buildVersion && (
                     <span className="text-xs text-zinc-500 dark:text-zinc-400">
