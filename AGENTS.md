@@ -28,7 +28,7 @@ Uploads always run **quarantine → scan → serve** — nothing is stored or se
 - Then `node scripts/scan-server.mjs` (listens on :3311) and set `SCAN_ENDPOINT=http://127.0.0.1:3311` in `.env.local`.
 - Full loop check: `npm run e2e` (`scripts/e2e-upload.mjs`) — signs in as the demo owner with a minted session cookie, uploads a benign build then an EICAR build over the real no-JS form protocol, and asserts both the sanitize/serve path and the block path.
 
-The deployed Railway app uses the ClamAV sidecar as `SCAN_ENDPOINT`.
+The deployed Oracle VM runs the same scan wrapper against the `deploy/clamav/` ClamAV container as `SCAN_ENDPOINT`.
 
 ## Working style
 

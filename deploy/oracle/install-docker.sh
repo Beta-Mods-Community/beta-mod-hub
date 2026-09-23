@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # --- 4 GiB swapfile ---------------------------------------------------------
-# Oracle Cloud Ampere A1 (6 GB RAM, burst OCPU) — swap is cheap insurance
+# Oracle Cloud Ampere A1 (1 OCPU / 4 GB RAM) — swap is cheap insurance
 # while `docker compose build` is running. Idempotent: rerunning this script
 # leaves an existing swapfile, fstab entry, and sysctl tuning untouched.
 SWAP_FILE=/swapfile

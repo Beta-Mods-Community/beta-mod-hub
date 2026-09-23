@@ -9,8 +9,8 @@ export type ScanResult =
 /**
  * Send an uploaded file's bytes to the configured malware scanner.
  *
- * Protocol (implemented by scripts/scan-server.mjs on a ClamAV host, and by
- * the Railway ClamAV sidecar in production):
+ * Protocol (implemented by scripts/scan-server.mjs on a ClamAV host — local
+ * dev, or the ClamAV sidecar container in production):
  *
  *   POST {SCAN_ENDPOINT}
  *   Authorization: Bearer {MALWARE_SCAN_API_KEY}   (optional, if the service requires it)
