@@ -1,0 +1,52 @@
+name: betamods
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      PORT: "3000"
+      STORAGE_DRIVER: local
+      SCAN_ENDPOINT: http://127.0.0.1:3311
+      CLAMD_HOST: clamav
+      CLAMD_PORT: "3310"
+    volumes:
+      - app-data:/app/data
+    expose:
+      - "3000"
+    depends_on:
+      - clamav
+
+  clamav:
+    build:
+      context: deploy/clamav
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - clamav-db:/var/lib/clamav
+    expose:
+      - "3310"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/oracle/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  app-data:
+  clamav-db:
+  caddy-data:
+  caddy-config:

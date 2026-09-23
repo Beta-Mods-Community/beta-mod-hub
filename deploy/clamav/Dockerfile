@@ -1,8 +1,7 @@
-# ClamAV sidecar for Railway — clamd with limits matching the app's 512 MiB
-# upload cap. On Railway, create this as a second service in the same project
-# (Docker from this folder), expose port 3310, enable private networking.
-# The app service reaches it at clamav.railway.internal:3310.
+# ClamAV sidecar with limits matching the app's 512 MiB upload cap.
+# The Debian image is multi-architecture, so it runs on Oracle Ampere ARM as
+# well as ordinary x86-64 hosts.
 
-FROM clamav/clamav:stable
+FROM clamav/clamav-debian:stable
 
 COPY clamd.conf /etc/clamav/clamd.conf

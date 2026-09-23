@@ -38,11 +38,15 @@ The deployed Railway app uses the ClamAV sidecar as `SCAN_ENDPOINT`.
 - Never commit real secrets. `.env.example` documents what's needed; actual values stay in a local, gitignored `.env.local`.
 - If something in the spec turns out to be wrong once you're working against Nexus's live API (rate limits, field names, response shapes), fix the code to match reality and leave a short note in the spec's relevant section rather than silently diverging from it.
 
-## Hosting decision (locked with the owner)
+## Hosting decision (updated with the owner)
 
-Cloud from day one: **Railway** app (Next.js + ClamAV sidecar), **Neon** Postgres, **Cloudflare R2** storage. No Docker/WSL on the dev machine. Local dev uses `STORAGE_DRIVER=local`; the deployed app must use `r2`. See `env.example`.
+Production: **Oracle Cloud Always Free** Ampere VM running Docker Compose
+(Next.js + ClamAV + Caddy), **Neon Free** Postgres, and a persistent Docker
+volume for uploads. Cloudflare provides DNS/Registrar only. This keeps the
+runtime on hard free-tier limits instead of a usage-billed hosting plan.
+Local dev still uses `STORAGE_DRIVER=local`. See `DEPLOY.md`.
 
-**Domain:** `betamods.com` — registered via Cloudflare Registrar (same account as the series site; separate zone). Parked until deploy; point at Railway when the app is up.
+**Domain:** `betamods.com` — registered via Cloudflare Registrar (same account as the series site; separate zone). Parked until deploy; point at the Oracle VM when the app is healthy.
 
 ## Hard constraints (from the spec, repeated here because they're easy to accidentally violate mid-build)
 

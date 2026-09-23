@@ -1,12 +1,12 @@
 # App service image (Next.js + scan-server HTTP wrapper).
 #
-# On Railway this service is paired with the "clamav" sidecar (see the
+# This service is paired with the "clamav" container (see the
 # `deploy/clamav/` image). scan-server.mjs reaches clamd over the private
-# network; the app calls scan-server on localhost.
+# container network; the app calls scan-server on localhost.
 #
 #   service: app (this Dockerfile)
 #     SCAN_ENDPOINT=http://localhost:3311
-#     CLAMD_HOST=clamav.railway.internal   (Railway private networking)
+#     CLAMD_HOST=clamav                    (Compose private networking)
 #     CLAMD_PORT=3310
 #   service: clamav  ->  deploy/clamav/Dockerfile (clamd, port 3310)
 

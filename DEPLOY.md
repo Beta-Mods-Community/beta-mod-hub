@@ -1,110 +1,93 @@
 # Deploy runbook — betamods.com
 
-Cloud from day one: **Railway** services + **Neon** Postgres + **Cloudflare R2**.
-This doc is ordered end-to-end. Steps marked *(me)* I can run from the repo;
-steps marked *(you)* need your accounts/dashboards.
+Production uses hard free-tier resources: **Oracle Cloud Always Free** for the
+web app and scanner, **Neon Free** for Postgres, and **Cloudflare Free** for DNS.
+No paid Railway service or usage-billed R2 storage is required.
 
 ## Topology
 
-```
-Internet ──► betamods.com ──► Railway app service (:3000, this repo's Dockerfile)
-                                    │  runs: next start + scripts/scan-server.mjs (:3311)
-                                    │
-                                    ├─► SCAN_ENDPOINT=http://localhost:3311
-                                    │       └─► clamd on clamav.railway.internal:3310
-                                    │              (deploy/clamav image, private network)
-                                    │
-                                    ├─► DATABASE_URL  (Neon Postgres)
-                                    └─► STORAGE_*     (Cloudflare R2, betamods-storage)
+```text
+Internet -> betamods.com -> Caddy (:80/:443)
+                              -> Next.js app (:3000)
+                                   -> scan wrapper (:3311, same container)
+                                        -> ClamAV (:3310, private network)
+                                   -> Neon Postgres
+                                   -> /app/data (persistent Docker volume)
 ```
 
-Uploads are always **quarantine → scan → serve**: quarantine is on the app
-instance, the scan goes to the clamd sidecar, and only clean files are
-promoted to R2. No dev exception, and no `SCAN_ENDPOINT` means uploads refuse.
+Uploads remain **quarantine -> scan -> serve**. Both quarantine and clean files
+live on the persistent `app-data` volume; nothing is promoted until ClamAV
+returns clean. If the scanner is unavailable, uploads return 503.
 
-## Step 0 — accounts
+## 1. Oracle Always Free VM
 
-You need: GitHub, Railway (sign in with GitHub), Neon, and the existing
-Cloudflare account (already has betamods.com).
+- Home region: US Midwest (Chicago)
+- Name: `betamods-prod`
+- Shape: `VM.Standard.A1.Flex` marked **Always Free-eligible**
+- Size: 1 OCPU / 6 GB RAM
+- Boot volume: default 50 GB (within the Always Free block-volume allowance)
+- Public subnet and public IPv4 address
+- Existing `id_ed25519_betamods.pub` public key
+- Ingress: TCP 22, 80, and 443 only
 
----
+Do not click **Upgrade**. A Free Tier tenancy cannot turn traffic growth into a
+compute bill; it reaches resource limits instead.
 
-## Step 1 — GitHub repo *(you: create — me: push)*
+## 2. Install Docker
 
-`gh` isn't installed here, so:
+Copy the repository to the VM, then run:
 
-1. github.com → **New repository** → name `beta-mod-hub` → **Private** → no README (repo already has one).
-2. Tell me the repo URL (e.g. `https://github.com/<you>/beta-mod-hub`). I'll add it as `origin` and push `main`.
+```bash
+bash deploy/oracle/install-docker.sh
+```
 
----
+The script installs Docker Engine and the Compose plugin from Docker's CentOS
+repository, which is compatible with Oracle Linux 9 on Ampere ARM.
 
-## Step 2 — Neon Postgres *(you: create — me: schema + seed)*
+## 3. Production environment
 
-1. neon.tech → new project (region near your Railway service, e.g. US East) → copy the pooled `DATABASE_URL`.
-2. Paste it into the repo's local `.env.local` (replace the dev one) — then tell me, and I'll run `npx drizzle-kit push` to apply the schema.
+Create `.env.production` on the VM from `.env.production.example`. It needs only
+the Neon pooled `DATABASE_URL` and `SESSION_SECRET`; production storage and scan
+addresses are fixed safely in `compose.oracle.yml`.
 
-   Demo seed data is dev-only; a fresh public site starts empty. Skip
-   `node scripts/seed-demo.mjs` unless you want a sample mod on launch.
+Do not copy `CLOUDFLARE_API_TOKEN`, R2 credentials, development Nexus keys, or
+the local database backup URL to the VM.
 
----
+## 4. Start and verify
 
-## Step 3 — Railway *(you — I'll write exact values here)*
+```bash
+sudo docker compose -f compose.oracle.yml up -d --build
+sudo docker compose -f compose.oracle.yml ps
+sudo docker compose -f compose.oracle.yml logs --tail=100 app clamav caddy
+```
 
-1. **App service** — New Project → Deploy from GitHub repo → `beta-mod-hub`.
-   - Railway auto-detects the `Dockerfile`.
-   - Settings: **Memory ≥ 1 GB** (the Turbopack build is memory-hungry; can drop to 512 MB after first successful deploy), Healthcheck path `/`.
-2. **ClamAV sidecar** — in the same project, add a second service: **Deploy via Docker image**... actually from source: create service pointed at the `deploy/clamav/` folder (its Dockerfile), or use the image `clamav/clamav:stable` directly.
-   - Exposed port **3310**, TCP. **Private networking enabled**.
-   - Service name `clamav` (this is what makes `clamav.railway.internal` resolve). If you name it differently, override `CLAMD_HOST` on the app service.
-   - First boot downloads the ClamAV signature DB (can take minutes) — clamd reports 503 to the scan wrapper until ready, which uploads surface as "scan service unavailable". Graceful, not silent.
+The first ClamAV start downloads signatures and can take several minutes.
+Verify locally on the VM before changing DNS:
 
-3. **Env vars on the app service** — copy the secret values from the repo's
-   `.env.local` (never commit them):
+```bash
+curl --fail http://127.0.0.1:3000/
+```
 
-   | Variable | Value |
-   |---|---|
-   | `DATABASE_URL` | Neon pooled URL |
-   | `SESSION_SECRET` | random long string (use the one from `.env.local`) |
-   | `STORAGE_DRIVER` | `r2` |
-   | `STORAGE_ENDPOINT` | `https://<accountid>.r2.cloudflarestorage.com` (from `.env.local`) |
-   | `STORAGE_BUCKET` | `betamods-storage` |
-   | `STORAGE_ACCESS_KEY` | R2 access key (from `.env.local`) |
-   | `STORAGE_SECRET_KEY` | R2 secret (from `.env.local`) |
-   | `SCAN_ENDPOINT` | `http://localhost:3311` |
-   | `CLAMD_HOST` | `clamav.railway.internal` |
-   | `CLAMD_PORT` | `3310` |
-   | `SCAN_API_KEY` | optional shared secret for the scan wrapper |
-   | `MALWARE_SCAN_API_KEY` | same value as `SCAN_API_KEY` if set (the app sends it; the wrapper checks `SCAN_API_KEY`) |
+Then run the real upload checks: a benign build must be stored and downloadable,
+and an EICAR test file must be rejected.
 
-   Don't ship `NEXUS_PERSONAL_API_KEY` (dev only) or `NEXUS_SSO_*` (set when
-   SSO registration lands).
+## 5. DNS and TLS
 
-4. Deploy. Verify service logs show `scan server listening` and Next ready.
+After the app and ClamAV are healthy:
 
----
+1. Cloudflare DNS: `A @ -> <Oracle public IPv4>`, DNS-only initially.
+2. Add `CNAME www -> @`, DNS-only initially.
+3. Allow TCP 80 and 443 in the Oracle VCN security list and host firewall.
+4. Caddy obtains Let's Encrypt certificates automatically.
+5. Verify `https://betamods.com`, then optionally enable Cloudflare proxying
+   with SSL/TLS mode **Full (strict)**.
 
-## Step 4 — betamods.com DNS *(you — Cloudflare)*
+## 6. Backups and limits
 
-1. Railway app → Settings → **Domains** → add `betamods.com` (and `www` if you want) → Railway shows a CNAME target like `<app>.up.railway.app`.
-2. Cloudflare → DNS for `betamods.com` → add a **CNAME record**:
-   - Name: `betamods.com` (root) — Cloudflare may want a `@` record; use `@` → `<app>.up.railway.app`.
-   - **Proxy status: DNS only (grey cloud)** — Railway needs to see real origin requests; proxying breaks its TLS/domain verification.
-3. Back on Railway, it provisions the cert (HTTPS auto).
-
----
-
-## Step 5 — verify *(me, once the app is reachable)*
-
-- `GET https://betamods.com/` → 200, public home.
-- `GET /browse` / `/mods/<id>` render.
-- A real upload through the UI lands in R2 (`betamods-storage`) and files
-  download byte-identical; a test with the EICAR string is refused with
-  "Upload blocked", and the sidecar's quarantine stays empty.
-
-## Ops notes
-
-- `.dockerignore` excludes `.env*` — secrets never enter the image. All
-  secrets come from Railway env vars / Neon.
-- If you ever need to re-provision R2 creds, `node scripts/setup-r2.mjs`
-  (needs a bootstrap token as `CLOUDFLARE_API_TOKEN` in `.env.local`).
-- Local dev still uses `STORAGE_DRIVER=local` + a local clamd + `SCAN_ENDPOINT=http://127.0.0.1:3311`; the deployed app uses R2 + the sidecar. Both paths are covered by `npm run e2e`.
+- The Docker volume survives container rebuilds but not accidental VM/volume
+  deletion. Add an Always Free block-volume backup after launch.
+- Keep total Oracle boot + block volumes within the 200 GB Always Free pool.
+- Neon Free and the Oracle VM stop or throttle at their limits rather than
+  silently scaling this deployment onto paid resources.
+- Leave the Railway project in place until this deployment passes the upload
+  tests; delete it afterward to avoid confusion.
