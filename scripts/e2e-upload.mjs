@@ -8,8 +8,12 @@
 // Checks (fails the run if any fails):
 //   1. benign upload -> 303 redirect + builds row inserted
 //   2. stored file bytes == fixture bytes (quarantine ended up promoted)
+//      — walks ./data/uploads (local driver) or fetches from R2 (r2 driver)
 //   3. GET /files/<buildId> serves identical bytes
 //   4. EICAR upload -> blocked, no builds row, quarantine left empty
+//
+// Driver awareness: storage is "local" unless STORAGE_DRIVER=r2 in .env.local.
+// The quarantine always lives on local disk, so the EICAR checks are driver-free.
 //
 // Prereqs: dev server on :3000, clamd + scan-server running (SCAN_ENDPOINT
 // set), demo dataset seeded (scripts/seed-demo.mjs).
@@ -31,6 +35,7 @@ const env = (key) => {
 
 const DATABASE_URL = env("DATABASE_URL");
 const SESSION_SECRET = env("SESSION_SECRET");
+const STORAGE_DRIVER = env("STORAGE_DRIVER") || "local";
 const BASE = "http://localhost:3000";
 const DEMO_OWNER_EMAIL = "demo-owner@betamods.test";
 const DEMO_MOD_TITLE = "Demo: Emberwood Weapon Pack (Beta)";
@@ -50,6 +55,31 @@ const check = (name, ok, extra = "") =>
   results.push(`${ok ? "PASS" : "FAIL"}  ${name}${extra ? `  (${extra})` : ""}`);
 
 const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
+
+let s3Client = null;
+/** Fetch a stored object's bytes from R2, mirroring lib/storage.ts config. */
+async function getStoredFromR2(key) {
+  const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+  if (!s3Client) {
+    s3Client = new S3Client({
+      region: "auto",
+      endpoint: env("STORAGE_ENDPOINT"),
+      credentials: {
+        accessKeyId: env("STORAGE_ACCESS_KEY"),
+        secretAccessKey: env("STORAGE_SECRET_KEY"),
+      },
+    });
+  }
+  try {
+    const out = await s3Client.send(
+      new GetObjectCommand({ Bucket: env("STORAGE_BUCKET"), Key: key }),
+    );
+    if (!out.Body) return null;
+    return Buffer.from(await out.Body.transformToByteArray());
+  } catch {
+    return null;
+  }
+}
 
 async function mintSessionCookie(userId) {
   const token = await new SignJWT({ userId })
@@ -155,24 +185,30 @@ try {
 
   // ---- 2. Bytes at rest === fixture --------------------------------------
   let storedSha = null;
-  let storedPath = null;
+  let storedAt = null;
   if (buildRow[0]) {
-    const uploadsDir = path.join(root, "data", "uploads");
-    const lastSegment = buildRow[0].file_url.split("/").pop();
-    const walk = (dir) => {
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) walk(full);
-        else if (entry.name === lastSegment) {
-          storedPath = full;
-          storedSha = sha256(readFileSync(full));
+    if (STORAGE_DRIVER === "r2") {
+      const bytes = await getStoredFromR2(buildRow[0].file_url);
+      storedSha = bytes ? sha256(bytes) : null;
+      storedAt = `r2://${env("STORAGE_BUCKET")}/${buildRow[0].file_url}`;
+    } else {
+      const uploadsDir = path.join(root, "data", "uploads");
+      const lastSegment = buildRow[0].file_url.split("/").pop();
+      const walk = (dir) => {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) walk(full);
+          else if (entry.name === lastSegment) {
+            storedAt = full;
+            storedSha = sha256(readFileSync(full));
+          }
         }
-      }
-    };
-    walk(uploadsDir);
+      };
+      walk(uploadsDir);
+    }
   }
   check("stored bytes == fixture bytes", storedSha === fixtureSha, `stored ${storedSha?.slice(0, 12) ?? "?"} vs fixture ${fixtureSha.slice(0, 12)}`);
-  console.log("stored at:", storedPath);
+  console.log("stored at:", storedAt);
 
   // ---- 3. Serve: GET /files/<buildId> ------------------------------------
   if (buildRow[0]) {
