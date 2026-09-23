@@ -32,7 +32,7 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import postgres from "postgres";
@@ -57,6 +57,7 @@ const env = (key) => {
 const results = [];
 const check = (name, ok, extra = "") =>
   results.push(`${ok ? "PASS" : "FAIL"}  ${name}${extra ? `  (${extra})` : ""}`);
+const progress = (msg) => console.log(`· ${msg} ...`);
 const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
 
 if (!env("DATABASE_URL")) {
@@ -76,16 +77,19 @@ async function makeBenignZip() {
       cb();
     },
   });
+  // Attach the completion promise BEFORE finalize so the 'finish' event can't
+  // fire before we're listening for it.
+  const finished = new Promise((resolve, reject) => {
+    sink.on("finish", resolve);
+    sink.on("error", reject);
+  });
   archive.pipe(sink);
   archive.append(
     `betamods production smoke build ${new Date().toISOString()}\n`,
     { name: "SMOKE.txt" },
   );
   await archive.finalize();
-  await new Promise((resolve, reject) => {
-    sink.on("finish", resolve);
-    sink.on("error", reject);
-  });
+  await finished;
   return Buffer.concat(chunks);
 }
 
@@ -329,17 +333,30 @@ async function fullUploadPipeline() {
     }
     let removedFile = true;
     if (fileUrl && removedRow) {
-      try {
-        await execFileAsync("docker", [
-          "compose", "-f", COMPOSE_FILE, "exec", "-T", "app",
-          "sh", "-c", `rm -f '/app/data/uploads/${fileUrl}'`,
-        ]);
-      } catch (e) {
-        removedFile = false;
-        console.error(
-          `WARN: could not delete stored smoke file ${fileUrl} — remove it manually:`,
-          e.message,
-        );
+      const localPath = path.join(root, "data", "uploads", fileUrl);
+      if (existsSync(localPath)) {
+        // Local rehearsal (STORAGE_DRIVER=local on this host).
+        try {
+          unlinkSync(localPath);
+        } catch (e) {
+          removedFile = false;
+          console.error(`WARN: could not delete ${localPath}:`, e.message);
+        }
+      } else {
+        // On the VM the uploads live in the named Docker volume, not on a
+        // host path — remove it inside the container instead.
+        try {
+          await execFileAsync("docker", [
+            "compose", "-f", COMPOSE_FILE, "exec", "-T", "app",
+            "sh", "-c", `rm -f '/app/data/uploads/${fileUrl}'`,
+          ]);
+        } catch (e) {
+          removedFile = false;
+          console.error(
+            `WARN: could not delete stored smoke file ${fileUrl} — remove it manually:`,
+            e.message,
+          );
+        }
       }
     }
     if (buildId || fileUrl) {
@@ -353,11 +370,16 @@ async function fullUploadPipeline() {
 }
 
 try {
+  progress("containers");
   await checkContainers();
+  progress("app/HTTPS readiness");
   await checkAppReadiness();
+  progress("database connectivity");
   await checkDatabase();
+  progress("scan chain (benign + EICAR)");
   await checkScanChain();
   if (FULL) {
+    progress("full upload pipeline");
     await fullUploadPipeline();
   } else {
     check("--full upload pipeline (read-only run)", true, "skipped — rerun with --full");
