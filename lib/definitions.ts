@@ -43,3 +43,34 @@ export type LoginFormState =
       message?: string;
     }
   | undefined;
+
+export const BetaModStatusForm = z.enum(["alpha", "beta", "rc", "abandoned"]);
+
+export const BetaModFormSchema = z.object({
+  title: z
+    .string()
+    .min(3, { error: "Title must be at least 3 characters long." })
+    .max(80, { error: "Title must be 80 characters or fewer." })
+    .trim(),
+  game: z
+    .string()
+    .min(1, { error: "Enter the game this mod is for." })
+    .max(60, { error: "Game name must be 60 characters or fewer." })
+    .trim(),
+  tags: z
+    .string()
+    .max(200, { error: "Keep tags under 200 characters." })
+    .trim(),
+  description: z
+    .string()
+    .max(10000, { error: "Description must be 10,000 characters or fewer." })
+    .trim(),
+  status: BetaModStatusForm,
+});
+
+export type BetaModFormState =
+  | {
+      errors?: FieldErrors<"title" | "game" | "tags" | "description" | "status">;
+      message?: string;
+    }
+  | undefined;

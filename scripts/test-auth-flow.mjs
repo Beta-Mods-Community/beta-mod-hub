@@ -43,7 +43,6 @@ try {
   // 3. Session round trip (same secret the app uses)
   const secret = env("SESSION_SECRET") ?? "dev-insecure-secret-change-me";
   const key = new TextEncoder().encode(secret);
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const token = await new SignJWT({ userId: user.id })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()

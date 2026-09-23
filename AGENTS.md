@@ -32,6 +32,8 @@ Windows note: call npm as `npm.cmd` inside a shell — PowerShell's execution po
 
 Cloud from day one: **Railway** app (Next.js + ClamAV sidecar), **Neon** Postgres, **Cloudflare R2** storage. No Docker/WSL on the dev machine. Local dev uses `STORAGE_DRIVER=local`; the deployed app must use `r2`. See `env.example`.
 
+**Domain:** `betamods.com` — registered via Cloudflare Registrar (same account as the series site; separate zone). Parked until deploy; point at Railway when the app is up.
+
 ## Hard constraints (from the spec, repeated here because they're easy to accidentally violate mid-build)
 
 - No browser automation against nexusmods.com. API only.
