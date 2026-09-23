@@ -9,8 +9,25 @@ import { SignJWT, jwtVerify } from "jose";
  * shape stays the same.
  */
 
-const secretKey = process.env.SESSION_SECRET ?? "dev-insecure-secret-change-me";
-const encodedKey = new TextEncoder().encode(secretKey);
+/**
+ * SESSION_SECRET guards: production refuses to sign sessions with a
+ * hardcoded fallback key (that would let anyone forge a session). The dev
+ * fallback exists only so `next dev` works with no env file. The key is
+ * resolved lazily so a missing secret fails loudly at first use rather than
+ * silently weakening auth.
+ */
+function getSecretKey(): Uint8Array {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "SESSION_SECRET is not set — refusing to sign sessions with a known key in production.",
+      );
+    }
+    return new TextEncoder().encode("dev-insecure-secret-change-me");
+  }
+  return new TextEncoder().encode(secret);
+}
 
 export type SessionPayload = {
   userId: string;
@@ -22,12 +39,12 @@ export async function encrypt(payload: SessionPayload) {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(encodedKey);
+    .sign(getSecretKey());
 }
 
 export async function decrypt(session: string | undefined = "") {
   try {
-    const { payload } = await jwtVerify(session, encodedKey, {
+    const { payload } = await jwtVerify(session, getSecretKey(), {
       algorithms: ["HS256"],
     });
     return payload as { userId: string };
