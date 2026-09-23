@@ -1,0 +1,13 @@
+# Never bake secrets or local state into the image.
+.env*
+!env.example
+
+.git
+.gitignore
+
+node_modules
+data
+.next
+npm-debug.log*
+
+*.md
