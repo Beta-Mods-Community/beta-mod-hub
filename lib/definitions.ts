@@ -116,3 +116,23 @@ export type BugReportFormState =
       message?: string;
     }
   | undefined;
+
+export const PromotionConfirmSchema = z.object({
+  nexusUrl: z.url({ error: "Enter the live Nexus page URL (https://…)." }),
+});
+
+export const RequirementFormSchema = z.object({
+  nexusModName: z
+    .string()
+    .min(1, { error: "Enter the required mod's name." })
+    .max(120, { error: "Requirement name must be 120 characters or fewer." })
+    .trim(),
+  nexusModUrl: z
+    .string()
+    .trim()
+    .max(500, { error: "Requirement URL must be 500 characters or fewer." })
+    .refine((value) => value === "" || URL.canParse(value), {
+      error: "Enter a valid URL, or leave it blank.",
+    })
+    .transform((value) => (value ? value : null)),
+});

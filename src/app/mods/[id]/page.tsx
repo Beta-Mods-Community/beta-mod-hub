@@ -14,31 +14,58 @@ import {
   getBugReportsByModId,
   getMyReadyVote,
   getReadyTally,
+  getRequirementsByModId,
 } from "@lib/dal";
 import { setBugReportStatus, voteReady } from "@lib/feedback";
 import { formatDate } from "@lib/format";
+import { confirmPromotion } from "@lib/promote";
+import { addRequirement, removeRequirement } from "@lib/requirements";
 import { getSession } from "@lib/session";
 
 export default async function BetaModPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ promote?: string; req?: string }>;
 }) {
   const { id } = await params;
-  const [mod, builds, bugReports, tally, session] = await Promise.all([
-    getBetaMod(id),
-    getBuildsByModId(id),
-    getBugReportsByModId(id),
-    getReadyTally(id),
-    getSession(),
-  ]);
+  const { promote, req } = await searchParams;
+  const [mod, builds, bugReports, tally, requirements, session] =
+    await Promise.all([
+      getBetaMod(id),
+      getBuildsByModId(id),
+      getBugReportsByModId(id),
+      getReadyTally(id),
+      getRequirementsByModId(id),
+      getSession(),
+    ]);
   if (!mod) notFound();
 
+  const isPromoted = mod.status === "promoted";
   const isOwner = session?.userId === mod.ownerId;
   const myVote = !isOwner && session ? await getMyReadyVote(id, session.userId) : null;
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
+      {/* Promoted — the beta page is read-only and links to its Nexus home */}
+      {isPromoted && (
+        <section className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-6 dark:border-emerald-900 dark:bg-emerald-950/40">
+          <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+            This beta has been promoted — it now lives on Nexus. This page is
+            read-only.
+          </p>
+          {mod.nexusUrl && (
+            <Link
+              href={mod.nexusUrl}
+              className="mt-2 inline-block text-sm font-medium text-emerald-900 underline-offset-4 hover:underline dark:text-emerald-100"
+            >
+              View on Nexus →
+            </Link>
+          )}
+        </section>
+      )}
+
       {/* Header */}
       <div className="rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-wrap items-start justify-between gap-6">
@@ -68,7 +95,7 @@ export default async function BetaModPage({
                 ))}
               </div>
             )}
-            {isOwner && (
+            {isOwner && !isPromoted && (
               <div className="mt-6 flex items-center gap-3">
                 <Link
                   href={`/mods/${mod.id}/edit`}
@@ -97,7 +124,11 @@ export default async function BetaModPage({
               testers say ready
             </p>
 
-            {isOwner ? (
+            {isPromoted ? (
+              <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+                Voting closed — this beta has been promoted.
+              </p>
+            ) : isOwner ? (
               <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
                 Votes come from testers — authors don&apos;t vote on their own
                 betas.
@@ -157,6 +188,94 @@ export default async function BetaModPage({
         )}
       </section>
 
+      {/* Requirements — author-declared; feeds the promotion package */}
+      {(requirements.length > 0 || (isOwner && !isPromoted)) && (
+        <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+            Requirements
+          </h2>
+
+          {requirements.length === 0 ? (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              No requirements recorded yet.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {requirements.map((reqItem) => (
+                <li
+                  key={reqItem.id}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <span className="min-w-0 truncate">
+                    {reqItem.nexusModUrl ? (
+                      <a
+                        href={reqItem.nexusModUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-zinc-700 underline-offset-4 hover:underline dark:text-zinc-300"
+                      >
+                        {reqItem.nexusModName}
+                      </a>
+                    ) : (
+                      <span className="text-zinc-700 dark:text-zinc-300">
+                        {reqItem.nexusModName}
+                      </span>
+                    )}
+                  </span>
+                  {isOwner && !isPromoted && (
+                    <form
+                      action={removeRequirement.bind(null, reqItem.id)}
+                      className="shrink-0"
+                    >
+                      <button
+                        type="submit"
+                        className="text-xs text-zinc-500 underline-offset-4 hover:text-zinc-950 hover:underline dark:text-zinc-400 dark:hover:text-zinc-50"
+                      >
+                        Remove
+                      </button>
+                    </form>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {isOwner && !isPromoted && (
+            <form
+              action={addRequirement}
+              className="mt-4 flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800"
+            >
+              {req === "invalid" && (
+                <p className="w-full text-xs text-red-600 dark:text-red-400">
+                  Check the requirement fields — name is required and the URL
+                  must be valid.
+                </p>
+              )}
+              <input type="hidden" name="betaModId" value={mod.id} />
+              <input
+                name="nexusModName"
+                required
+                maxLength={120}
+                placeholder="Required mod name"
+                className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+              />
+              <input
+                name="nexusModUrl"
+                maxLength={500}
+                placeholder="https://www.nexusmods.com/… (optional)"
+                className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+              />
+              <button
+                type="submit"
+                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:border-zinc-500 hover:text-zinc-950 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500 dark:hover:text-zinc-50"
+              >
+                Add
+              </button>
+            </form>
+          )}
+        </section>
+      )}
+
       {/* Files */}
       <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mb-3 flex items-center gap-2">
@@ -203,12 +322,94 @@ export default async function BetaModPage({
           </ul>
         )}
 
-        {isOwner && (
+        {isOwner && !isPromoted && (
           <div className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-800">
             <BuildUploadForm betaModId={mod.id} />
           </div>
         )}
       </section>
+
+      {/* Promotion — owner only; package download + confirm (spec "Promotion flow") */}
+      {isOwner && !isPromoted && (
+        <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+            Promotion
+          </h2>
+          <p className="text-sm leading-6 text-zinc-700 dark:text-zinc-300">
+            Download the package below and use it top-to-bottom when creating
+            your Nexus page — each file is a paste target for a specific step.
+            The build archive is included, ready to drag into Files.
+          </p>
+          <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <li>
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                description.bbcode.txt
+              </span>{" "}
+              — paste into the Description field (BBCode)
+            </li>
+            <li>
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                summary.txt / readme.txt / changelog.txt
+              </span>{" "}
+              — short description, Docs, and changelog steps
+            </li>
+            <li>
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                requirements.txt
+              </span>{" "}
+              — dependency checklist (search-and-link, not paste)
+            </li>
+            <li>
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                files/
+              </span>{" "}
+              — the mod archive;{" "}
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                media/
+              </span>{" "}
+              is not generated yet — no screenshot support
+            </li>
+          </ul>
+
+          <a
+            href={`/mods/${mod.id}/promotion/download`}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:border-zinc-500 hover:text-zinc-950 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500 dark:hover:text-zinc-50"
+          >
+            <Download className="h-4 w-4" />
+            Download promotion package
+          </a>
+
+          <form
+            action={confirmPromotion}
+            className="mt-6 flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800"
+          >
+            {promote === "invalid" && (
+              <p className="w-full text-xs text-red-600 dark:text-red-400">
+                That doesn&apos;t look like a valid URL — paste the full
+                https://… Nexus page.
+              </p>
+            )}
+            <input type="hidden" name="betaModId" value={mod.id} />
+            <input
+              type="url"
+              name="nexusUrl"
+              required
+              placeholder="https://www.nexusmods.com/…/mods/123"
+              className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+            />
+            <button
+              type="submit"
+              className="rounded-md bg-zinc-950 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
+            >
+              Mark promoted
+            </button>
+          </form>
+          <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+            Marking promoted moves the mod off Browse and makes this page
+            read-only.
+          </p>
+        </section>
+      )}
 
       {/* Bugs — structured reports only, no comment wall */}
       <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
@@ -257,7 +458,7 @@ export default async function BetaModPage({
                   </div>
                 )}
 
-                {isOwner && report.status !== "fixed" && (
+                {isOwner && !isPromoted && report.status !== "fixed" && (
                   <div className="mt-3 flex gap-2 text-xs">
                     {report.status === "open" && (
                       <form
@@ -281,7 +482,7 @@ export default async function BetaModPage({
                     </form>
                   </div>
                 )}
-                {isOwner && report.status === "fixed" && (
+                {isOwner && !isPromoted && report.status === "fixed" && (
                   <form
                     action={setBugReportStatus.bind(null, report.id, "open")}
                     className="mt-3"
@@ -296,7 +497,11 @@ export default async function BetaModPage({
           </ul>
         )}
 
-        {session ? (
+        {isPromoted ? (
+          <p className="mt-6 border-t border-zinc-200 pt-6 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+            This beta is promoted — new bug reports are closed.
+          </p>
+        ) : session ? (
           <div className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-800">
             <BugReportForm betaModId={mod.id} />
           </div>

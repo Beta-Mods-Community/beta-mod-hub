@@ -7,7 +7,7 @@ import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { db } from "./db";
 import { decrypt } from "./session";
-import { betaMods, bugReports, builds, readySignals, users } from "../db/schema";
+import { betaMods, bugReports, builds, readySignals, requirements, users } from "../db/schema";
 
 /**
  * Data Access Layer — centralizes auth checks and user data access, per the
@@ -55,6 +55,7 @@ const betaModColumns = {
   game: betaMods.game,
   tags: betaMods.tags,
   status: betaMods.status,
+  nexusUrl: betaMods.nexusUrl,
   createdAt: betaMods.createdAt,
   updatedAt: betaMods.updatedAt,
   ownerId: betaMods.ownerId,
@@ -143,6 +144,22 @@ export const getBuildsByModId = cache(async (betaModId: string) => {
     .from(builds)
     .where(eq(builds.betaModId, betaModId))
     .orderBy(desc(builds.uploadedAt));
+});
+
+// --- Requirement data access (feeds the promotion package) ---
+
+export const getRequirementsByModId = cache(async (betaModId: string) => {
+  if (!db) return [];
+
+  return db
+    .select({
+      id: requirements.id,
+      nexusModName: requirements.nexusModName,
+      nexusModUrl: requirements.nexusModUrl,
+    })
+    .from(requirements)
+    .where(eq(requirements.betaModId, betaModId))
+    .orderBy(desc(requirements.nexusModName));
 });
 
 // --- Feedback data access (structured bug reports + ready votes) ---
