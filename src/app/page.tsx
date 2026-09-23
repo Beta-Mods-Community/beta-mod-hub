@@ -54,7 +54,7 @@ export default function Home() {
           </h1>
           <p className="max-w-xl text-base leading-7 text-zinc-600 dark:text-zinc-400">
             Your first Nexus release is your only shot at the spotlight.
-            Beta Mod Hub lets you get real testing and structured bug reports on
+            Beta Mods lets you get real testing and structured bug reports on
             a work-in-progress build — then promotes to Nexus with minimum
             friction.
           </p>

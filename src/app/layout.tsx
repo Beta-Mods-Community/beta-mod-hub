@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Beta Mod Hub",
-    template: "%s · Beta Mod Hub",
+    default: "Beta Mods",
+    template: "%s · Beta Mods",
   },
   description:
     "Pre-release mod hosting for the Nexus community — test WIP builds, file structured bug reports, and promote to Nexus when ready.",
