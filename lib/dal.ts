@@ -240,3 +240,167 @@ export const getFeedbackSummaryByModIds = cache(
     return summary;
   },
 );
+
+// --- Browse feed + dashboard Testing tab ---
+
+export type BrowseSort = "newest" | "needs-testers";
+
+/**
+ * Active betas for /browse with per-mod test activity attached:
+ * tester count (distinct voters), open bug count, ready tally, and build
+ * recency. "needs-testers" prioritizes the fewest testers, then the
+ * longest-stale mod (oldest activity) — the mods most desperate for people.
+ */
+export const getBrowseFeed = cache(
+  async (game?: string, sort: BrowseSort = "newest") => {
+    if (!db) return [];
+
+    const mods = await listActiveBetaMods(game);
+    if (mods.length === 0) return [];
+
+    const ids = mods.map((m) => m.id);
+    const [votes, bugs, buildRows] = await Promise.all([
+      db
+        .select({
+          betaModId: readySignals.betaModId,
+          testerId: readySignals.testerId,
+          isReady: readySignals.isReady,
+        })
+        .from(readySignals)
+        .where(inArray(readySignals.betaModId, ids)),
+      db
+        .select({ betaModId: bugReports.betaModId, status: bugReports.status })
+        .from(bugReports)
+        .where(inArray(bugReports.betaModId, ids)),
+      db
+        .select({
+          betaModId: builds.betaModId,
+          uploadedAt: builds.uploadedAt,
+        })
+        .from(builds)
+        .where(inArray(builds.betaModId, ids)),
+    ]);
+
+    const agg = new Map<
+      string,
+      {
+        testerCount: number;
+        openBugs: number;
+        ready: number;
+        total: number;
+        buildCount: number;
+        lastBuildAt: Date | null;
+      }
+    >();
+    for (const id of ids) {
+      agg.set(id, {
+        testerCount: 0,
+        openBugs: 0,
+        ready: 0,
+        total: 0,
+        buildCount: 0,
+        lastBuildAt: null,
+      });
+    }
+
+    const testers = new Map<string, Set<string>>();
+    for (const v of votes) {
+      const entry = agg.get(v.betaModId);
+      if (!entry) continue;
+      entry.total++;
+      if (v.isReady) entry.ready++;
+      if (!testers.has(v.betaModId)) testers.set(v.betaModId, new Set());
+      testers.get(v.betaModId)!.add(v.testerId);
+    }
+    for (const [modId, set] of testers) {
+      const entry = agg.get(modId);
+      if (entry) entry.testerCount = set.size;
+    }
+    for (const b of bugs) {
+      const entry = agg.get(b.betaModId);
+      if (entry && b.status === "open") entry.openBugs++;
+    }
+    for (const row of buildRows) {
+      const entry = agg.get(row.betaModId);
+      if (entry) {
+        entry.buildCount++;
+        if (!entry.lastBuildAt || row.uploadedAt > entry.lastBuildAt) {
+          entry.lastBuildAt = row.uploadedAt;
+        }
+      }
+    }
+
+    const feed = mods.map((m) => ({ ...m, ...agg.get(m.id)! }));
+    if (sort === "needs-testers") {
+      feed.sort(
+        (a, b) =>
+          a.testerCount - b.testerCount ||
+          a.updatedAt.getTime() - b.updatedAt.getTime(),
+      );
+    }
+    return feed;
+  },
+);
+
+/** Mods the user has voted on, with their vote and the current tally. */
+export const getVotedModsByUser = cache(async (userId: string) => {
+  if (!db) return [];
+
+  const votes = await db
+    .select({
+      betaModId: readySignals.betaModId,
+      isReady: readySignals.isReady,
+      votedAt: readySignals.createdAt,
+    })
+    .from(readySignals)
+    .where(eq(readySignals.testerId, userId))
+    .orderBy(desc(readySignals.createdAt));
+  if (votes.length === 0) return [];
+
+  const ids = votes.map((v) => v.betaModId);
+  const [mods, summary] = await Promise.all([
+    db
+      .select(betaModColumns)
+      .from(betaMods)
+      .leftJoin(users, eq(users.id, betaMods.ownerId))
+      .where(inArray(betaMods.id, ids)),
+    getFeedbackSummaryByModIds(ids),
+  ]);
+
+  return votes.flatMap((vote) => {
+    const mod = mods.find((m) => m.id === vote.betaModId);
+    if (!mod) return [];
+    const s = summary.get(vote.betaModId);
+    return [
+      {
+        ...mod,
+        myVote: vote.isReady,
+        votedAt: vote.votedAt,
+        ready: s?.ready ?? 0,
+        total: s?.total ?? 0,
+        openBugs: s?.openBugs ?? 0,
+      },
+    ];
+  });
+});
+
+/** Bug reports the user has filed, joined against their mods. */
+export const getMyBugReports = cache(async (userId: string) => {
+  if (!db) return [];
+
+  return db
+    .select({
+      id: bugReports.id,
+      severity: bugReports.severity,
+      status: bugReports.status,
+      description: bugReports.description,
+      createdAt: bugReports.createdAt,
+      betaModId: bugReports.betaModId,
+      modTitle: betaMods.title,
+    })
+    .from(bugReports)
+    .innerJoin(betaMods, eq(betaMods.id, bugReports.betaModId))
+    .where(eq(bugReports.reporterId, userId))
+    .orderBy(desc(bugReports.createdAt))
+    .limit(50);
+});

@@ -1,8 +1,9 @@
 import Link from "next/link";
 
 import GameFilter from "@/components/game-filter";
+import SortSelect from "@/components/sort-select";
 import StatusBadge from "@/components/status-badge";
-import { listActiveBetaMods, listBetaModGames } from "@lib/dal";
+import { getBrowseFeed, listBetaModGames } from "@lib/dal";
 import { formatDate } from "@lib/format";
 
 export const metadata = { title: "Browse" };
@@ -10,29 +11,41 @@ export const metadata = { title: "Browse" };
 export default async function BrowsePage({
   searchParams,
 }: {
-  searchParams: Promise<{ game?: string }>;
+  searchParams: Promise<{ game?: string; sort?: string }>;
 }) {
-  const { game } = await searchParams;
+  const { game, sort } = await searchParams;
+  const sortKey = sort === "needs-testers" ? "needs-testers" : "newest";
   const [mods, games] = await Promise.all([
-    listActiveBetaMods(game || undefined),
+    getBrowseFeed(game || undefined, sortKey),
     listBetaModGames(),
   ]);
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-        Browse active betas
-      </h1>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Beta mods looking for testers.
-      </p>
-
-      <div className="mb-8 mt-6">
-        <GameFilter games={games} current={game} />
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+            Browse active betas
+          </h1>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            Beta mods looking for testers.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-4">
+          <GameFilter games={games} current={game} />
+          <SortSelect current={sortKey} game={game} />
+        </div>
       </div>
 
+      {sortKey === "needs-testers" && mods.length > 0 && (
+        <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          Sorted by fewest testers first, then longest without a new build —
+          these are the betas that need you most.
+        </p>
+      )}
+
       {mods.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-zinc-300 p-10 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+        <p className="mt-8 rounded-lg border border-dashed border-zinc-300 p-10 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
           No active betas{game ? ` for ${game}` : ""} yet — be the first to{" "}
           <Link
             href="/mods/new"
@@ -43,7 +56,7 @@ export default async function BrowsePage({
           .
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {mods.map((mod) => (
             <Link
               key={mod.id}
@@ -62,6 +75,24 @@ export default async function BrowsePage({
               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                 {mod.game} · by {mod.ownerName ?? "unknown"}
               </p>
+
+              <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-400">
+                {mod.testerCount}{" "}
+                {mod.testerCount === 1 ? "tester" : "testers"} ·{" "}
+                {mod.openBugs} open{" "}
+                {mod.openBugs === 1 ? "bug" : "bugs"} · {mod.ready}/{mod.total}{" "}
+                ready
+              </p>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {mod.buildCount === 0
+                  ? "no builds yet"
+                  : `${mod.buildCount} ${
+                      mod.buildCount === 1 ? "build" : "builds"
+                    } · last ${formatDate(
+                      mod.lastBuildAt ?? mod.updatedAt,
+                    )}`}
+              </p>
+
               {mod.tags.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {mod.tags.map((tag) => (
