@@ -1,5 +1,19 @@
 name: betamods
 
+# Oracle Always Free deployment stack (Next.js + ClamAV + Caddy).
+#
+# Startup is fail-closed: nothing serves until ClamAV answers.
+#   app    waits for clamav  (service_healthy) — clamd must be scanning
+#   caddy  waits for app     (service_healthy) — no traffic before the app
+#          is ready. If clamd never becomes healthy the app never starts;
+#          if it dies mid-run, uploads 503 instead of skipping the scan.
+#
+# Health checks:
+#   app    Dockerfile HEALTHCHECK (HTTP GET :3000 via wget).
+#   clamav image ships a built-in `clamdcheck.sh` (clamd PING -> PONG) with a
+#         6-minute start period for the first signature download — mirrored
+#         explicitly below so the timing is visible in this file.
+
 services:
   app:
     build:
@@ -19,13 +33,20 @@ services:
     expose:
       - "3000"
     depends_on:
-      - clamav
+      clamav:
+        condition: service_healthy
 
   clamav:
     build:
       context: deploy/clamav
       dockerfile: Dockerfile
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      start_period: 6m
+      retries: 3
     volumes:
       - clamav-db:/var/lib/clamav
     expose:
@@ -43,7 +64,8 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
 volumes:
   app-data:
