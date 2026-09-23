@@ -20,7 +20,15 @@ Windows note: call npm as `npm.cmd` inside a shell — PowerShell's execution po
 
 `db/schema.ts` mirrors `schema.sql` — keep them in sync. `lib/db.ts` returns a null `db` until `DATABASE_URL` is set, so the app boots before the Neon project exists; guard queries on `db` being non-null.
 
-Uploads always run **quarantine → scan → serve** — nothing is stored or served without a clean scan, and there's no dev exception. If `SCAN_ENDPOINT` isn't set, uploads refuse outright. For local testing, install ClamAV and run the bundled scan service (`node scripts/scan-server.mjs` — it talks to a local `clamd` over TCP; see the script's header for env vars). The deployed Railway app uses the ClamAV sidecar as `SCAN_ENDPOINT`.
+Uploads always run **quarantine → scan → serve** — nothing is stored or served without a clean scan, and there's no dev exception. If `SCAN_ENDPOINT` isn't set, uploads refuse outright. Local dev: the app expects `SCAN_ENDPOINT` to point at `scripts/scan-server.mjs`, which talks to a local `clamd` over TCP (see the script's header for env vars). On this dev machine (ClamAV 1.5.4 extracted to `C:\Users\chast\ClamAV`):
+
+- Configs: `C:\Users\chast\ClamAV\clamd.conf` + `freshclam.conf` (quarantine limits raised to the app's 512 MB cap).
+- One-time: run `freshclam.exe --config-file=...\freshclam.conf` to download the virus DB into `database\`.
+- Start the daemon: `Start-Process ...\clamd.exe -ArgumentList '--config-file=...\clamd.conf' -WindowStyle Hidden` (listens on 127.0.0.1:3310). If the very first start logs `ERROR: Malformed database`, it's Windows Defender still holding the just-downloaded DB files — just restart clamd.
+- Then `node scripts/scan-server.mjs` (listens on :3311) and set `SCAN_ENDPOINT=http://127.0.0.1:3311` in `.env.local`.
+- Full loop check: `npm run e2e` (`scripts/e2e-upload.mjs`) — signs in as the demo owner with a minted session cookie, uploads a benign build then an EICAR build over the real no-JS form protocol, and asserts both the sanitize/serve path and the block path.
+
+The deployed Railway app uses the ClamAV sidecar as `SCAN_ENDPOINT`.
 
 ## Working style
 
