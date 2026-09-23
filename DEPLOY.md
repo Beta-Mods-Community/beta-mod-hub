@@ -82,7 +82,24 @@ After the app and ClamAV are healthy:
 5. Verify `https://betamods.com`, then optionally enable Cloudflare proxying
    with SSL/TLS mode **Full (strict)**.
 
-## 6. Backups and limits
+## 6. Neon: one project, two branches
+
+Production and local development share one Neon project but must never point at
+the same branch after launch.
+
+**Creating the `dev` branch is a dashboard step** (Neon console -> project ->
+Branches -> Create branch) — the agent does not have that account access and
+must not change the database arrangement for it. Leave it for the repo owner or
+Codex.
+
+- `main` branch = **production**. Its pooled connection string lives only in the
+  VM's `.env.production`. Never print or commit it.
+- `dev` branch = **local development**. Before launch: create the `dev` branch,
+  copy its **pooled** connection string into the local `.env.local`, and remove
+  any demo/test rows from `main`. After that, never let the local `.env.local`
+  point at the `main` branch again.
+
+## 7. Backups and limits
 
 - The Docker volume survives container rebuilds but not accidental VM/volume
   deletion. Add an Always Free block-volume backup after launch.
