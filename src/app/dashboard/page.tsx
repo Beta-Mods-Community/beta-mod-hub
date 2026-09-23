@@ -2,7 +2,12 @@ import Link from "next/link";
 import { Bug, PlusCircle } from "lucide-react";
 
 import StatusBadge from "@/components/status-badge";
-import { getOwnBetaMods, getUser, verifySession } from "@lib/dal";
+import {
+  getFeedbackSummaryByModIds,
+  getOwnBetaMods,
+  getUser,
+  verifySession,
+} from "@lib/dal";
 import { formatDate } from "@lib/format";
 
 export const metadata = { title: "Dashboard" };
@@ -14,6 +19,7 @@ export default async function DashboardPage() {
     getUser(),
     getOwnBetaMods((await verifySession()).userId),
   ]);
+  const summary = await getFeedbackSummaryByModIds(myMods.map((m) => m.id));
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-12">
@@ -70,6 +76,17 @@ export default async function DashboardPage() {
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                   {mod.game}
                 </p>
+                {(() => {
+                  const s = summary.get(mod.id);
+                  if (!s) return null;
+                  return (
+                    <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                      {s.openBugs} open{" "}
+                      {s.openBugs === 1 ? "bug" : "bugs"} · {s.ready}/{s.total}{" "}
+                      ready
+                    </p>
+                  );
+                })()}
                 <div className="mt-4 flex items-center gap-3 text-sm">
                   <Link
                     href={`/mods/${mod.id}`}
@@ -98,8 +115,8 @@ export default async function DashboardPage() {
         <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
           <Bug className="mb-4 h-5 w-5 text-zinc-500 dark:text-zinc-400" />
           <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-            The mods you&apos;re tracking, your bug reports, and ready/not-ready
-            votes will show here once bug reports and votes land.
+            The mods you&apos;ve voted on, your bug reports, and your vote
+            history will show here in the next pass.
           </p>
         </div>
       </section>

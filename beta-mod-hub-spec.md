@@ -118,6 +118,13 @@ Do not build browser automation against nexusmods.com to drive their upload form
 ## Build order
 
 1. **Core loop, no API** — accounts, BetaMod CRUD, Build uploads, unstructured feedback. Validates "post a beta, get feedback" before anything Nexus-specific exists.
+
+   > Phase-1 deviation (2026-09): while this line was being implemented, the
+   > planned temporary comment wall was skipped in favor of going straight to the
+   > structured BugReport + ReadySignal tooling of phase 2. The "Bugs tab" page
+   > description explicitly rules out a general comment wall (pointlessly
+   > building one just to delete it), and phase 1's core loop now validates as:
+   > accounts → BetaMod CRUD → build uploads → structured feedback.
 2. **Real feedback tooling** — structured BugReport tracker, ReadySignal tally, Browse with filters/sort. This phase alone is close to the full value proposition, with zero Nexus integration.
 3. **Nexus integration** — SSO login, NexusLink, promotion package generation and download.
 4. **Polish** — reputation scoring, richer profiles, requirement auto-suggest (fuzzy-match against Nexus mod names via the API's read endpoints).

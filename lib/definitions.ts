@@ -96,3 +96,23 @@ export type BuildUploadFormState =
 
 /** Max accepted upload size (512 MB) — shared by the action and the form label. */
 export const MAX_UPLOAD_BYTES = 512 * 1024 * 1024;
+
+export const BugReportFormSchema = z.object({
+  severity: z.enum(["minor", "major", "blocking"]),
+  description: z
+    .string()
+    .min(10, { error: "Describe the bug — at least 10 characters." })
+    .max(4000, { error: "Description must be 4,000 characters or fewer." })
+    .trim(),
+  reproSteps: z
+    .string()
+    .max(2000, { error: "Repro steps must be 2,000 characters or fewer." })
+    .trim(),
+});
+
+export type BugReportFormState =
+  | {
+      errors?: FieldErrors<"severity" | "description" | "reproSteps">;
+      message?: string;
+    }
+  | undefined;
