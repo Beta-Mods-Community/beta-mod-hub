@@ -49,6 +49,9 @@ export const betaMods = pgTable("beta_mods", {
   game: text("game").notNull(),
   tags: text("tags").array().notNull().default(sql`'{}'`),
   status: betaModStatus("status").notNull().default("alpha"),
+  // Set when the author confirms promotion — the live Nexus page this mod
+  // now lives on. The beta page becomes read-only and links here.
+  nexusUrl: text("nexus_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

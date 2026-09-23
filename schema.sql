@@ -29,6 +29,9 @@ CREATE TABLE beta_mods (
     game TEXT NOT NULL,
     tags TEXT[] NOT NULL DEFAULT '{}',
     status beta_mod_status NOT NULL DEFAULT 'alpha',
+    -- Set when the author confirms promotion: the live Nexus page URL.
+    -- That page is the mod's home once promoted; this beta page links to it.
+    nexus_url TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
