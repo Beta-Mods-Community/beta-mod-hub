@@ -34,7 +34,7 @@ Cloudflare account (already has betamods.com).
 `gh` isn't installed here, so:
 
 1. github.com → **New repository** → name `beta-mod-hub` → **Private** → no README (repo already has one).
-2. Tell me the repo URL (e.g. `https://github.com/<you>/beta-mod-hub`). I'll add it as `origin` and push `master`.
+2. Tell me the repo URL (e.g. `https://github.com/<you>/beta-mod-hub`). I'll add it as `origin` and push `main`.
 
 ---
 
