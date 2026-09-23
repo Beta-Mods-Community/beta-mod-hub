@@ -74,3 +74,25 @@ export type BetaModFormState =
       message?: string;
     }
   | undefined;
+
+export const BuildUploadFormSchema = z.object({
+  versionLabel: z
+    .string()
+    .min(1, { error: "Add a version label (e.g. 0.1 or Beta 2)." })
+    .max(40, { error: "Version label must be 40 characters or fewer." })
+    .trim(),
+  changelog: z
+    .string()
+    .max(5000, { error: "Changelog must be 5,000 characters or fewer." })
+    .trim(),
+});
+
+export type BuildUploadFormState =
+  | {
+      errors?: FieldErrors<"versionLabel" | "changelog">;
+      message?: string;
+    }
+  | undefined;
+
+/** Max accepted upload size (512 MB) — shared by the action and the form label. */
+export const MAX_UPLOAD_BYTES = 512 * 1024 * 1024;

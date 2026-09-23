@@ -7,7 +7,7 @@ import { and, desc, eq, notInArray } from "drizzle-orm";
 
 import { db } from "./db";
 import { decrypt } from "./session";
-import { betaMods, users } from "../db/schema";
+import { betaMods, builds, users } from "../db/schema";
 
 /**
  * Data Access Layer — centralizes auth checks and user data access, per the
@@ -110,4 +110,37 @@ export const listBetaModGames = cache(async () => {
     .map((row) => row.game)
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b));
+});
+
+// --- Build data access ---
+
+const buildColumns = {
+  id: builds.id,
+  betaModId: builds.betaModId,
+  versionLabel: builds.versionLabel,
+  fileUrl: builds.fileUrl,
+  changelog: builds.changelog,
+  uploadedAt: builds.uploadedAt,
+};
+
+export const getBuildById = cache(async (id: string) => {
+  if (!db) return null;
+
+  const rows = await db
+    .select(buildColumns)
+    .from(builds)
+    .where(eq(builds.id, id))
+    .limit(1);
+
+  return rows[0] ?? null;
+});
+
+export const getBuildsByModId = cache(async (betaModId: string) => {
+  if (!db) return [];
+
+  return db
+    .select(buildColumns)
+    .from(builds)
+    .where(eq(builds.betaModId, betaModId))
+    .orderBy(desc(builds.uploadedAt));
 });

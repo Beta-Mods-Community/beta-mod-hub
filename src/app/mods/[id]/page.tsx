@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Bug, Package } from "lucide-react";
+import { Bug, Download, Package } from "lucide-react";
 
 import StatusBadge from "@/components/status-badge";
 import DeleteModButton from "@/components/delete-mod-button";
-import { getBetaMod } from "@lib/dal";
+import BuildUploadForm from "@/components/build-upload-form";
+import { getBetaMod, getBuildsByModId } from "@lib/dal";
 import { formatDate } from "@lib/format";
 import { getSession } from "@lib/session";
 
@@ -14,7 +15,10 @@ export default async function BetaModPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const mod = await getBetaMod(id);
+  const [mod, builds] = await Promise.all([
+    getBetaMod(id),
+    getBuildsByModId(id),
+  ]);
   if (!mod) notFound();
 
   const session = await getSession();
@@ -85,10 +89,49 @@ export default async function BetaModPage({
             Builds
           </h2>
         </div>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          No builds uploaded yet — build uploads are the next piece of the
-          site.
-        </p>
+
+        {builds.length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            No builds uploaded yet —
+            {isOwner ? " upload the first one below." : " check back soon."}
+          </p>
+        ) : (
+          <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+            {builds.map((build) => (
+              <li
+                key={build.id}
+                className="flex items-center justify-between gap-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-zinc-950 dark:text-zinc-50">
+                    {build.versionLabel}
+                  </p>
+                  {build.changelog && (
+                    <p className="mt-0.5 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                      {build.changelog}
+                    </p>
+                  )}
+                  <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                    uploaded {formatDate(build.uploadedAt)}
+                  </p>
+                </div>
+                <Link
+                  href={`/files/${build.id}`}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:border-zinc-500 hover:text-zinc-950 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500 dark:hover:text-zinc-50"
+                >
+                  <Download className="h-4 w-4" />
+                  Download
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {isOwner && (
+          <div className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+            <BuildUploadForm betaModId={mod.id} />
+          </div>
+        )}
       </section>
 
       {/* Bugs */}

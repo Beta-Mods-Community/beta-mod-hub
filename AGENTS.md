@@ -20,6 +20,8 @@ Windows note: call npm as `npm.cmd` inside a shell — PowerShell's execution po
 
 `db/schema.ts` mirrors `schema.sql` — keep them in sync. `lib/db.ts` returns a null `db` until `DATABASE_URL` is set, so the app boots before the Neon project exists; guard queries on `db` being non-null.
 
+Uploads always run **quarantine → scan → serve** — nothing is stored or served without a clean scan, and there's no dev exception. If `SCAN_ENDPOINT` isn't set, uploads refuse outright. For local testing, install ClamAV and run the bundled scan service (`node scripts/scan-server.mjs` — it talks to a local `clamd` over TCP; see the script's header for env vars). The deployed Railway app uses the ClamAV sidecar as `SCAN_ENDPOINT`.
+
 ## Working style
 
 - Build in the phase order the spec lays out (Build order, phases 1-4). Don't start Nexus integration before the core loop (BetaMod CRUD, Build uploads, feedback) actually works.
