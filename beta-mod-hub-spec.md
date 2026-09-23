@@ -63,7 +63,18 @@ NexusLink
   id, user_id -> User, nexus_api_key (encrypted at rest), linked_at
 ```
 
-`reputation_score` is derived from `ReadySignal` history, not directly editable. Exact formula is open — but it should discount testers who only ever vote "ready," so the signal stays meaningful.
+`reputation_score` is derived from `ReadySignal` history (and `BugReport`s filed), computed at query time — not stored raw. The formula (implemented in `lib/reputation.ts`, unit-tested in `tests/reputation.test.ts`) deliberately discounts testers who only ever vote ready, so an author can tell a real "ready" from a rubber stamp:
+
+```
+score =
+  2 × distinct mods tested            (volume of real testing)
++ 1 × ready votes                     (positive, but cheap — worth less)
++ 3 × not-ready votes                 (the critical, hard signal)
++ severity-weighted bug reports:      (actionable, structured feedback)
+    minor 1, major 2, blocking 3
+```
+
+An "always ready" tester — ≥3 mods judged and never one not-ready — gets ready votes counted at 0.25× each, so rubber-stamping caps out far below a genuinely critical tester even with similar volume. Scores keep one decimal place; `reputationTier()` maps them to friendly labels (New / Active / Experienced / Trusted Tester) for UI display.
 
 ## The promotion package
 
@@ -128,5 +139,11 @@ Do not build browser automation against nexusmods.com to drive their upload form
 2. **Real feedback tooling** — structured BugReport tracker, ReadySignal tally, Browse with filters/sort. This phase alone is close to the full value proposition, with zero Nexus integration.
 3. **Nexus integration** — SSO login, NexusLink, promotion package generation and download.
 4. **Polish** — reputation scoring, richer profiles, requirement auto-suggest (fuzzy-match against Nexus mod names via the API's read endpoints).
+
+   > Phase-4 partial (2026-09): reputation scoring and richer profiles shipped.
+   > Requirement auto-suggest is deferred — it needs the Nexus read API's search
+   > endpoints, which we still don't touch until the SSO registration details
+   > (and a real API key for dev) exist. Until then requirements stay
+   > self-reported, as the data model already describes.
 
 Phase 2 is the point this becomes a coherent, shippable product. Nexus integration is additive on top of that, not load-bearing for the core loop.

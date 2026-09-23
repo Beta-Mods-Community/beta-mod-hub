@@ -17,8 +17,8 @@ CREATE TABLE users (
     avatar_url TEXT,
     bio TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    -- reputation_score is derived at query time from ready_signals,
-    -- not stored here — see spec.
+    -- reputation_score is derived at query time from ready_signals +
+    -- bug_reports, not stored here — see spec (lib/reputation.ts).
 );
 
 CREATE TABLE beta_mods (
