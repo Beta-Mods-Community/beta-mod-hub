@@ -360,7 +360,7 @@ export default async function BetaModPage({
 
           <section id="bugs" className="panel scroll-mt-24 p-5 sm:p-7">
             <div className="flex flex-wrap items-end justify-between gap-4">
-              <SectionHeading eyebrow="Issue tracker" title="Structured bug reports" />
+              <SectionHeading eyebrow="Issue tracker" title="Bug reports" />
               <span className="text-xs text-[var(--muted)]">
                 {openBugs} open
               </span>
@@ -452,21 +452,21 @@ export default async function BetaModPage({
             ) : (
               <p className="mt-5 border-t border-[var(--line)] pt-5 text-sm text-[var(--muted)]">
                 <Link href="/login" className="font-semibold text-[var(--text)] hover:text-[var(--accent)]">Sign in</Link>{" "}
-                to file a structured report.
+                to report a bug.
               </p>
             )}
           </section>
 
           {isOwner && !isPromoted && (
             <section className="panel p-5 sm:p-7">
-              <SectionHeading eyebrow="Release handoff" title="Promote to Nexus" />
+              <SectionHeading eyebrow="Nexus Mods" title="Publish your release" />
               <p className="mt-4 text-sm leading-6 text-[var(--text-soft)]">
-                Generate a launch package from the latest tested build, then confirm the live Nexus page when publication is complete.
+                Download the latest build, description, and requirements as a package to upload to Nexus Mods. Add the Nexus page URL here once it is published.
               </p>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 <a href={`/mods/${mod.id}/promotion/download`} className="button-secondary">
                   <Download className="h-4 w-4" aria-hidden="true" />
-                  Download launch package
+                  Download release package
                 </a>
               </div>
               <form action={confirmPromotion} className="mt-5 grid gap-3 border-t border-[var(--line)] pt-5 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -485,7 +485,7 @@ export default async function BetaModPage({
                   placeholder="https://www.nexusmods.com/.../mods/123"
                   className="field"
                 />
-                <button type="submit" className="button-primary">Mark promoted</button>
+                <button type="submit" className="button-primary">Mark as published</button>
               </form>
               <p className="mt-3 text-xs leading-5 text-[var(--muted)]">
                 This closes testing, removes the mod from Browse, and makes this record read-only.
@@ -498,7 +498,7 @@ export default async function BetaModPage({
           <section className="panel p-5" aria-labelledby="release-signal-heading">
             <p className="eyebrow">Current build</p>
             <h2 id="release-signal-heading" className="mt-2 text-lg font-semibold text-[var(--text)]">
-              Release signal
+              Tester votes
             </h2>
             {latestBuild ? (
               <>
@@ -516,7 +516,7 @@ export default async function BetaModPage({
                 <p className="mt-3 text-xs leading-5 text-[var(--muted)]">
                   {tally.total > 0
                     ? "Only verdicts for the latest build are counted."
-                    : "No tester has judged this build yet."}
+                    : "No votes for this build yet."}
                 </p>
 
                 {isPromoted ? (
@@ -550,7 +550,7 @@ export default async function BetaModPage({
               </>
             ) : (
               <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
-                The release signal opens with the first uploaded build.
+                Voting opens when the first build is uploaded.
               </p>
             )}
           </section>
@@ -576,7 +576,7 @@ export default async function BetaModPage({
           )}
 
           <section className="panel p-5">
-            <p className="eyebrow">At a glance</p>
+            <p className="eyebrow">Mod details</p>
             <dl className="mt-4 space-y-3 text-sm">
               <Fact label="Builds" value={String(builds.length)} icon={<Package className="h-3.5 w-3.5" />} />
               <Fact label="Open bugs" value={String(openBugs)} icon={<Bug className="h-3.5 w-3.5" />} />

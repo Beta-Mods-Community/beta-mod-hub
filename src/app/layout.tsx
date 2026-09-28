@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s · Beta Mods",
   },
   description:
-    "Pre-release mod hosting for the Nexus community — test WIP builds, file structured bug reports, and promote to Nexus when ready.",
+    "Browse beta mods, download test builds, and report bugs. Authors can upload versions and review feedback before release.",
   keywords: [
     "mod testing",
     "beta mods",

@@ -24,8 +24,7 @@ export default function Footer() {
             </p>
           </div>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-            A focused release-testing workspace for mod authors and the testers
-            helping them launch well.
+            Upload beta mods, download test builds, and report bugs.
           </p>
           <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-[var(--muted)]">
             <ShieldCheck
@@ -52,8 +51,7 @@ export default function Footer() {
 
       <div className="border-t border-[var(--line)]">
         <div className="site-container flex flex-col gap-2 py-4 text-xs text-[var(--muted)] sm:flex-row sm:items-center sm:justify-between">
-          <p>Independent pre-release testing. Finished releases belong on Nexus Mods.</p>
-          <p>Structured feedback, no comment-wall noise.</p>
+          <p>Beta Mods is an independent site and is not affiliated with Nexus Mods.</p>
         </div>
       </div>
     </footer>

@@ -21,12 +21,12 @@ export default async function LoginPage({
   return (
     <main className="site-container flex w-full max-w-md flex-1 flex-col justify-center py-14">
       <div className="panel p-6 sm:p-8">
-        <p className="eyebrow">Release workspace</p>
+        <p className="eyebrow">Account</p>
         <h1 className="mb-1 mt-3 text-2xl font-semibold tracking-tight text-[var(--text)]">
-          Welcome back
+          Sign in
         </h1>
         <p className="mb-6 text-sm text-[var(--text-soft)]">
-          Sign in to manage releases and keep testing.
+          Sign in to upload mods, report bugs, and vote on builds.
         </p>
 
         {nexus === "error" && (
@@ -36,8 +36,7 @@ export default async function LoginPage({
         )}
         {nexus === "unconfigured" && (
           <p className="mb-4 rounded-md bg-zinc-100 p-3 text-sm text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-            Nexus sign-in isn&apos;t available yet — the app isn&apos;t
-            registered with Nexus. Use email and password for now.
+            Nexus sign-in isn&apos;t available yet. Use your email and password.
           </p>
         )}
 

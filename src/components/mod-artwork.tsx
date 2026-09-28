@@ -48,7 +48,7 @@ export default function ModArtwork({
             {initials(title, "BM")}
           </span>
           <span className="max-w-[55%] text-right text-[10px] font-medium uppercase leading-4 tracking-[0.16em] text-zinc-500">
-            Beta workspace
+            No screenshots
           </span>
         </div>
       </div>

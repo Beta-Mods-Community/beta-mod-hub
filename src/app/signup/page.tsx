@@ -13,7 +13,7 @@ export default async function SignupPage() {
   return (
     <main className="site-container flex w-full max-w-md flex-1 flex-col justify-center py-14">
       <div className="panel p-6 sm:p-8">
-        <p className="eyebrow">Closed pilot</p>
+        <p className="eyebrow">Account</p>
         <h1 className="mb-1 mt-3 text-2xl font-semibold tracking-tight text-[var(--text)]">
           Create your account
         </h1>

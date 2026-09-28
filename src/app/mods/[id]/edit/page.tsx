@@ -23,7 +23,7 @@ export default async function EditBetaModPage({
 
   return (
     <main className="site-container w-full max-w-2xl flex-1 py-10 sm:py-14">
-      <p className="eyebrow">Author workspace</p>
+      <p className="eyebrow">My mods</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-[var(--text)]">
         Edit beta
       </h1>

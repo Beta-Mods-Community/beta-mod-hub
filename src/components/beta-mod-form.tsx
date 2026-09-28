@@ -47,7 +47,7 @@ export default function BetaModForm({
           name="title"
           type="text"
           defaultValue={initial?.title}
-          placeholder="My Awesome Mod — Beta 2"
+          placeholder="Mod name"
           className={inputClass}
         />
         {state?.errors?.title && (

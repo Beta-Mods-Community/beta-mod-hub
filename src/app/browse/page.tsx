@@ -34,11 +34,11 @@ export default async function BrowsePage({
           <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
             <div>
               <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.17em] text-cyan-300">
-                <span>Discover</span><span className="text-zinc-700">/</span><span className="text-zinc-500">Active test builds</span>
+                <span>Mods</span><span className="text-zinc-700">/</span><span className="text-zinc-500">In testing</span>
               </div>
-              <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-white sm:text-4xl">Find a mod that needs your rig.</h1>
+              <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-white sm:text-4xl">Browse beta mods</h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-base">
-                Browse in-progress releases, test the latest build, and leave feedback an author can act on.
+                Filter by game, download a test build, and report any problems you find.
               </p>
             </div>
             <Link
@@ -59,7 +59,7 @@ export default async function BrowsePage({
                 <SlidersHorizontal className="h-4 w-4" />
               </span>
               <div>
-                <p className="text-sm font-semibold text-zinc-200">Refine the feed</p>
+                <p className="text-sm font-semibold text-zinc-200">Filter and sort</p>
                 <p className="mt-0.5 text-xs text-zinc-500">
                   {mods.length} {mods.length === 1 ? "result" : "results"}{game ? ` for ${game}` : " across all games"}
                 </p>
@@ -84,7 +84,7 @@ export default async function BrowsePage({
             <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-500"><SearchX className="h-5 w-5" /></span>
             <h2 className="mt-5 text-lg font-semibold text-zinc-200">No active betas{game ? ` for ${game}` : " yet"}</h2>
             <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">
-              {game ? "Try the full feed, or open the first test bench for this game." : "Open the first test bench and give early testers somewhere useful to report back."}
+              {game ? "Choose another game or clear the filter to see all beta mods." : "Authors can create a mod page and upload a build for testing."}
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               {game && (
@@ -103,7 +103,7 @@ export default async function BrowsePage({
         ) : (
           <section aria-label="Active beta mods" className="mt-8">
             <div className="mb-4 flex items-center justify-between gap-4">
-              <h2 className="text-sm font-semibold text-zinc-200">{sortKey === "needs-testers" ? "Waiting for testers" : "Latest arrivals"}</h2>
+              <h2 className="text-sm font-semibold text-zinc-200">{sortKey === "needs-testers" ? "Fewest testers" : "Recently added"}</h2>
               <span className="text-xs tabular-nums text-zinc-500">{mods.length} {mods.length === 1 ? "project" : "projects"}</span>
             </div>
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">

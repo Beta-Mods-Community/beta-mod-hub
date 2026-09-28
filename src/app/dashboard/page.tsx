@@ -26,7 +26,7 @@ import { formatDate } from "@lib/format";
 export const metadata = { title: "Dashboard" };
 
 const TABS = [
-  { key: "building", label: "My releases", href: "/dashboard" },
+  { key: "building", label: "My mods", href: "/dashboard" },
   { key: "testing", label: "Test history", href: "/dashboard?tab=testing" },
 ] as const;
 
@@ -65,13 +65,12 @@ export default async function DashboardPage({
       <header className="border-b border-[var(--line)] pb-8">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="eyebrow">Release workspace</p>
+            <p className="eyebrow">Dashboard</p>
             <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-[-0.03em] text-[var(--text)] sm:text-4xl">
               Welcome back, {user?.displayName ?? "modder"}.
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-soft)] sm:text-base">
-              Track current builds, review tester signals, and decide what is
-              ready for its Nexus debut.
+              Manage your mods, check bug reports, and review tester votes.
             </p>
           </div>
           <Link href="/mods/new" className="button-primary shrink-0">
@@ -163,7 +162,7 @@ function BuildingPanel({
         <div>
           <p className="eyebrow">Building</p>
           <h2 id="releases-heading" className="mt-2 text-xl font-semibold text-[var(--text)]">
-            Your release queue
+            Your mods
           </h2>
         </div>
         <span className="text-xs font-medium text-[var(--muted)]">
@@ -257,7 +256,7 @@ function TestingPanel({
         </span>
         <div>
           <p className="eyebrow">Testing</p>
-          <h2 className="mt-1 text-xl font-semibold text-[var(--text)]">Your release verdicts</h2>
+          <h2 className="mt-1 text-xl font-semibold text-[var(--text)]">Your votes</h2>
         </div>
       </div>
 
@@ -265,7 +264,7 @@ function TestingPanel({
         <EmptyState
           icon={<UserCheck className="h-5 w-5" aria-hidden="true" />}
           title="No verdicts yet"
-          description="Test an active build, then leave a release signal so its author knows whether to ship."
+          description="After testing a build, vote on whether it is ready for release."
           action={{ href: "/browse", label: "Find a beta to test" }}
         />
       ) : (
@@ -333,7 +332,7 @@ function TestingPanel({
         <EmptyState
           icon={<Bug className="h-5 w-5" aria-hidden="true" />}
           title="No reports filed"
-          description="When something breaks, structured reports keep the signal useful for authors."
+          description="Report a problem from a mod page. Include the build version and steps to reproduce it."
         />
       ) : (
         <div className="mt-5 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)]">
