@@ -5,7 +5,8 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "./db";
 import { verifySession } from "./dal";
-import { betaMods } from "../db/schema";
+import { betaMods, builds } from "../db/schema";
+import { deleteStored } from "./storage";
 import { BetaModFormSchema, type BetaModFormState } from "./definitions";
 
 function parseTags(raw: string): string[] {
@@ -132,11 +133,35 @@ export async function deleteBetaMod(modId: string) {
   const owned = await getOwnedMod(modId);
   if (!owned) redirect(`/mods/${modId}`);
 
+  // Collect the object keys BEFORE the delete. Removing the mod cascades to its
+  // builds, which cascades to their storage reservations — after the row is
+  // gone, nothing left knows these objects exist.
+  const fileKeys = (
+    await db
+      .select({ fileUrl: builds.fileUrl })
+      .from(builds)
+      .where(eq(builds.betaModId, owned.modId))
+  ).map((row) => row.fileUrl);
+
   await db
     .delete(betaMods)
     .where(
       and(eq(betaMods.id, owned.modId), eq(betaMods.ownerId, owned.userId)),
     );
+
+  // With R2 the archives live in a bucket, so they go too. Failures are logged
+  // rather than raised: the builds are already gone from the site, and running
+  // this again would not find them. A leftover object surfaces as ledger drift
+  // in the admin console instead of quietly eating the pilot's storage budget.
+  const results = await Promise.allSettled(
+    fileKeys.map((key) => deleteStored(key)),
+  );
+  const failed = results.filter((result) => result.status === "rejected");
+  if (failed.length > 0) {
+    console.error(
+      `[deleteBetaMod] ${failed.length}/${fileKeys.length} stored object(s) could not be removed for mod ${owned.modId}`,
+    );
+  }
 
   redirect("/dashboard");
 }

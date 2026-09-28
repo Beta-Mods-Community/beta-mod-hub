@@ -8,13 +8,21 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test tests/*.test.ts",
+    "test": "node --conditions=react-server --import tsx --test tests/*.test.ts",
+    "test:integration": "node --conditions=react-server --import tsx --test tests/integration/*.test.ts",
     "e2e": "node scripts/e2e-upload.mjs",
     "e2e:profile": "node scripts/e2e-profile.mjs",
-    "smoke:prod": "node scripts/smoke-prod.mjs"
+    "smoke:prod": "node scripts/smoke-prod.mjs",
+    "home": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/home-stack.ps1",
+    "home:up": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/home-stack.ps1 up",
+    "home:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/home-stack.ps1 status",
+    "home:logs": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/home-stack.ps1 logs",
+    "home:verify": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/home-stack.ps1 verify",
+    "home:backup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/home-stack.ps1 backup"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1138.0",
+    "@aws-sdk/s3-request-presigner": "^3.1141.0",
     "archiver": "^8.0.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",

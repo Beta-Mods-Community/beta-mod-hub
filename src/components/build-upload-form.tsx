@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 
 import { uploadBuild } from "@lib/build-uploads";
-import { MAX_UPLOAD_BYTES } from "@lib/definitions";
+import { formatBytes } from "@lib/pilot";
 
 const inputClass =
   "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50";
@@ -11,7 +11,19 @@ const labelClass =
   "mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300";
 const errorClass = "mt-1.5 text-sm text-red-600 dark:text-red-400";
 
-export default function BuildUploadForm({ betaModId }: { betaModId: string }) {
+/**
+ * `maxBytes` is the effective per-file ceiling, resolved on the server from the
+ * pilot limits and the absolute hard cap. It is passed in rather than read from
+ * the environment here, so the number the user is shown is exactly the number
+ * the server will enforce.
+ */
+export default function BuildUploadForm({
+  betaModId,
+  maxBytes,
+}: {
+  betaModId: string;
+  maxBytes: number;
+}) {
   const [state, formAction, pending] = useActionState(uploadBuild, undefined);
 
   return (
@@ -56,8 +68,8 @@ export default function BuildUploadForm({ betaModId }: { betaModId: string }) {
         </label>
         <input id="build-file" name="file" type="file" required className={inputClass} />
         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Max {Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB. Scanned for
-          malware before it&apos;s stored or shared.
+          Max {formatBytes(maxBytes)}. Scanned for malware before it&apos;s stored
+          or shared.
         </p>
       </div>
 

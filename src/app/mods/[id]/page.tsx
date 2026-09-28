@@ -20,7 +20,10 @@ import {
 } from "@lib/dal";
 import { computeReputation } from "@lib/reputation";
 import { setBugReportStatus, voteReady } from "@lib/feedback";
+import { MAX_UPLOAD_BYTES } from "@lib/definitions";
 import { formatDate } from "@lib/format";
+import { effectiveArchiveLimit, readPilotLimits } from "@lib/pilot";
+import { getUploadPermission } from "@lib/storage-usage";
 import { confirmPromotion } from "@lib/promote";
 import { addRequirement, removeRequirement } from "@lib/requirements";
 import { getSession } from "@lib/session";
@@ -48,6 +51,15 @@ export default async function BetaModPage({
   const isPromoted = mod.status === "promoted";
   const isOwner = session?.userId === mod.ownerId;
   const myVote = !isOwner && session ? await getMyReadyVote(id, session.userId) : null;
+
+  // Whether to even offer the upload form: the pilot allowlist, the admin kill
+  // switch and the per-file cap. uploadBuild re-checks all of it server-side —
+  // this only decides what the owner sees.
+  const pilotLimits = readPilotLimits();
+  const uploadPermission = session
+    ? await getUploadPermission(session.userId, pilotLimits)
+    : ({ allowed: false, message: "Sign in to upload." } as const);
+  const maxArchiveBytes = effectiveArchiveLimit(pilotLimits, MAX_UPLOAD_BYTES);
 
   // Reputation for every reporter who filed on this page — authors use it to
   // weigh how much to trust a report or its reporter's ready vote.
@@ -343,10 +355,16 @@ export default async function BetaModPage({
           </ul>
         )}
 
-        {isOwner && !isPromoted && (
+        {isOwner && !isPromoted && uploadPermission.allowed && (
           <div className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-            <BuildUploadForm betaModId={mod.id} />
+            <BuildUploadForm betaModId={mod.id} maxBytes={maxArchiveBytes} />
           </div>
+        )}
+
+        {isOwner && !isPromoted && !uploadPermission.allowed && (
+          <p className="mt-6 border-t border-zinc-200 pt-6 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+            {uploadPermission.message}
+          </p>
         )}
       </section>
 
