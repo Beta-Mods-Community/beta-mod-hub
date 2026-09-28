@@ -13,12 +13,19 @@ Scaffolded with Next.js 16 (App Router, TypeScript, Tailwind v4, ESLint flat con
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint (Next 16 removed `next lint` — run eslint directly) |
 | `npm run typecheck` | `tsc --noEmit` — the type gate to run before hand-offs |
+| `npm test` | Unit tests (`tests/*.test.ts`) |
+| `npm run test:integration` | Integration tests (`tests/integration/*`) — hits the real dev Neon |
+| `npm run e2e` | Full upload-pipeline test against a running dev server + scanner |
 | `npx drizzle-kit generate` | Generate a migration from `db/schema.ts` (needs `DATABASE_URL`) |
 | `npx drizzle-kit push` | Push schema to the database |
 
 Windows note: call npm as `npm.cmd` inside a shell — PowerShell's execution policy blocks the `.ps1` shim.
 
+Tests run with `node --conditions=react-server` (see the `test` script) because `lib/storage.ts` and `lib/storage-r2.ts` import `server-only`, which otherwise throws outside a React Server Component graph. Integration tests are a separate script because this package is CommonJS-by-default and cannot transform top-level `await` in `.ts` test files — use `before()` plus dynamic `import()` instead.
+
 `db/schema.ts` mirrors `schema.sql` — keep them in sync. `lib/db.ts` returns a null `db` until `DATABASE_URL` is set, so the app boots before the Neon project exists; guard queries on `db` being non-null.
+
+Migrations: `db/migrations/*.sql` are hand-written and **idempotent** (IF NOT EXISTS everywhere), and `node scripts/apply-migrations.mjs` applies them. It refuses to run if `.env.local`'s `DATABASE_URL` is the same as `.env.production`'s, so the dev branch is the only thing it can touch. **Never point it at the production Neon branch.**
 
 Uploads always run **quarantine → scan → serve** — nothing is stored or served without a clean scan, and there's no dev exception. If `SCAN_ENDPOINT` isn't set, uploads refuse outright. Local dev: the app expects `SCAN_ENDPOINT` to point at `scripts/scan-server.mjs`, which talks to a local `clamd` over TCP (see the script's header for env vars). On this dev machine (ClamAV 1.5.4 extracted to `C:\Users\chast\ClamAV`):
 
@@ -28,7 +35,7 @@ Uploads always run **quarantine → scan → serve** — nothing is stored or se
 - Then `node scripts/scan-server.mjs` (listens on :3311) and set `SCAN_ENDPOINT=http://127.0.0.1:3311` in `.env.local`.
 - Full loop check: `npm run e2e` (`scripts/e2e-upload.mjs`) — signs in as the demo owner with a minted session cookie, uploads a benign build then an EICAR build over the real no-JS form protocol, and asserts both the sanitize/serve path and the block path.
 
-The deployed Oracle VM runs the same scan wrapper against the `deploy/clamav/` ClamAV container as `SCAN_ENDPOINT`.
+Both deployment targets run that same scan wrapper against the `deploy/clamav/` ClamAV container as `SCAN_ENDPOINT`. Home hosting runs the wrapper as its own Compose service (`deploy/home/scan-server/`) so it can be health-gated; the Oracle fallback starts it inside the app container.
 
 ## Working style
 
@@ -38,15 +45,55 @@ The deployed Oracle VM runs the same scan wrapper against the `deploy/clamav/` C
 - Never commit real secrets. `.env.example` documents what's needed; actual values stay in a local, gitignored `.env.local`.
 - If something in the spec turns out to be wrong once you're working against Nexus's live API (rate limits, field names, response shapes), fix the code to match reality and leave a short note in the spec's relevant section rather than silently diverging from it.
 
-## Hosting decision (updated with the owner)
+## Hosting decision
 
-Production: **Oracle Cloud Always Free** Ampere VM running Docker Compose
-(Next.js + ClamAV + Caddy), **Neon Free** Postgres, and a persistent Docker
-volume for uploads. Cloudflare provides DNS/Registrar only. This keeps the
-runtime on hard free-tier limits instead of a usage-billed hosting plan.
-Local dev still uses `STORAGE_DRIVER=local`. See `DEPLOY.md`.
+Production is a **small closed pilot, self-hosted on the owner's Windows PC**
+behind a **Cloudflare Tunnel**, with **Neon Free** Postgres and **Cloudflare R2
+Standard** holding the mod archives. See `DEPLOY-HOME.md` and
+`compose.home.yml`.
 
-**Domain:** `betamods.com` — registered via Cloudflare Registrar (same account as the series site; separate zone). Parked until deploy; point at the Oracle VM when the app is healthy.
+The runtime is the PC, but the *files are not*. `compose.home.yml` hard-sets
+`STORAGE_DRIVER=r2` and requires the four `STORAGE_*` credentials with `${VAR:?}`,
+so a missing value stops the stack instead of quietly putting everyone's mods on
+a laptop disk. The Docker `app-data` volume is quarantine scratch and is emptied
+as each upload finishes: the sequence is quarantine → scan → PUT to R2 → delete
+local copy, on success and on failure alike. Downloads 302 to a short-lived
+presigned R2 GET URL, so archive bytes never cross the home connection.
+
+**Quotas are enforced by the app, not by Cloudflare.** `lib/pilot.ts` holds the
+numbers; `lib/storage-usage.ts` is a ledger in Postgres that reserves bytes
+atomically under `pg_advisory_xact_lock` (transaction-scoped, so Neon's pooled
+pgbouncer is fine) and **fails closed** — if usage can't be established, the
+upload is refused, never allowed uncapped. Cloudflare budget alerts are
+notifications that arrive after the fact; they are a tripwire, not a control.
+R2's 10 GB-month free allowance is what the 8 GiB cap is protecting.
+
+The R2 credential at runtime must be **bucket-scoped**, created after the
+bucket. The broad `betamods-bootstrap` token in `.env.local` is a setup tool
+for `scripts/setup-r2.mjs` and must never reach a running container.
+
+Backups are a **Neon dump plus an R2 inventory** (`scripts/r2-inventory.mjs`) —
+a *record* of the bucket cross-checked against the database, not a copy of the
+archives. A mirror would double storage and push the pilot out of the free
+allowance. The accepted consequence: R2 has no object versioning, so losing the
+bucket means re-uploading. That is documented in `DEPLOY-HOME.md`, not
+forgotten.
+
+This replaced Oracle Cloud Always Free, which is **abandoned, not deleted**:
+Ampere A1 capacity never became available and the tenancy is now locked out by
+a lost MFA enrollment. `compose.oracle.yml`, `deploy/oracle/`, and `DEPLOY.md`
+are kept intact as a fallback. The two targets use separate Compose project
+names (`betamods` vs `betamods-home`) and separate env files
+(`.env.production` vs `.env.home`); they share one Neon `main` branch, so only
+one may be pointed at it at a time.
+
+Local dev still uses `STORAGE_DRIVER=local` by default; set it to `r2` in
+`.env.local` to exercise the presigned-download and R2-cleanup paths, and run
+`npm run e2e` both ways. Windows-specific integration (auto-start after reboot,
+sleep prevention, backup scheduling) lives in
+`deploy/home/windows/Prepare-Host.ps1`.
+
+**Domain:** `betamods.com` — registered via Cloudflare Registrar (same account as the series site; separate zone). Parked until deploy.
 
 ## Hard constraints (from the spec, repeated here because they're easy to accidentally violate mid-build)
 

@@ -1,4 +1,17 @@
-# Deploy runbook — betamods.com
+# Deploy runbook (Oracle fallback) — betamods.com
+
+> **This is the fallback target, not the plan.** Oracle deployment was abandoned:
+> Ampere A1 capacity never became available, and the tenancy is now locked out
+> by a lost MFA enrollment. These files are kept intact so the option stays
+> open — do not delete them.
+>
+> Production now runs on the home-hosting stack: **this Windows PC behind a
+> Cloudflare Tunnel**. See **`DEPLOY-HOME.md`** and `compose.home.yml`.
+>
+> The two targets use separate Compose project names (`betamods` vs
+> `betamods-home`) and separate env files (`.env.production` vs `.env.home`),
+> so their volumes never collide — but they share one Neon `main` branch, so
+> only point one of them at it at a time.
 
 Production uses hard free-tier resources: **Oracle Cloud Always Free** for the
 web app and scanner, **Neon Free** for Postgres, and **Cloudflare Free** for
