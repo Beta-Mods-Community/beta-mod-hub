@@ -5,11 +5,9 @@ import { useActionState } from "react";
 import { uploadBuild } from "@lib/build-uploads";
 import { formatBytes } from "@lib/pilot";
 
-const inputClass =
-  "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50";
-const labelClass =
-  "mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300";
-const errorClass = "mt-1.5 text-sm text-red-600 dark:text-red-400";
+const inputClass = "field";
+const labelClass = "mb-1.5 block text-sm font-semibold text-[var(--text-soft)]";
+const errorClass = "mt-1.5 text-sm text-rose-300";
 
 /**
  * `maxBytes` is the effective per-file ceiling, resolved on the server from the
@@ -67,25 +65,25 @@ export default function BuildUploadForm({
           Build file
         </label>
         <input id="build-file" name="file" type="file" required className={inputClass} />
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-xs text-[var(--muted)]">
           Max {formatBytes(maxBytes)}. Scanned for malware before it&apos;s stored
           or shared.
         </p>
       </div>
 
       {state?.message && (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.message}</p>
+        <p className="text-sm text-rose-300">{state.message}</p>
       )}
 
       <div>
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-950"
+          className="button-primary"
         >
           {pending ? "Uploading…" : "Upload build"}
         </button>
-        <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1.5 text-xs text-[var(--muted)]">
           Files are quarantined and scanned before anything is stored —
           flagged files never make it out of quarantine.
         </p>

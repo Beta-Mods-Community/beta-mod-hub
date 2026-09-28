@@ -54,27 +54,42 @@ try {
 
   const url = `http://localhost:3000/mods/${modId}`;
 
-  // Bug reports — the title-scoped insert makes this idempotent enough.
-  await insertReport(
-    sql,
-    modId,
-    t1.id,
-    "blocking",
-    "Blocking with a magic weapon crashes to desktop. Equip any elemental variant and hold block — the game hard-crashes every time.",
-    "1. Equip a fire or frost variant\n2. Hold block against an attack\n3. Game crashes",
-  );
-  await insertReport(
-    sql,
-    modId,
-    t2.id,
-    "minor",
-    "Sheathe sound plays twice after a power attack.",
-    "Power attack, then sheathe — the draw/sheath audio loops twice.",
-  );
+  const buildRows = await sql`
+    select id from builds
+    where beta_mod_id = ${modId}
+    order by uploaded_at desc, id desc
+    limit 1
+  `;
+  const buildId = buildRows[0]?.id;
+  if (!buildId) {
+    console.log(
+      "demo mod has no build; skipping build-scoped reports and verdicts",
+    );
+  } else {
+    // Bug reports — the title-scoped insert makes this idempotent enough.
+    await insertReport(
+      sql,
+      modId,
+      buildId,
+      t1.id,
+      "blocking",
+      "Blocking with a magic weapon crashes to desktop. Equip any elemental variant and hold block — the game hard-crashes every time.",
+      "1. Equip a fire or frost variant\n2. Hold block against an attack\n3. Game crashes",
+    );
+    await insertReport(
+      sql,
+      modId,
+      buildId,
+      t2.id,
+      "minor",
+      "Sheathe sound plays twice after a power attack.",
+      "Power attack, then sheathe — the draw/sheath audio loops twice.",
+    );
 
-  // Ready votes: 2 ready, 1 not ready.
-  await upsertVote(sql, modId, t1.id, true);
-  await upsertVote(sql, modId, t2.id, false);
+    // Ready verdicts: one ready, one not ready, both for this build.
+    await upsertVote(sql, modId, buildId, t1.id, true);
+    await upsertVote(sql, modId, buildId, t2.id, false);
+  }
 
   console.log("URL:", url);
 } catch (error) {
@@ -97,7 +112,15 @@ async function ensureUser(sql, email, displayName) {
   return inserted[0];
 }
 
-async function insertReport(sql, modId, reporterId, severity, description, reproSteps) {
+async function insertReport(
+  sql,
+  modId,
+  buildId,
+  reporterId,
+  severity,
+  description,
+  reproSteps,
+) {
   const existing = await sql`
     select id from bug_reports
     where beta_mod_id = ${modId} and description = ${description.slice(0, 200)}
@@ -105,16 +128,23 @@ async function insertReport(sql, modId, reporterId, severity, description, repro
   `;
   if (existing[0]) return;
   await sql`
-    insert into bug_reports (beta_mod_id, reporter_id, severity, description, repro_steps)
-    values (${modId}, ${reporterId}, ${severity}, ${description}, ${reproSteps ?? null})
+    insert into bug_reports
+      (beta_mod_id, build_id, reporter_id, severity, description, repro_steps)
+    values (
+      ${modId}, ${buildId}, ${reporterId}, ${severity}, ${description},
+      ${reproSteps ?? null}
+    )
   `;
 }
 
-async function upsertVote(sql, modId, testerId, isReady) {
+async function upsertVote(sql, modId, buildId, testerId, isReady) {
   await sql`
-    insert into ready_signals (beta_mod_id, tester_id, is_ready)
-    values (${modId}, ${testerId}, ${isReady})
-    on conflict (beta_mod_id, tester_id)
-    do update set is_ready = excluded.is_ready, created_at = now()
+    insert into ready_signals (beta_mod_id, build_id, tester_id, is_ready)
+    values (${modId}, ${buildId}, ${testerId}, ${isReady})
+    on conflict (build_id, tester_id)
+    do update set
+      beta_mod_id = excluded.beta_mod_id,
+      is_ready = excluded.is_ready,
+      created_at = now()
   `;
 }

@@ -11,15 +11,16 @@ export default async function EditProfilePage() {
   if (!user) notFound();
 
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+    <main className="site-container w-full max-w-xl flex-1 py-10 sm:py-14">
+      <p className="eyebrow">Account</p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-[var(--text)]">
         Edit profile
       </h1>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="mt-2 text-sm text-[var(--text-soft)]">
         Public info other testers and authors see.
       </p>
 
-      <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="panel mt-7 p-5 sm:p-7">
         <ProfileForm
           action={updateProfile}
           initial={{

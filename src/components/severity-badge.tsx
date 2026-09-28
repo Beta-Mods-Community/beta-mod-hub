@@ -1,16 +1,16 @@
 const styles: Record<string, string> = {
   minor:
-    "border-zinc-200 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+    "border-zinc-700 bg-zinc-800/70 text-zinc-300",
   major:
-    "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+    "border-amber-500/35 bg-amber-500/10 text-amber-200",
   blocking:
-    "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300",
+    "border-red-500/35 bg-red-500/10 text-red-200",
 };
 
 export default function SeverityBadge({ severity }: { severity: string }) {
   return (
     <span
-      className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+      className={`rounded-sm border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.11em] ${
         styles[severity] ?? styles.minor
       }`}
     >

@@ -74,7 +74,7 @@ export const bugReports = pgTable("bug_reports", {
   betaModId: uuid("beta_mod_id")
     .notNull()
     .references(() => betaMods.id, { onDelete: "cascade" }),
-  buildId: uuid("build_id").references(() => builds.id),
+  buildId: uuid("build_id").notNull().references(() => builds.id),
   reporterId: uuid("reporter_id")
     .notNull()
     .references(() => users.id),
@@ -93,13 +93,23 @@ export const readySignals = pgTable(
     betaModId: uuid("beta_mod_id")
       .notNull()
       .references(() => betaMods.id, { onDelete: "cascade" }),
+    // Migration 0002 backfills existing rows to the newest build and keeps
+    // any truly unscoped legacy row readable; all new writes require a build.
+    buildId: uuid("build_id")
+      .notNull()
+      .references(() => builds.id, { onDelete: "cascade" }),
     testerId: uuid("tester_id")
       .notNull()
       .references(() => users.id),
     isReady: boolean("is_ready").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [unique("ready_signals_beta_mod_id_tester_id_unique").on(table.betaModId, table.testerId)],
+  (table) => [
+    unique("ready_signals_build_id_tester_id_unique").on(
+      table.buildId,
+      table.testerId,
+    ),
+  ],
 );
 
 export const requirements = pgTable("requirements", {

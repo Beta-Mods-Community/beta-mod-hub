@@ -12,7 +12,7 @@ Why this shape: a mod's first Nexus release is effectively its only shot at the 
 
 Most accounts are both roles at once — one account, two roles, not two account types.
 - **Author** — uploads a WIP mod, wants structured bug reports and a ready/not-ready signal, then wants to promote to Nexus with minimum friction.
-- **Tester** — browses active betas, downloads WIP builds, files bug reports, casts a ready/not-ready vote.
+- **Tester** — browses active betas, downloads WIP builds, files bug reports, casts a ready/not-ready verdict for the build they tested.
 
 ## Pages
 
@@ -23,7 +23,7 @@ Most accounts are both roles at once — one account, two roles, not two account
 - Description tab: what it does, current state, known issues, what kind of testing is wanted
 - Files tab: build versions (0.1, 0.2, RC1...) with per-build changelogs
 - Bugs tab: structured reports only — severity, repro steps, log/save attachment. No general comment wall; that's the unproductive-comment clutter this project exists to avoid.
-- Sidebar: ready/not-ready tally and tester count instead of endorsements. No public download counter — Nexus zeroes this out at real launch anyway, so it means nothing here.
+- Sidebar: the latest build's ready/not-ready tally and tester count instead of endorsements. A new build starts a fresh release signal; earlier verdicts remain in tester history. No public download counter — Nexus zeroes this out at real launch anyway, so it means nothing here.
 - Requirements field, matching Nexus's structure.
 
 **Browse** — no Nexus equivalent; this is the page that gets people to actually show up. Live list of active betas, filterable by game, sortable by "needs testers" (low tester count / stale) and by recency. Status badge: Alpha / Beta / RC.
@@ -51,8 +51,11 @@ BugReport
   attachment_url, status (open | acknowledged | fixed), created_at
 
 ReadySignal
-  id, beta_mod_id, tester_id -> User, is_ready (bool), created_at
-  — one row per (beta_mod_id, tester_id); upsert on repeat vote
+  id, beta_mod_id, build_id -> Build, tester_id -> User,
+  is_ready (bool), created_at
+  — one row per (build_id, tester_id); upsert on a repeat verdict for that
+  build. Mod pages and Browse count only the newest build; older rows stay as
+  testing/reputation history.
 
 Requirement
   id, beta_mod_id, nexus_mod_name, nexus_mod_url

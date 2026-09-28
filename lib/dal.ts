@@ -146,8 +146,45 @@ export const getBuildsByModId = cache(async (betaModId: string) => {
     .select(buildColumns)
     .from(builds)
     .where(eq(builds.betaModId, betaModId))
-    .orderBy(desc(builds.uploadedAt));
+    .orderBy(desc(builds.uploadedAt), desc(builds.id));
 });
+
+export const getLatestBuildByModId = cache(async (betaModId: string) => {
+  if (!db) return null;
+
+  const rows = await db
+    .select(buildColumns)
+    .from(builds)
+    .where(eq(builds.betaModId, betaModId))
+    .orderBy(desc(builds.uploadedAt), desc(builds.id))
+    .limit(1);
+
+  return rows[0] ?? null;
+});
+
+async function getLatestBuildsByModIds(modIds: string[]) {
+  const latest = new Map<
+    string,
+    { id: string; betaModId: string; versionLabel: string; uploadedAt: Date }
+  >();
+  if (!db || modIds.length === 0) return latest;
+
+  const rows = await db
+    .select({
+      id: builds.id,
+      betaModId: builds.betaModId,
+      versionLabel: builds.versionLabel,
+      uploadedAt: builds.uploadedAt,
+    })
+    .from(builds)
+    .where(inArray(builds.betaModId, modIds))
+    .orderBy(desc(builds.uploadedAt), desc(builds.id));
+
+  for (const row of rows) {
+    if (!latest.has(row.betaModId)) latest.set(row.betaModId, row);
+  }
+  return latest;
+}
 
 // --- Requirement data access (feeds the promotion package) ---
 
@@ -192,13 +229,21 @@ export const getBugReportsByModId = cache(async (betaModId: string) => {
 export const getReadyTally = cache(async (betaModId: string) => {
   if (!db) return { ready: 0, total: 0 };
 
+  const latestBuild = await getLatestBuildByModId(betaModId);
+  if (!latestBuild) return { ready: 0, total: 0 };
+
   const rows = await db
     .select({
       ready: sql<number>`count(*) filter (where ${readySignals.isReady})`,
       total: sql<number>`count(*)`,
     })
     .from(readySignals)
-    .where(eq(readySignals.betaModId, betaModId));
+    .where(
+      and(
+        eq(readySignals.betaModId, betaModId),
+        eq(readySignals.buildId, latestBuild.id),
+      ),
+    );
 
   const row = rows[0];
   return { ready: Number(row?.ready ?? 0), total: Number(row?.total ?? 0) };
@@ -207,12 +252,16 @@ export const getReadyTally = cache(async (betaModId: string) => {
 export const getMyReadyVote = cache(async (betaModId: string, userId: string) => {
   if (!db) return null;
 
+  const latestBuild = await getLatestBuildByModId(betaModId);
+  if (!latestBuild) return null;
+
   const rows = await db
     .select({ isReady: readySignals.isReady })
     .from(readySignals)
     .where(
       and(
         eq(readySignals.betaModId, betaModId),
+        eq(readySignals.buildId, latestBuild.id),
         eq(readySignals.testerId, userId),
       ),
     )
@@ -228,18 +277,22 @@ export const getFeedbackSummaryByModIds = cache(
       return new Map<string, { openBugs: number; ready: number; total: number }>();
     }
 
+    const latestBuilds = await getLatestBuildsByModIds(modIds);
+    const latestBuildIds = [...latestBuilds.values()].map((build) => build.id);
     const [bugs, votes] = await Promise.all([
       db
         .select({ betaModId: bugReports.betaModId, status: bugReports.status })
         .from(bugReports)
         .where(inArray(bugReports.betaModId, modIds)),
-      db
-        .select({
-          betaModId: readySignals.betaModId,
-          isReady: readySignals.isReady,
-        })
-        .from(readySignals)
-        .where(inArray(readySignals.betaModId, modIds)),
+      latestBuildIds.length > 0
+        ? db
+            .select({
+              betaModId: readySignals.betaModId,
+              isReady: readySignals.isReady,
+            })
+            .from(readySignals)
+            .where(inArray(readySignals.buildId, latestBuildIds))
+        : Promise.resolve([]),
     ]);
 
     const summary = new Map<
@@ -280,26 +333,38 @@ export const getBrowseFeed = cache(
     if (mods.length === 0) return [];
 
     const ids = mods.map((m) => m.id);
-    const [votes, bugs, buildRows] = await Promise.all([
-      db
-        .select({
-          betaModId: readySignals.betaModId,
-          testerId: readySignals.testerId,
-          isReady: readySignals.isReady,
-        })
-        .from(readySignals)
-        .where(inArray(readySignals.betaModId, ids)),
+    const buildRows = await db
+      .select({
+        id: builds.id,
+        betaModId: builds.betaModId,
+        uploadedAt: builds.uploadedAt,
+      })
+      .from(builds)
+      .where(inArray(builds.betaModId, ids))
+      .orderBy(desc(builds.uploadedAt), desc(builds.id));
+
+    const latestBuildIdByMod = new Map<string, string>();
+    for (const build of buildRows) {
+      if (!latestBuildIdByMod.has(build.betaModId)) {
+        latestBuildIdByMod.set(build.betaModId, build.id);
+      }
+    }
+    const latestBuildIds = [...latestBuildIdByMod.values()];
+    const [votes, bugs] = await Promise.all([
+      latestBuildIds.length > 0
+        ? db
+            .select({
+              betaModId: readySignals.betaModId,
+              testerId: readySignals.testerId,
+              isReady: readySignals.isReady,
+            })
+            .from(readySignals)
+            .where(inArray(readySignals.buildId, latestBuildIds))
+        : Promise.resolve([]),
       db
         .select({ betaModId: bugReports.betaModId, status: bugReports.status })
         .from(bugReports)
         .where(inArray(bugReports.betaModId, ids)),
-      db
-        .select({
-          betaModId: builds.betaModId,
-          uploadedAt: builds.uploadedAt,
-        })
-        .from(builds)
-        .where(inArray(builds.betaModId, ids)),
     ]);
 
     const agg = new Map<
@@ -363,40 +428,61 @@ export const getBrowseFeed = cache(
   },
 );
 
-/** Mods the user has voted on, with their vote and the current tally. */
+/**
+ * Mods the user has voted on, with their most recent historical verdict and
+ * the current-build tally. A caller can use `isCurrentBuild` to ask for a
+ * retest instead of presenting an older verdict as current.
+ */
 export const getVotedModsByUser = cache(async (userId: string) => {
   if (!db) return [];
 
-  const votes = await db
+  const voteRows = await db
     .select({
       betaModId: readySignals.betaModId,
+      buildId: readySignals.buildId,
+      buildVersion: builds.versionLabel,
       isReady: readySignals.isReady,
       votedAt: readySignals.createdAt,
     })
     .from(readySignals)
+    .leftJoin(builds, eq(builds.id, readySignals.buildId))
     .where(eq(readySignals.testerId, userId))
     .orderBy(desc(readySignals.createdAt));
-  if (votes.length === 0) return [];
+  if (voteRows.length === 0) return [];
+
+  const mostRecentVoteByMod = new Map<string, (typeof voteRows)[number]>();
+  for (const vote of voteRows) {
+    if (!mostRecentVoteByMod.has(vote.betaModId)) {
+      mostRecentVoteByMod.set(vote.betaModId, vote);
+    }
+  }
+  const votes = [...mostRecentVoteByMod.values()];
 
   const ids = votes.map((v) => v.betaModId);
-  const [mods, summary] = await Promise.all([
+  const [mods, summary, latestBuilds] = await Promise.all([
     db
       .select(betaModColumns)
       .from(betaMods)
       .leftJoin(users, eq(users.id, betaMods.ownerId))
       .where(inArray(betaMods.id, ids)),
     getFeedbackSummaryByModIds(ids),
+    getLatestBuildsByModIds(ids),
   ]);
 
   return votes.flatMap((vote) => {
     const mod = mods.find((m) => m.id === vote.betaModId);
     if (!mod) return [];
     const s = summary.get(vote.betaModId);
+    const latestBuild = latestBuilds.get(vote.betaModId);
     return [
       {
         ...mod,
         myVote: vote.isReady,
         votedAt: vote.votedAt,
+        voteBuildVersion: vote.buildVersion,
+        currentBuildVersion: latestBuild?.versionLabel ?? null,
+        isCurrentBuild:
+          vote.buildId !== null && vote.buildId === latestBuild?.id,
         ready: s?.ready ?? 0,
         total: s?.total ?? 0,
         openBugs: s?.openBugs ?? 0,
@@ -418,9 +504,11 @@ export const getMyBugReports = cache(async (userId: string) => {
       createdAt: bugReports.createdAt,
       betaModId: bugReports.betaModId,
       modTitle: betaMods.title,
+      buildVersion: builds.versionLabel,
     })
     .from(bugReports)
     .innerJoin(betaMods, eq(betaMods.id, bugReports.betaModId))
+    .leftJoin(builds, eq(builds.id, bugReports.buildId))
     .where(eq(bugReports.reporterId, userId))
     .orderBy(desc(bugReports.createdAt))
     .limit(50);

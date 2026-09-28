@@ -1,71 +1,42 @@
 import Link from "next/link";
 
+import HeaderNav from "@/components/header-nav";
 import { logout } from "@lib/auth";
 import { getViewer } from "@lib/access";
 import { getSession } from "@lib/session";
-
-const navLinks = [
-  { href: "/browse", label: "Browse" },
-  { href: "/dashboard", label: "Dashboard" },
-];
 
 export default async function Header() {
   const session = await getSession();
   const viewer = session ? await getViewer() : null;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
+    <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--header-bg)] backdrop-blur-xl">
+      <div className="site-container flex h-16 items-center justify-between gap-4">
         <Link
           href="/"
-          className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-zinc-50"
+          aria-label="Beta Mods home"
+          className="group flex min-w-0 items-center gap-2.5 rounded-md"
         >
-          Beta Mods
+          <span
+            aria-hidden
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--accent)] bg-[var(--accent-soft)] text-base font-black text-[var(--accent-strong)] transition-colors group-hover:bg-[var(--accent)] group-hover:text-[var(--accent-contrast)]"
+          >
+            β
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-bold tracking-tight text-[var(--text)]">
+              Beta Mods
+            </span>
+            <span className="hidden font-mono text-[0.6rem] font-medium uppercase tracking-[0.16em] text-[var(--muted)] sm:block">
+              Release test network
+            </span>
+          </span>
         </Link>
-        <nav className="flex items-center gap-5 text-sm">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-zinc-600 transition-colors hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50"
-            >
-              {link.label}
-            </Link>
-          ))}
-          {session?.userId ? (
-            <>
-              {viewer?.isAdmin && (
-                <Link
-                  href="/admin"
-                  className="text-zinc-600 transition-colors hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50"
-                >
-                  Admin
-                </Link>
-              )}
-              <Link
-                href={`/users/${session.userId}`}
-                className="text-zinc-600 transition-colors hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50"
-              >
-                Profile
-              </Link>
-              <form action={logout}>
-                <button
-                  type="submit"
-                  className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 transition-colors hover:border-zinc-500 hover:text-zinc-950 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500 dark:hover:text-zinc-50"
-                >
-                  Sign out
-                </button>
-              </form>
-            </>
-          ) : (
-            <Link
-              href="/login"
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 transition-colors hover:border-zinc-500 hover:text-zinc-950 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500 dark:hover:text-zinc-50"
-            >
-              Sign in
-            </Link>
-          )}
-        </nav>
+        <HeaderNav
+          userId={session?.userId ?? null}
+          isAdmin={viewer?.isAdmin ?? false}
+          logoutAction={logout}
+        />
       </div>
     </header>
   );

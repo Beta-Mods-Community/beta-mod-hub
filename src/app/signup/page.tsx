@@ -11,20 +11,21 @@ export default async function SignupPage() {
   if (session?.userId) redirect("/dashboard");
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-16">
-      <div className="rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
-        <h1 className="mb-1 text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+    <main className="site-container flex w-full max-w-md flex-1 flex-col justify-center py-14">
+      <div className="panel p-6 sm:p-8">
+        <p className="eyebrow">Closed pilot</p>
+        <h1 className="mb-1 mt-3 text-2xl font-semibold tracking-tight text-[var(--text)]">
           Create your account
         </h1>
-        <p className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mb-6 text-sm text-[var(--text-soft)]">
           Post betas, test builds, and vote on readiness.
         </p>
         <SignupForm />
-        <p className="mt-6 text-center text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-6 text-center text-sm text-[var(--muted)]">
           Already have an account?{" "}
           <Link
             href="/login"
-            className="font-medium text-zinc-950 underline-offset-4 hover:underline dark:text-zinc-50"
+            className="font-semibold text-[var(--text)] underline-offset-4 hover:text-[var(--accent)] hover:underline"
           >
             Sign in
           </Link>

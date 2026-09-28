@@ -4,13 +4,17 @@ import { useActionState } from "react";
 
 import { submitBugReport } from "@lib/feedback";
 
-const inputClass =
-  "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50";
-const labelClass =
-  "mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300";
-const errorClass = "mt-1.5 text-sm text-red-600 dark:text-red-400";
+const inputClass = "field";
+const labelClass = "mb-1.5 block text-sm font-semibold text-[var(--text-soft)]";
+const errorClass = "mt-1.5 text-sm text-rose-300";
 
-export default function BugReportForm({ betaModId }: { betaModId: string }) {
+export default function BugReportForm({
+  betaModId,
+  builds,
+}: {
+  betaModId: string;
+  builds: { id: string; versionLabel: string }[];
+}) {
   const [state, formAction, pending] = useActionState(
     submitBugReport,
     undefined,
@@ -19,6 +23,28 @@ export default function BugReportForm({ betaModId }: { betaModId: string }) {
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="betaModId" value={betaModId} />
+
+      <div>
+        <label htmlFor="affected-build" className={labelClass}>
+          Affected build
+        </label>
+        <select
+          id="affected-build"
+          name="buildId"
+          required
+          defaultValue={builds[0]?.id}
+          className={inputClass}
+        >
+          {builds.map((build, index) => (
+            <option key={build.id} value={build.id}>
+              {build.versionLabel}{index === 0 ? " (latest)" : ""}
+            </option>
+          ))}
+        </select>
+        {state?.errors?.buildId && (
+          <p className={errorClass}>{state.errors.buildId.join(", ")}</p>
+        )}
+      </div>
 
       <div>
         <label htmlFor="severity" className={labelClass}>
@@ -72,13 +98,13 @@ export default function BugReportForm({ betaModId }: { betaModId: string }) {
       </div>
 
       {state?.message && (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.message}</p>
+        <p className="text-sm text-rose-300">{state.message}</p>
       )}
 
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-950"
+        className="button-primary self-start"
       >
         {pending ? "Submitting…" : "Report bug"}
       </button>

@@ -22,14 +22,15 @@ export default async function EditBetaModPage({
   if (mod.ownerId !== session.userId) redirect(`/mods/${mod.id}`);
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+    <main className="site-container w-full max-w-2xl flex-1 py-10 sm:py-14">
+      <p className="eyebrow">Author workspace</p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-[var(--text)]">
         Edit beta
       </h1>
-      <p className="mb-8 mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="mb-8 mt-2 text-sm text-[var(--text-soft)]">
         Update the details of {mod.title}.
       </p>
-      <div className="rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="panel p-5 sm:p-8">
         <BetaModForm
           action={updateBetaMod}
           submitLabel="Save changes"

@@ -9,11 +9,9 @@ type ProfileFormAction = (
   formData: FormData,
 ) => Promise<ProfileFormState>;
 
-const inputClass =
-  "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50";
-const labelClass =
-  "mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300";
-const errorClass = "mt-1.5 text-sm text-red-600 dark:text-red-400";
+const inputClass = "field";
+const labelClass = "mb-1.5 block text-sm font-semibold text-[var(--text-soft)]";
+const errorClass = "mt-1.5 text-sm text-rose-300";
 
 export default function ProfileForm({
   action,
@@ -81,14 +79,14 @@ export default function ProfileForm({
       </div>
 
       {state?.message && (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.message}</p>
+        <p className="text-sm text-rose-300">{state.message}</p>
       )}
 
       <div>
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-950"
+          className="button-primary"
         >
           {pending ? "Saving…" : "Save profile"}
         </button>

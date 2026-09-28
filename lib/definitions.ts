@@ -98,6 +98,7 @@ export type BuildUploadFormState =
 export const MAX_UPLOAD_BYTES = 512 * 1024 * 1024;
 
 export const BugReportFormSchema = z.object({
+  buildId: z.uuid({ error: "Choose the build where you found this bug." }),
   severity: z.enum(["minor", "major", "blocking"]),
   description: z
     .string()
@@ -112,7 +113,9 @@ export const BugReportFormSchema = z.object({
 
 export type BugReportFormState =
   | {
-      errors?: FieldErrors<"severity" | "description" | "reproSteps">;
+      errors?: FieldErrors<
+        "buildId" | "severity" | "description" | "reproSteps"
+      >;
       message?: string;
     }
   | undefined;

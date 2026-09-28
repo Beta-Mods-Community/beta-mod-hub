@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Footer from "@/components/footer";
 import Header from "@/components/header";
 import "./globals.css";
 
@@ -14,12 +15,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  applicationName: "Beta Mods",
   title: {
     default: "Beta Mods",
     template: "%s · Beta Mods",
   },
   description:
     "Pre-release mod hosting for the Nexus community — test WIP builds, file structured bug reports, and promote to Nexus when ready.",
+  keywords: [
+    "mod testing",
+    "beta mods",
+    "Nexus Mods",
+    "game mods",
+    "release testing",
+  ],
 };
 
 export default function RootLayout({
@@ -28,11 +37,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
+        <a href="#main-content" className="skip-link">
+          Skip to content
+        </a>
         <Header />
-        <div className="flex flex-1 flex-col">{children}</div>
+        <div id="main-content" tabIndex={-1} className="flex flex-1 flex-col">
+          {children}
+        </div>
+        <Footer />
       </body>
     </html>
   );

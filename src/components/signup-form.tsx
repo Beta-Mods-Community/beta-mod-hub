@@ -4,11 +4,9 @@ import { useActionState } from "react";
 
 import { signup } from "@lib/auth";
 
-const inputClass =
-  "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50";
-const labelClass =
-  "mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300";
-const errorClass = "mt-1.5 text-sm text-red-600 dark:text-red-400";
+const inputClass = "field";
+const labelClass = "mb-1.5 block text-sm font-semibold text-[var(--text-soft)]";
+const errorClass = "mt-1.5 text-sm text-rose-300";
 
 export default function SignupForm() {
   const [state, action, pending] = useActionState(signup, undefined);
@@ -62,7 +60,7 @@ export default function SignupForm() {
           autoComplete="new-password"
         />
         {state?.errors?.password && (
-          <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-4 text-sm text-red-600 dark:text-red-400">
+          <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-4 text-sm text-rose-300">
             {state.errors.password.map((error) => (
               <li key={error}>Password must {error.toLowerCase()}</li>
             ))}
@@ -71,13 +69,13 @@ export default function SignupForm() {
       </div>
 
       {state?.message && (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.message}</p>
+        <p className="text-sm text-rose-300">{state.message}</p>
       )}
 
       <button
         type="submit"
         disabled={pending}
-        className="mt-2 rounded-md bg-zinc-950 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-950"
+        className="button-primary mt-2"
       >
         {pending ? "Creating account…" : "Create account"}
       </button>

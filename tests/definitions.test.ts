@@ -1,7 +1,29 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { ProfileFormSchema } from "../lib/definitions";
+import { BugReportFormSchema, ProfileFormSchema } from "../lib/definitions";
+
+describe("BugReportFormSchema", () => {
+  const validReport = {
+    buildId: "018fef4c-54f8-7f16-8c35-4c83f18b47df",
+    severity: "major",
+    description: "The menu freezes after selecting a background.",
+    reproSteps: "Open the menu and select the second background.",
+  };
+
+  it("requires a valid affected build id", () => {
+    assert.equal(BugReportFormSchema.safeParse(validReport).success, true);
+    assert.equal(
+      BugReportFormSchema.safeParse({ ...validReport, buildId: "" }).success,
+      false,
+    );
+    assert.equal(
+      BugReportFormSchema.safeParse({ ...validReport, buildId: "not-a-uuid" })
+        .success,
+      false,
+    );
+  });
+});
 
 describe("ProfileFormSchema", () => {
   it("accepts a minimal valid profile", () => {

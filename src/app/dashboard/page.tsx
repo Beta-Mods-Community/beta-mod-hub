@@ -1,5 +1,14 @@
 import Link from "next/link";
-import { Bug, ClipboardList, PlusCircle, UserCheck } from "lucide-react";
+import {
+  ArrowUpRight,
+  Bug,
+  CheckCircle2,
+  ClipboardList,
+  Clock3,
+  FlaskConical,
+  Plus,
+  UserCheck,
+} from "lucide-react";
 
 import StatusBadge from "@/components/status-badge";
 import SeverityBadge from "@/components/severity-badge";
@@ -17,8 +26,8 @@ import { formatDate } from "@lib/format";
 export const metadata = { title: "Dashboard" };
 
 const TABS = [
-  { key: "building", label: "Building", href: "/dashboard" },
-  { key: "testing", label: "Testing", href: "/dashboard?tab=testing" },
+  { key: "building", label: "My releases", href: "/dashboard" },
+  { key: "testing", label: "Test history", href: "/dashboard?tab=testing" },
 ] as const;
 
 type Tab = (typeof TABS)[number]["key"];
@@ -30,7 +39,6 @@ export default async function DashboardPage({
 }) {
   const { tab: tabParam } = await searchParams;
   const tab: Tab = tabParam === "testing" ? "testing" : "building";
-
   const session = await verifySession();
 
   const [user, buildingData, testingData] = await Promise.all([
@@ -39,7 +47,7 @@ export default async function DashboardPage({
       ? (async () => {
           const myMods = await getModsByOwner(session.userId);
           const summary = await getFeedbackSummaryByModIds(
-            myMods.map((m) => m.id),
+            myMods.map((mod) => mod.id),
           );
           return { myMods, summary };
         })()
@@ -53,41 +61,48 @@ export default async function DashboardPage({
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-12">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-            Welcome back, {user?.displayName ?? "modder"}.
-          </h1>
-          <p className="mt-1 max-w-xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-            Your Beta Mods and their test results live here.
-          </p>
-        </div>
-        <Link
-          href="/mods/new"
-          className="inline-flex items-center gap-2 rounded-md bg-zinc-950 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-zinc-50 dark:text-zinc-950"
-        >
-          <PlusCircle className="h-4 w-4" />
-          Post a beta
-        </Link>
-      </div>
-
-      {/* Tabs */}
-      <nav className="mt-8 flex gap-1 border-b border-zinc-200 dark:border-zinc-800">
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={t.href}
-            className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-              tab === t.key
-                ? "border-zinc-950 text-zinc-950 dark:border-zinc-50 dark:text-zinc-50"
-                : "border-transparent text-zinc-500 hover:text-zinc-950 dark:hover:text-zinc-50"
-            }`}
-          >
-            {t.label}
+    <main className="site-container flex-1 py-10 sm:py-14">
+      <header className="border-b border-[var(--line)] pb-8">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="eyebrow">Release workspace</p>
+            <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-[-0.03em] text-[var(--text)] sm:text-4xl">
+              Welcome back, {user?.displayName ?? "modder"}.
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-soft)] sm:text-base">
+              Track current builds, review tester signals, and decide what is
+              ready for its Nexus debut.
+            </p>
+          </div>
+          <Link href="/mods/new" className="button-primary shrink-0">
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Post a beta
           </Link>
-        ))}
-      </nav>
+        </div>
+
+        <nav aria-label="Dashboard views" className="mt-8 flex gap-7">
+          {TABS.map((item) => {
+            const active = tab === item.key;
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`relative pb-3 text-sm font-semibold transition-colors ${
+                  active
+                    ? "text-[var(--text)]"
+                    : "text-[var(--muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                {item.label}
+                {active && (
+                  <span className="absolute inset-x-0 -bottom-px h-0.5 bg-[var(--accent)]" />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+      </header>
 
       {tab === "building" ? (
         <BuildingPanel
@@ -104,8 +119,6 @@ export default async function DashboardPage({
   );
 }
 
-// --- Building: own beta mods with live feedback ---
-
 type FeedbackSummary = Map<
   string,
   { openBugs: number; ready: number; total: number }
@@ -118,64 +131,109 @@ function BuildingPanel({
   myMods: Awaited<ReturnType<typeof getModsByOwner>>;
   summary: FeedbackSummary;
 }) {
+  const openBugTotal = [...summary.values()].reduce(
+    (total, item) => total + item.openBugs,
+    0,
+  );
+  const testingCount = myMods.filter(
+    (mod) => mod.status !== "promoted" && mod.status !== "abandoned",
+  ).length;
+
   return (
-    <section className="mt-8">
-      <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-        Your betas
-      </h2>
-      {myMods.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-zinc-300 p-10 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-          You haven&apos;t posted any betas yet.{" "}
-          <Link
-            href="/mods/new"
-            className="font-medium text-zinc-950 underline-offset-4 hover:underline dark:text-zinc-50"
-          >
-            Post your first beta
-          </Link>
-          .
+    <section className="py-8 sm:py-10" aria-labelledby="releases-heading">
+      <div className="grid gap-px overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3">
+        <Metric
+          label="Active betas"
+          value={testingCount}
+          icon={<FlaskConical className="h-4 w-4" aria-hidden="true" />}
+        />
+        <Metric
+          label="Open bug reports"
+          value={openBugTotal}
+          icon={<Bug className="h-4 w-4" aria-hidden="true" />}
+        />
+        <Metric
+          label="Total projects"
+          value={myMods.length}
+          icon={<ClipboardList className="h-4 w-4" aria-hidden="true" />}
+        />
+      </div>
+
+      <div className="mt-9 flex items-center justify-between gap-4">
+        <div>
+          <p className="eyebrow">Building</p>
+          <h2 id="releases-heading" className="mt-2 text-xl font-semibold text-[var(--text)]">
+            Your release queue
+          </h2>
         </div>
+        <span className="text-xs font-medium text-[var(--muted)]">
+          {myMods.length} {myMods.length === 1 ? "project" : "projects"}
+        </span>
+      </div>
+
+      {myMods.length === 0 ? (
+        <EmptyState
+          icon={<FlaskConical className="h-5 w-5" aria-hidden="true" />}
+          title="No releases in testing"
+          description="Create a beta page, upload a scanned build, and invite a small group of testers."
+          action={{ href: "/mods/new", label: "Post your first beta" }}
+        />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {myMods.map((mod) => {
-            const s = summary.get(mod.id);
+        <div className="mt-5 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)]">
+          {myMods.map((mod, index) => {
+            const signal = summary.get(mod.id);
             return (
-              <div
+              <article
                 key={mod.id}
-                className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
+                className={`grid gap-5 p-5 transition-colors hover:bg-[var(--surface-raised)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-6 ${
+                  index > 0 ? "border-t border-[var(--line)]" : ""
+                }`}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <StatusBadge status={mod.status} />
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {formatDate(mod.updatedAt)}
-                  </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <StatusBadge status={mod.status} />
+                    <span className="text-xs font-medium text-[var(--muted)]">
+                      {mod.game}
+                    </span>
+                    <span className="text-xs text-[var(--muted)]" aria-hidden="true">
+                      /
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-xs text-[var(--muted)]">
+                      <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+                      Updated {formatDate(mod.updatedAt)}
+                    </span>
+                  </div>
+                  <h3 className="mt-3 truncate text-lg font-semibold tracking-tight text-[var(--text)]">
+                    <Link
+                      href={`/mods/${mod.id}`}
+                      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                    >
+                      {mod.title}
+                    </Link>
+                  </h3>
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[var(--text-soft)]">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Bug className="h-3.5 w-3.5" aria-hidden="true" />
+                      {signal?.openBugs ?? 0} open {signal?.openBugs === 1 ? "bug" : "bugs"}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      {signal && signal.total > 0
+                        ? `${signal.ready} of ${signal.total} testers ready`
+                        : "Awaiting first verdict"}
+                    </span>
+                  </div>
                 </div>
-                <h3 className="mt-3 text-base font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-                  {mod.title}
-                </h3>
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                  {mod.game}
-                </p>
-                {s && (
-                  <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                    {s.openBugs} open {s.openBugs === 1 ? "bug" : "bugs"} ·{" "}
-                    {s.ready}/{s.total} ready
-                  </p>
-                )}
-                <div className="mt-4 flex items-center gap-3 text-sm">
-                  <Link
-                    href={`/mods/${mod.id}`}
-                    className="font-medium text-zinc-950 underline-offset-4 hover:underline dark:text-zinc-50"
-                  >
-                    View
-                  </Link>
-                  <Link
-                    href={`/mods/${mod.id}/edit`}
-                    className="text-zinc-600 underline-offset-4 hover:underline dark:text-zinc-400"
-                  >
+                <div className="flex items-center gap-2 sm:justify-end">
+                  <Link href={`/mods/${mod.id}/edit`} className="button-secondary">
                     Edit
                   </Link>
+                  <Link href={`/mods/${mod.id}`} className="button-secondary">
+                    Open
+                    <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Link>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
@@ -183,8 +241,6 @@ function BuildingPanel({
     </section>
   );
 }
-
-// --- Testing: tracked mods + own feedback history ---
 
 function TestingPanel({
   votedMods,
@@ -194,109 +250,177 @@ function TestingPanel({
   reports: Awaited<ReturnType<typeof getMyBugReports>>;
 }) {
   return (
-    <section className="mt-8">
-      <div className="flex items-center gap-2">
-        <UserCheck className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-          Testing now
-        </h2>
+    <section className="py-8 sm:py-10">
+      <div className="flex items-center gap-3">
+        <span className="grid h-9 w-9 place-items-center rounded-md border border-[var(--line)] bg-[var(--surface)] text-[var(--accent)]">
+          <UserCheck className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <div>
+          <p className="eyebrow">Testing</p>
+          <h2 className="mt-1 text-xl font-semibold text-[var(--text)]">Your release verdicts</h2>
+        </div>
       </div>
 
       {votedMods.length === 0 ? (
-        <p className="mt-4 rounded-lg border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-          You haven&apos;t voted on any betas yet. Head to{" "}
-          <Link
-            href="/browse"
-            className="font-medium text-zinc-950 underline-offset-4 hover:underline dark:text-zinc-50"
-          >
-            Browse
-          </Link>{" "}
-          and cast your first ready/not-ready vote — it tracks the mod here.
-        </p>
+        <EmptyState
+          icon={<UserCheck className="h-5 w-5" aria-hidden="true" />}
+          title="No verdicts yet"
+          description="Test an active build, then leave a release signal so its author knows whether to ship."
+          action={{ href: "/browse", label: "Find a beta to test" }}
+        />
       ) : (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="mt-5 grid gap-3 lg:grid-cols-2">
           {votedMods.map((mod) => (
-            <div
-              key={mod.id}
-              className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              <div className="flex items-center justify-between gap-3">
+            <article key={mod.id} className="panel p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <StatusBadge status={mod.status} />
                 <span
-                  className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-                    mod.myVote
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-                      : "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
+                  className={`rounded-sm border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                    !mod.isCurrentBuild
+                      ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                      : mod.myVote
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                        : "border-red-500/30 bg-red-500/10 text-red-300"
                   }`}
                 >
-                  You voted {mod.myVote ? "ready" : "not ready"}
+                  {mod.isCurrentBuild
+                    ? mod.myVote
+                      ? "Ready"
+                      : "Not ready"
+                    : "Retest needed"}
                 </span>
               </div>
-              <h3 className="mt-3 text-base font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-                <Link
-                  href={`/mods/${mod.id}`}
-                  className="underline-offset-4 hover:underline"
-                >
+              <h3 className="mt-4 text-base font-semibold text-[var(--text)]">
+                <Link href={`/mods/${mod.id}`} className="hover:text-[var(--accent)]">
                   {mod.title}
                 </Link>
               </h3>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1 text-xs text-[var(--muted)]">
                 {mod.game} · by {mod.ownerName ?? "unknown"}
               </p>
-              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                {mod.ready}/{mod.total} testers ready · {mod.openBugs} open{" "}
-                {mod.openBugs === 1 ? "bug" : "bugs"} · voted{" "}
-                {formatDate(mod.votedAt)}
-              </p>
-            </div>
+              {!mod.isCurrentBuild && (
+                <p className="mt-3 rounded-sm border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs leading-5 text-amber-200/90">
+                  Your {mod.myVote ? "ready" : "not-ready"} verdict was for {mod.voteBuildVersion ?? "an older build"}.
+                  {mod.currentBuildVersion
+                    ? ` Version ${mod.currentBuildVersion} needs a fresh test.`
+                    : " There is no current build to retest."}
+                </p>
+              )}
+              <div className="mt-4 border-t border-[var(--line)] pt-3 text-xs leading-5 text-[var(--text-soft)]">
+                {mod.total > 0
+                  ? `${mod.ready} of ${mod.total} testers ready`
+                  : "No current-build verdicts"}
+                {" · "}
+                {mod.openBugs} open {mod.openBugs === 1 ? "bug" : "bugs"}
+                {" · "}voted {formatDate(mod.votedAt)}
+              </div>
+            </article>
           ))}
         </div>
       )}
 
-      <div className="mt-10 flex items-center gap-2">
-        <ClipboardList className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-          Your bug reports
-        </h2>
+      <div className="mt-12 flex items-center gap-3">
+        <span className="grid h-9 w-9 place-items-center rounded-md border border-[var(--line)] bg-[var(--surface)] text-[var(--accent)]">
+          <ClipboardList className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <div>
+          <p className="eyebrow">Reports</p>
+          <h2 className="mt-1 text-xl font-semibold text-[var(--text)]">Bugs you filed</h2>
+        </div>
       </div>
 
       {reports.length === 0 ? (
-        <p className="mt-4 rounded-lg border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-          No bug reports yet. Found something broken on a beta? File a{" "}
-          structured report on its page — severity, repro steps, and all.
-        </p>
+        <EmptyState
+          icon={<Bug className="h-5 w-5" aria-hidden="true" />}
+          title="No reports filed"
+          description="When something breaks, structured reports keep the signal useful for authors."
+        />
       ) : (
-        <ul className="mt-4 divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
-          {reports.map((report) => (
-            <li key={report.id} className="px-6 py-4">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <div className="mt-5 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)]">
+          {reports.map((report, index) => (
+            <article
+              key={report.id}
+              className={`p-5 sm:p-6 ${index > 0 ? "border-t border-[var(--line)]" : ""}`}
+            >
+              <div className="flex flex-wrap items-center gap-2">
                 <SeverityBadge severity={report.severity} />
                 <ReportStatusBadge status={report.status} />
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {formatDate(report.createdAt)}
-                </span>
+                {report.buildVersion && (
+                  <span className="rounded-sm bg-[var(--surface-raised)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-soft)]">
+                    build {report.buildVersion}
+                  </span>
+                )}
+                <span className="text-xs text-[var(--muted)]">{formatDate(report.createdAt)}</span>
               </div>
-              <p className="mt-2 text-sm leading-6 text-zinc-700 dark:text-zinc-300">
+              <p className="mt-3 text-sm leading-6 text-[var(--text-soft)]">
                 <Link
                   href={`/mods/${report.betaModId}`}
-                  className="font-medium text-zinc-950 underline-offset-4 hover:underline dark:text-zinc-50"
+                  className="font-semibold text-[var(--text)] hover:text-[var(--accent)]"
                 >
                   {report.modTitle}
                 </Link>
-                {" — "}
+                <span className="mx-2 text-[var(--muted)]">—</span>
                 {report.description.length > 180
                   ? `${report.description.slice(0, 180)}…`
                   : report.description}
               </p>
-            </li>
+            </article>
           ))}
-        </ul>
+        </div>
       )}
 
-      <p className="mt-6 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-        <Bug className="h-3.5 w-3.5" />
-        Reports stay structured — no comment walls, by design.
+      <p className="mt-5 flex items-center gap-2 text-xs text-[var(--muted)]">
+        <Bug className="h-3.5 w-3.5" aria-hidden="true" />
+        Reports stay structured. Beta Mods has no general comment wall.
       </p>
     </section>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="bg-[var(--surface)] px-5 py-4 sm:px-6">
+      <div className="flex items-center gap-2 text-[var(--muted)]">
+        {icon}
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em]">{label}</span>
+      </div>
+      <p className="mt-2 text-2xl font-semibold tracking-tight text-[var(--text)]">{value}</p>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  action?: { href: string; label: string };
+}) {
+  return (
+    <div className="mt-5 border border-dashed border-[var(--line-strong)] bg-[var(--surface)] px-6 py-12 text-center">
+      <span className="mx-auto grid h-10 w-10 place-items-center rounded-md border border-[var(--line)] bg-[var(--surface-raised)] text-[var(--accent)]">
+        {icon}
+      </span>
+      <h3 className="mt-4 text-base font-semibold text-[var(--text)]">{title}</h3>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--text-soft)]">{description}</p>
+      {action && (
+        <Link href={action.href} className="button-secondary mt-5">
+          {action.label}
+          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </Link>
+      )}
+    </div>
   );
 }

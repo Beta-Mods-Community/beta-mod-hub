@@ -48,7 +48,7 @@ CREATE TABLE builds (
 CREATE TABLE bug_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     beta_mod_id UUID NOT NULL REFERENCES beta_mods(id) ON DELETE CASCADE,
-    build_id UUID REFERENCES builds(id),
+    build_id UUID NOT NULL REFERENCES builds(id),
     reporter_id UUID NOT NULL REFERENCES users(id),
     severity bug_severity NOT NULL,
     description TEXT NOT NULL,
@@ -61,10 +61,14 @@ CREATE TABLE bug_reports (
 CREATE TABLE ready_signals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     beta_mod_id UUID NOT NULL REFERENCES beta_mods(id) ON DELETE CASCADE,
+    -- Build this verdict applies to. Migration 0002 preserves any legacy
+    -- unscoped rows, but every new database/write requires this value.
+    build_id UUID NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
     tester_id UUID NOT NULL REFERENCES users(id),
     is_ready BOOLEAN NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (beta_mod_id, tester_id)
+    CONSTRAINT ready_signals_build_id_tester_id_unique
+        UNIQUE (build_id, tester_id)
 );
 
 CREATE TABLE requirements (

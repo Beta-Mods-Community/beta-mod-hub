@@ -13,18 +13,18 @@ export default function SortSelect({
 
   return (
     <form
-      className="flex items-center gap-2"
+      className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-initial"
       onSubmit={(e) => e.preventDefault()}
     >
       <label
         htmlFor="browse-sort"
-        className="text-sm text-zinc-600 dark:text-zinc-400"
+        className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500"
       >
         Sort
       </label>
       <select
         id="browse-sort"
-        defaultValue={current === "needs-testers" ? "needs-testers" : "newest"}
+        value={current === "needs-testers" ? "needs-testers" : "newest"}
         onChange={(e) => {
           const sort = e.target.value;
           const params = new URLSearchParams();
@@ -33,7 +33,7 @@ export default function SortSelect({
           const qs = params.toString();
           router.push(qs ? `/browse?${qs}` : "/browse");
         }}
-        className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-950 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+        className="h-10 min-w-40 rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-100 outline-none transition hover:border-zinc-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
       >
         <option value="newest">Newest</option>
         <option value="needs-testers">Needs testers</option>

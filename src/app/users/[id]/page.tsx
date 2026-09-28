@@ -41,34 +41,34 @@ export default async function UserProfilePage({
   const isOwnProfile = session?.userId === profile.id;
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
+    <main className="site-container w-full max-w-5xl flex-1 py-10 sm:py-14">
       {/* Header card */}
-      <section className="rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="panel p-5 sm:p-8">
         <div className="flex flex-wrap items-center gap-4">
           {profile.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={profile.avatarUrl}
               alt={`${profile.displayName}'s avatar`}
-              className="h-16 w-16 rounded-full border border-zinc-200 object-cover dark:border-zinc-700"
+              className="h-16 w-16 rounded-md border border-[var(--line-strong)] object-cover"
             />
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-xl font-semibold text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+            <div className="flex h-16 w-16 items-center justify-center rounded-md border border-[var(--line-strong)] bg-[var(--surface-raised)] text-xl font-semibold text-[var(--accent)]">
               {profile.displayName.slice(0, 1).toUpperCase()}
             </div>
           )}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+              <h1 className="text-3xl font-semibold tracking-[-0.03em] text-[var(--text)]">
                 {profile.displayName}
               </h1>
               <ReputationBadge score={reputation} />
             </div>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="mt-1 text-sm text-[var(--text-soft)]">
               {tier} · joined {formatDate(profile.createdAt)}
             </p>
             {profile.nexusUserId && (
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1 text-xs font-medium text-[var(--accent)]">
                 Nexus account linked
               </p>
             )}
@@ -76,7 +76,7 @@ export default async function UserProfilePage({
           {isOwnProfile && (
             <Link
               href="/profile/edit"
-              className="ml-auto rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:border-zinc-500 hover:text-zinc-950 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500 dark:hover:text-zinc-50"
+              className="button-secondary ml-auto"
             >
               Edit profile
             </Link>
@@ -84,60 +84,60 @@ export default async function UserProfilePage({
         </div>
 
         {profile.bio && (
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-zinc-700 dark:text-zinc-300">
+          <p className="mt-5 max-w-3xl whitespace-pre-wrap border-t border-[var(--line)] pt-5 text-sm leading-6 text-[var(--text-soft)]">
             {profile.bio}
           </p>
         )}
       </section>
 
       {/* Reputation breakdown */}
-      <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="panel mt-6 p-5 sm:p-8">
         <div className="mb-3 flex items-center gap-2">
-          <Palette className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+          <Palette className="h-4 w-4 text-[var(--accent)]" />
+          <h2 className="eyebrow">
             Testing history
           </h2>
         </div>
 
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
-            <dt className="text-xs text-zinc-500 dark:text-zinc-400">
+            <dt className="text-xs text-[var(--muted)]">
               Mods tested
             </dt>
-            <dd className="mt-1 text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+            <dd className="mt-1 text-xl font-semibold text-[var(--text)]">
               {history.distinctModsTested}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-500 dark:text-zinc-400">
+            <dt className="text-xs text-[var(--muted)]">
               Ready votes
             </dt>
-            <dd className="mt-1 text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+            <dd className="mt-1 text-xl font-semibold text-[var(--text)]">
               {history.readyVotes}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-500 dark:text-zinc-400">
+            <dt className="text-xs text-[var(--muted)]">
               Not-ready votes
             </dt>
-            <dd className="mt-1 text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+            <dd className="mt-1 text-xl font-semibold text-[var(--text)]">
               {history.notReadyVotes}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-500 dark:text-zinc-400">
+            <dt className="text-xs text-[var(--muted)]">
               Bugs filed
             </dt>
-            <dd className="mt-1 text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+            <dd className="mt-1 text-xl font-semibold text-[var(--text)]">
               {history.minorBugs + history.majorBugs + history.blockingBugs}
             </dd>
           </div>
         </dl>
 
-        <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-4 border-t border-[var(--line)] pt-4 text-xs leading-5 text-[var(--muted)]">
           Reputation is derived from testing history — authors use it to judge
           how much a ready/not-ready vote is worth. Tester reputation score:{" "}
-          <span className="font-medium text-zinc-700 dark:text-zinc-300">
+          <span className="font-semibold text-[var(--text-soft)]">
             {reputation} ({tier})
           </span>
           .
@@ -145,10 +145,10 @@ export default async function UserProfilePage({
       </section>
 
       {/* Beta Mods (authored) */}
-      <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="panel mt-6 p-5 sm:p-8">
         <div className="mb-3 flex items-center gap-2">
-          <FileStack className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+          <FileStack className="h-4 w-4 text-[var(--accent)]" />
+          <h2 className="eyebrow">
             Beta Mods
           </h2>
         </div>
@@ -158,18 +158,18 @@ export default async function UserProfilePage({
             No beta mods authored yet.
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <ul className="divide-y divide-[var(--line)]">
             {mods.map((mod) => (
               <li key={mod.id} className="py-3">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <Link
                     href={`/mods/${mod.id}`}
-                    className="text-sm font-medium text-zinc-950 underline-offset-4 hover:underline dark:text-zinc-50"
+                    className="text-sm font-semibold text-[var(--text)] underline-offset-4 hover:text-[var(--accent)] hover:underline"
                   >
                     {mod.title}
                   </Link>
                   <StatusBadge status={mod.status} />
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                  <span className="text-xs text-[var(--muted)]">
                     {mod.game}
                   </span>
                 </div>
@@ -180,10 +180,10 @@ export default async function UserProfilePage({
       </section>
 
       {/* Mods tested */}
-      <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="panel mt-6 p-5 sm:p-8">
         <div className="mb-3 flex items-center gap-2">
-          <CheckCircle className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+          <CheckCircle className="h-4 w-4 text-[var(--accent)]" />
+          <h2 className="eyebrow">
             Mods tested
           </h2>
         </div>
@@ -193,27 +193,33 @@ export default async function UserProfilePage({
             No ready votes cast yet.
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <ul className="divide-y divide-[var(--line)]">
             {tested.map((mod) => (
               <li key={mod.id} className="py-3">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <Link
                     href={`/mods/${mod.id}`}
-                    className="text-sm font-medium text-zinc-950 underline-offset-4 hover:underline dark:text-zinc-50"
+                    className="text-sm font-semibold text-[var(--text)] underline-offset-4 hover:text-[var(--accent)] hover:underline"
                   >
                     {mod.title}
                   </Link>
                   <span
-                    className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-                      mod.myVote
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-                        : "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
+                    className={`rounded-sm border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.11em] ${
+                      !mod.isCurrentBuild
+                        ? "border-amber-500/35 bg-amber-500/10 text-amber-200"
+                        : mod.myVote
+                          ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-200"
+                          : "border-red-500/35 bg-red-500/10 text-red-200"
                     }`}
                   >
-                    {mod.myVote ? "Ready" : "Not ready"}
+                    {mod.isCurrentBuild
+                      ? mod.myVote
+                        ? "Ready"
+                        : "Not ready"
+                      : `Retest ${mod.currentBuildVersion ?? "needed"}`}
                   </span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {mod.ready}/{mod.total} ready
+                  <span className="text-xs text-[var(--muted)]">
+                    {mod.total > 0 ? `${mod.ready}/${mod.total} ready` : "Awaiting current-build verdicts"}
                   </span>
                 </div>
               </li>
@@ -223,10 +229,10 @@ export default async function UserProfilePage({
       </section>
 
       {/* Bug reports filed */}
-      <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="panel mt-6 p-5 sm:p-8">
         <div className="mb-3 flex items-center gap-2">
-          <Bug className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+          <Bug className="h-4 w-4 text-[var(--accent)]" />
+          <h2 className="eyebrow">
             Bugs filed
           </h2>
         </div>
@@ -236,24 +242,29 @@ export default async function UserProfilePage({
             No bug reports filed yet.
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <ul className="divide-y divide-[var(--line)]">
             {reports.map((report) => (
               <li key={report.id} className="py-3">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <SeverityBadge severity={report.severity} />
                   <ReportStatusBadge status={report.status} />
+                  {report.buildVersion && (
+                    <span className="rounded-sm bg-[var(--surface-raised)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-soft)]">
+                      build {report.buildVersion}
+                    </span>
+                  )}
                   <Link
                     href={`/mods/${report.betaModId}`}
-                    className="text-sm font-medium text-zinc-950 underline-offset-4 hover:underline dark:text-zinc-50"
+                    className="text-sm font-semibold text-[var(--text)] underline-offset-4 hover:text-[var(--accent)] hover:underline"
                   >
                     {report.modTitle}
                   </Link>
-                  <span className="ml-auto flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  <span className="ml-auto flex items-center gap-1 text-xs text-[var(--muted)]">
                     <CalendarDays className="h-3 w-3" />
                     {formatDate(report.createdAt)}
                   </span>
                 </div>
-                <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--text-soft)]">
                   {report.description}
                 </p>
               </li>
