@@ -138,6 +138,7 @@ export function sweepStaleQuarantine(maxAgeMs = 60 * 60 * 1000): number {
 export async function promoteQuarantine(
   key: string,
   finalKey: string,
+  options?: { contentType?: string },
 ): Promise<void> {
   const abs = quarantinePath(key);
   if (!existsSync(abs)) {
@@ -150,7 +151,7 @@ export async function promoteQuarantine(
     // propagates, the caller releases the reservation, and the quarantine file
     // is deleted by the caller's error path — so a failed upload never leaves
     // bytes in R2 and never leaves bytes on the PC either.
-    await getR2().put(finalKey, data);
+    await getR2().put(finalKey, data, options?.contentType);
     rmSync(abs, { force: true });
   } else {
     const dest = storedPath(finalKey);
@@ -183,8 +184,11 @@ export async function readStored(
 }
 
 /**
- * A short-lived presigned R2 GET URL, so the archive travels from R2 straight
- * to the downloader instead of through this PC's home connection.
+ * A short-lived presigned R2 GET URL, so bytes travel from R2 straight to the
+ * requester instead of through this PC's home connection.
+ *
+ * Builds presign with { filename } (attachment download). Media presigns with
+ * { inline, contentType } so gallery images render inside an <img> tag.
  *
  * Returns null on the local driver, where there is nothing to presign and the
  * caller must stream instead. Throws if signing fails — signing is local
@@ -193,7 +197,12 @@ export async function readStored(
  */
 export async function presignStoredDownload(
   finalKey: string,
-  options: { filename?: string; expiresIn: number },
+  options: {
+    filename?: string;
+    contentType?: string;
+    inline?: boolean;
+    expiresIn: number;
+  },
 ): Promise<string | null> {
   if (!isR2) return null;
   return getR2().presignDownload(finalKey, options);

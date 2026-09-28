@@ -68,6 +68,23 @@ describe("R2 store: put", () => {
     });
   });
 
+  it("sets the object's ContentType when the caller supplies one", async () => {
+    // Media promotes with the sniffed MIME so the stored object is self
+    // describing, not a generic application/octet-stream blob.
+    const { client, calls } = stubClient();
+    const store = createR2Store({ client, bucket: BUCKET });
+
+    await store.put(
+      "media/abc/01cf4b3a.png",
+      new Uint8Array([1, 2, 3]),
+      "image/png",
+    );
+
+    assert.equal(calls[0].name, "PutObjectCommand");
+    assert.equal(calls[0].input.ContentType, "image/png");
+    assert.equal(calls[0].input.Key, "media/abc/01cf4b3a.png");
+  });
+
   it("propagates a store failure instead of reporting success", async () => {
     // Silently swallowing this would leave the app believing a file is safely
     // in R2 when it is not.
@@ -184,6 +201,33 @@ describe("R2 store: presignDownload", () => {
 
     await store.presignDownload("builds/abc/x.zip", { expiresIn: 60 });
     assert.equal(seen, undefined);
+  });
+
+  it("signs an inline GET with the object's content type for <img> delivery", async () => {
+    // Media reaches the browser the same way a build does — R2 straight to the
+    // requester, no byte proxied through the home PC — but inline, so an
+    // <img> tag renders it instead of the browser saving a file.
+    const { client } = stubClient();
+    let seen: GetObjectCommand | undefined;
+    const sign: PresignFn = async (_client, command) => {
+      seen = command as GetObjectCommand;
+      return "https://signed.example/media?id=1";
+    };
+    const store = createR2Store({ client, bucket: BUCKET, sign });
+
+    const url = await store.presignDownload("media/abc/shot.png", {
+      contentType: "image/png",
+      inline: true,
+      expiresIn: 60,
+    });
+
+    assert.equal(url, "https://signed.example/media?id=1");
+    assert.deepEqual(seen?.input, {
+      Bucket: BUCKET,
+      Key: "media/abc/shot.png",
+      ResponseContentDisposition: "inline",
+      ResponseContentType: "image/png",
+    });
   });
 });
 

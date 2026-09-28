@@ -32,17 +32,23 @@ export type R2StoreOptions = {
 };
 
 export type R2Store = {
-  put(key: string, data: Uint8Array): Promise<void>;
+  put(key: string, data: Uint8Array, contentType?: string): Promise<void>;
   get(key: string): Promise<{ data: Uint8Array; size: number } | null>;
   remove(key: string): Promise<void>;
   /**
-   * Short-lived presigned GET. `filename` is enforced through
-   * ResponseContentDisposition so the browser saves it under the original
-   * name without the app ever proxying the bytes.
+   * Short-lived presigned GET. With `filename` the browser is forced to save
+   * under that name (attachment); with `inline` the object is served in-place
+   * under `contentType`, which is how gallery images reach an <img> tag. The
+   * app never proxies either kind of byte.
    */
   presignDownload(
     key: string,
-    options: { filename?: string; expiresIn: number },
+    options: {
+      filename?: string;
+      contentType?: string;
+      inline?: boolean;
+      expiresIn: number;
+    },
   ): Promise<string>;
   /** Every key/size in the bucket — the admin console's drift check. */
   inventory(): Promise<Array<{ key: string; size: number }>>;
@@ -64,13 +70,14 @@ export function createR2Store({
   }
 
   return {
-    async put(key, data) {
+    async put(key, data, contentType) {
       await client.send(
         new PutObjectCommand({
           Bucket: bucket,
           Key: key,
           Body: data,
           ContentLength: data.byteLength,
+          ...(contentType ? { ContentType: contentType } : {}),
         }),
       );
     },
@@ -95,11 +102,18 @@ export function createR2Store({
       await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
     },
 
-    async presignDownload(key, { filename, expiresIn }) {
+    async presignDownload(key, { filename, contentType, inline, expiresIn }) {
       const command = new GetObjectCommand({
         Bucket: bucket,
         Key: key,
-        ...(filename ? { ResponseContentDisposition: contentDisposition(filename) } : {}),
+        ...(inline
+          ? {
+              ResponseContentDisposition: "inline",
+              ...(contentType ? { ResponseContentType: contentType } : {}),
+            }
+          : filename
+            ? { ResponseContentDisposition: contentDisposition(filename) }
+            : {}),
       });
       return sign(client, command, { expiresIn });
     },
