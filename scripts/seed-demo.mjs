@@ -1,7 +1,7 @@
-// Seeds a small demo dataset so the BetaMod page (bug reports, ready votes)
-// can be inspected locally without hand-typing data. Idempotent — safe to
-// re-run: it upserts the demo accounts and skips creating the demo mod if one
-// with the same title already exists.
+// Seeds a small private fixture dataset so the BetaMod page (bug reports,
+// ready votes) can be inspected locally without hand-typing data. The fixture
+// mod is always `abandoned`, which keeps synthetic content out of the public
+// Browse feed while preserving its stable URL for integration/e2e checks.
 //
 // Usage: node scripts/seed-demo.mjs
 import { readFileSync } from "node:fs";
@@ -42,7 +42,7 @@ try {
         ${"A weapons pack in open beta. Magic variants crash when blocking — see the blocking report. Feedback via structured reports and the ready vote, please."},
         ${"Skyrim"},
         ${["combat", "weapons", "demo"]},
-        ${"beta"}
+        ${"abandoned"}
       )
       returning id
     `;
@@ -51,6 +51,11 @@ try {
   } else {
     console.log("demo mod already exists");
   }
+
+  // This is test infrastructure, not a real pilot listing. Reassert the
+  // hidden status on every idempotent run in case an older seed created it as
+  // an active beta.
+  await sql`update beta_mods set status = 'abandoned' where id = ${modId}`;
 
   const url = `http://localhost:3000/mods/${modId}`;
 
