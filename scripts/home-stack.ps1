@@ -87,9 +87,8 @@ function Get-ComposeArgs {
     .SYNOPSIS
       The shared `docker compose` argument prefix.
     .DESCRIPTION
-      -T keeps output unpaged so it stays parseable. --env-file is mandatory
-      here, not optional: it is what SCAN_API_KEY and CLOUDFLARE_TUNNEL_TOKEN
-      are interpolated from.
+      --env-file is mandatory here, not optional: it is what SCAN_API_KEY and
+      CLOUDFLARE_TUNNEL_TOKEN are interpolated from.
   #>
   param(
     [switch] $LocalTest,
@@ -98,7 +97,6 @@ function Get-ComposeArgs {
   $composeArgs = @('compose', '--env-file', $EnvFile, '-f', $ComposeFile)
   if ($LocalTest) { $composeArgs += @('-f', $LocalTestFile) }
   if ($Tunnel) { $composeArgs += @('--profile', 'tunnel') }
-  $composeArgs + @('-T')
   return $composeArgs
 }
 
@@ -135,7 +133,7 @@ docker was not found on PATH.
 The Docker engine is not responding.
 
   Start Docker Desktop and wait for it to report "running", then re-run. A
-  stopped engine is also why `up` may appear to do nothing.
+  stopped engine is also why the up command may appear to do nothing.
 "@
   }
 }
@@ -242,6 +240,7 @@ function Invoke-Smoke {
   & $set 'SMOKE_COMPOSE_FILE' $ComposeFile
   & $set 'SMOKE_SERVICES' $SmokeServices
   & $set 'SMOKE_HEALTHY_SERVICES' $SmokeHealthy
+  & $set 'SMOKE_STORAGE_DRIVER' 'r2'
   # The scan wrapper's Compose-network name cannot be resolved from the host,
   # so probe the loopback publish provided by compose.home.localtest.yml.
   & $set 'SMOKE_SCAN_ENDPOINT' 'http://127.0.0.1:3311'

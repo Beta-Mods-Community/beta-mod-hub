@@ -39,6 +39,7 @@
  *   SMOKE_SCAN_ENDPOINT     scan endpoint to probe, overriding the env file
  *                           (needed when the endpoint is only reachable on a
  *                           private Docker network, e.g. http://scan-server:3311)
+ *   SMOKE_STORAGE_DRIVER    final storage driver (default from env, then local)
  *   SMOKE_OWNER_EMAIL       owner whose existing Beta Mod hosts the --full upload
  *   SMOKE_SKIP_CONTAINERS   1 = skip the docker checks (local rehearsal only)
  */
@@ -51,6 +52,8 @@ import path from "node:path";
 import postgres from "postgres";
 import { SignJWT } from "jose";
 import { ZipArchive } from "archiver";
+
+import { parseComposePs } from "./compose-ps.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -71,6 +74,10 @@ const env = (key) => {
   const m = readFileSync(envFile, "utf8").match(new RegExp(`^${key}=(.+)$`, "m"));
   return m ? m[1].trim() : "";
 };
+// `env()` returns "" for a missing key, never undefined -- hence ||, so an
+// absent STORAGE_DRIVER really does mean "local" rather than "".
+const STORAGE_DRIVER =
+  process.env.SMOKE_STORAGE_DRIVER || env("STORAGE_DRIVER") || "local";
 
 const results = [];
 const check = (name, ok, extra = "") =>
@@ -131,9 +138,10 @@ async function checkContainers() {
   }
   try {
     const { stdout } = await execFileAsync("docker", [
-      "compose", "-f", COMPOSE_FILE, "ps", "--format", "json",
+      "compose", "--env-file", envFile, "-f", COMPOSE_FILE,
+      "ps", "--format", "json",
     ]);
-    const rows = JSON.parse(stdout);
+    const rows = parseComposePs(stdout);
     const byService = Object.fromEntries(rows.map((r) => [r.Service, r]));
     for (const svc of SERVICES) {
       const row = byService[svc];
@@ -254,6 +262,37 @@ async function postForm(url, cookie, fields, { filename, bytes, versionLabel, ch
   };
 }
 
+async function deleteStoredSmokeFile(fileUrl) {
+  if (STORAGE_DRIVER === "r2") {
+    const { DeleteObjectCommand, S3Client } = await import("@aws-sdk/client-s3");
+    const client = new S3Client({
+      region: "auto",
+      endpoint: env("STORAGE_ENDPOINT"),
+      credentials: {
+        accessKeyId: env("STORAGE_ACCESS_KEY"),
+        secretAccessKey: env("STORAGE_SECRET_KEY"),
+      },
+    });
+    await client.send(new DeleteObjectCommand({
+      Bucket: env("STORAGE_BUCKET"),
+      Key: fileUrl,
+    }));
+    return;
+  }
+
+  const localPath = path.join(root, "data", "uploads", fileUrl);
+  if (existsSync(localPath)) {
+    unlinkSync(localPath);
+    return;
+  }
+
+  await execFileAsync("docker", [
+    "compose", "--env-file", envFile, "-f", COMPOSE_FILE,
+    "exec", "-T", "app", "sh", "-c",
+    `rm -f '/app/data/uploads/${fileUrl}'`,
+  ]);
+}
+
 async function fullUploadPipeline() {
   const ownerEmail = process.env.SMOKE_OWNER_EMAIL;
   if (!ownerEmail) {
@@ -329,12 +368,24 @@ async function fullUploadPipeline() {
         headers: { Cookie: cookie },
         redirect: "manual",
       });
-      const dlBytes = Buffer.from(await dl.arrayBuffer());
-      check(
-        "--full: served bytes == stored bytes",
-        dl.status === 200 && sha256(dlBytes) === fixtureSha,
-        `status=${dl.status}`,
-      );
+      if (STORAGE_DRIVER === "r2") {
+        const location = dl.headers.get("location");
+        check("--full: download redirects to R2", dl.status === 302 && !!location, `status=${dl.status}`);
+        const stored = location ? await fetch(new URL(location, BASE)) : null;
+        const dlBytes = stored ? Buffer.from(await stored.arrayBuffer()) : Buffer.alloc(0);
+        check(
+          "--full: R2 bytes == uploaded bytes",
+          stored?.status === 200 && sha256(dlBytes) === fixtureSha,
+          `status=${stored?.status ?? "not fetched"}`,
+        );
+      } else {
+        const dlBytes = Buffer.from(await dl.arrayBuffer());
+        check(
+          "--full: served bytes == stored bytes",
+          dl.status === 200 && sha256(dlBytes) === fixtureSha,
+          `status=${dl.status}`,
+        );
+      }
     }
 
     // 2) EICAR upload -> rejected, no row
@@ -367,30 +418,14 @@ async function fullUploadPipeline() {
     }
     let removedFile = true;
     if (fileUrl && removedRow) {
-      const localPath = path.join(root, "data", "uploads", fileUrl);
-      if (existsSync(localPath)) {
-        // Local rehearsal (STORAGE_DRIVER=local on this host).
-        try {
-          unlinkSync(localPath);
-        } catch (e) {
-          removedFile = false;
-          console.error(`WARN: could not delete ${localPath}:`, e.message);
-        }
-      } else {
-        // On a container host the uploads live in the app-data named volume,
-        // not on a host path — remove it inside the container instead.
-        try {
-          await execFileAsync("docker", [
-            "compose", "-f", COMPOSE_FILE, "exec", "-T", "app",
-            "sh", "-c", `rm -f '/app/data/uploads/${fileUrl}'`,
-          ]);
-        } catch (e) {
-          removedFile = false;
-          console.error(
-            `WARN: could not delete stored smoke file ${fileUrl} — remove it manually:`,
-            e.message,
-          );
-        }
+      try {
+        await deleteStoredSmokeFile(fileUrl);
+      } catch (e) {
+        removedFile = false;
+        console.error(
+          `WARN: could not delete stored smoke file ${fileUrl} — remove it manually:`,
+          e.message,
+        );
       }
     }
     if (buildId || fileUrl) {
