@@ -1,0 +1,204 @@
+name: betamods-home
+
+# Home-hosting production stack — betamods.com on a Windows PC (Docker Desktop).
+#
+# Replaces the Oracle VM target, which is abandoned: Ampere A1 capacity never
+# became available and the tenancy is now locked out of its lost MFA
+# enrollment. The Oracle files (compose.oracle.yml, deploy/oracle/,
+# DEPLOY.md) are deliberately kept intact as a fallback — see DEPLOY-HOME.md.
+#
+# ## Where the files are, and what it costs
+#
+# The runtime is this PC, Postgres is Neon Free, and DNS/tunnel is Cloudflare
+# Free. Mod archives live in Cloudflare R2 (Standard), not on this PC: the
+# `app-data` volume is quarantine scratch that is emptied as each upload
+# finishes, so nobody's only copy of a mod is on a laptop disk.
+#
+# R2 Standard's free allowance is 10 GB-month, and this stack is deliberately
+# capped at 8 GB (PILOT_MAX_TOTAL_BYTES) to stay inside it. That cap is
+# enforced by the application, from a database ledger with atomic reservations
+# — NOT by Cloudflare budget alerts, which are notifications and arrive after
+# the fact. Downloads are presigned R2 URLs, so a 250 MiB archive never
+# travels through this home connection. See DEPLOY-HOME.md "Cost safety".
+#
+# The R2 credential in .env.home must be BUCKET-SCOPED, created with read and
+# write access to that one bucket only. The broad account-wide token used to
+# create the bucket must never appear in this file or reach the runtime.
+#
+# ## No public inbound ports
+#
+# Nothing in this file publishes a port. cloudflared dials OUT to Cloudflare's
+# edge and then reaches the app over the private Compose network, so this PC
+# needs no router port forwarding, no UPnP, and no inbound firewall exception,
+# and the app is not reachable from the LAN either. Cloudflare is the only way
+# in, and only after a tunnel is created.
+#
+# ## Fail-closed startup
+#
+# Each service waits for the one it depends on, and a missing dependency means
+# nothing further starts:
+#
+#   clamav      healthy  = clamd answers PING with signatures loaded
+#   scan-server healthy  = its /healthz PINGs that same clamd successfully
+#   app         healthy  = Next answers HTTP 200 on :3000
+#   cloudflared starts   = only once the app is healthy
+#
+# If ClamAV never comes up, the scan wrapper never starts, the app never
+# starts, and the tunnel never starts. If the scanner dies later, uploads
+# return 503 rather than skipping the scan. Uploads are always
+# quarantine -> scan -> R2 -> serve; nothing is ever promoted unscanned, and
+# the local quarantine copy is deleted whether the upload succeeded or not.
+#
+# Storage fails closed too: with no R2 credentials the stack will not start,
+# and if the app cannot read its storage ledger it refuses uploads rather than
+# allowing uncapped ones.
+#
+# ## The tunnel is opt-in
+#
+# cloudflared sits in the `tunnel` compose profile, so the whole stack boots
+# and can be verified locally before any tunnel exists. The day you create the
+# tunnel for betamods.com, add `--profile tunnel` (or set
+# COMPOSE_PROFILES=tunnel) — see DEPLOY-HOME.md.
+#
+# ## Bring-up
+#
+# Always pass --env-file .env.home: it feeds both the containers (env_file) and
+# the ${...} interpolation below, which is how SCAN_API_KEY reaches the app and
+# the scan wrapper from one variable so the two cannot drift apart.
+# scripts/home-stack.ps1 does this for you.
+
+services:
+  clamav:
+    build:
+      context: deploy/clamav
+      dockerfile: Dockerfile
+    # unless-stopped: come back automatically after a reboot or a Docker
+    # Desktop restart, but stay down if you deliberately stopped it.
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      # First boot downloads the signature database; that can take minutes.
+      start_period: 6m
+      retries: 3
+    volumes:
+      # Keep the signatures across restarts so only the very first boot is slow.
+      - clamav-db:/var/lib/clamav
+    expose:
+      - "3310"
+
+  scan-server:
+    build:
+      # Repo root, not deploy/home/scan-server — see that Dockerfile's header.
+      context: .
+      dockerfile: deploy/home/scan-server/Dockerfile
+    restart: unless-stopped
+    # No `healthcheck:` key here on purpose — it is a HEALTHCHECK instruction in
+    # deploy/home/scan-server/Dockerfile, like the app's. It GETs /healthz, which
+    # PINGs clamd, so "healthy" means a scan would really work rather than just
+    # "the listener is bound". Compose picks that up for depends_on.
+    environment:
+      SCAN_SERVER_PORT: "3311"
+      CLAMD_HOST: clamav
+      CLAMD_PORT: "3310"
+      # Required, not optional. A blank key would leave the scanner open to
+      # anything that can reach the Compose network, and would make the app and
+      # the wrapper two hand-synchronised values — the classic way every upload
+      # starts failing with a 401.
+      SCAN_API_KEY: ${SCAN_API_KEY:?set SCAN_API_KEY in .env.home (see DEPLOY-HOME.md)}
+    depends_on:
+      clamav:
+        condition: service_healthy
+    expose:
+      - "3311"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # This image's own CMD also spawns an in-container scan wrapper, which is
+    # how the Oracle stack runs it. The home stack runs the wrapper as its own
+    # service so it can be health-gated, so start Next on its own here.
+    command: ["npm", "run", "start", "--", "-p", "3000"]
+    env_file:
+      - .env.home
+    environment:
+      PORT: "3000"
+      # Set here (not just in .env.home) so the serving path cannot be
+      # misconfigured by editing the env file alone. These win over env_file,
+      # by design.
+      #
+      # r2 is NOT configurable on the home target. A user's mod archive is
+      # never allowed to become the only copy on a laptop disk, and the
+      # cheapest way to guarantee that is to make local storage unreachable
+      # here: with STORAGE_DRIVER=r2 hard-set and the four credentials required
+      # (`:?`), a mistyped value cannot quietly start a stack that keeps
+      # everyone's mod files on this PC. If these are missing the stack refuses
+      # to start at all.
+      STORAGE_DRIVER: r2
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:?set STORAGE_ENDPOINT in .env.home (R2 S3 endpoint)}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:?set STORAGE_BUCKET in .env.home (R2 bucket name)}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?set STORAGE_ACCESS_KEY in .env.home (bucket-scoped R2 key)}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:?set STORAGE_SECRET_KEY in .env.home (bucket-scoped R2 secret)}
+      SCAN_ENDPOINT: http://scan-server:3311
+      MALWARE_SCAN_API_KEY: ${SCAN_API_KEY:?set SCAN_API_KEY in .env.home (see DEPLOY-HOME.md)}
+      # Closed-beta defaults. Every one of these can be raised in .env.home,
+      # but the cap the app enforces is the only thing keeping storage inside
+      # the free allowance — see DEPLOY-HOME.md "Cost safety". These values are
+      # passed through with fallbacks so an unset .env.home still starts, but
+      # never with a missing limit.
+      PILOT_MODE: ${PILOT_MODE:-on}
+      PILOT_MAX_ARCHIVE_BYTES: ${PILOT_MAX_ARCHIVE_BYTES:-262144000}
+      PILOT_MAX_BYTES_PER_TESTER: ${PILOT_MAX_BYTES_PER_TESTER:-1610612736}
+      PILOT_MAX_TOTAL_BYTES: ${PILOT_MAX_TOTAL_BYTES:-8589934592}
+      PILOT_MAX_UPLOADERS: ${PILOT_MAX_UPLOADERS:-5}
+      PILOT_UPLOADS_PER_WINDOW: ${PILOT_UPLOADS_PER_WINDOW:-10}
+      PILOT_UPLOAD_WINDOW_MINUTES: ${PILOT_UPLOAD_WINDOW_MINUTES:-60}
+      DOWNLOAD_URL_TTL_SECONDS: ${DOWNLOAD_URL_TTL_SECONDS:-300}
+    volumes:
+      # QUARANTINE ONLY. This is scratch space for bytes on their way to R2:
+      # each upload lands here, gets scanned, is PUT to the bucket, and the
+      # local copy is deleted immediately. A user's final archive is never
+      # here, so losing this volume loses nothing but the uploads in flight at
+      # the moment it was lost. See DEPLOY-HOME.md "Backups".
+      - app-data:/app/data
+    depends_on:
+      scan-server:
+        condition: service_healthy
+    expose:
+      - "3000"
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.3
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    # Default-blank, not required: Compose interpolates the whole file even for
+    # services whose profile is disabled, so a `:?` here would block the stack
+    # from starting before the tunnel exists. Enabling the profile with a blank
+    # token is still a loud, obvious failure (see DEPLOY-HOME.md).
+    #
+    # There is deliberately no healthcheck: this image is
+    # gcr.io/distroless/base-debian12:nonroot, so it has no shell and no HTTP
+    # prober to run one with. Readiness is observable from outside instead —
+    # cloudflared only logs "Registered tunnel connection" once it is actually
+    # connected, and the app it fronts was already proved healthy before this
+    # container was allowed to start.
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  # Quarantine scratch (see the app service above). Survives container
+  # rebuilds and reboots; does NOT survive someone pruning Docker volumes, and
+  # that is fine — the final archives are in R2.
+  app-data:
+  # ClamAV signature database. Rebuilding this just means a slower first boot.
+  clamav-db:

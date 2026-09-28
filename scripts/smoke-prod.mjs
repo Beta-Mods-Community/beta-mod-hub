@@ -1,19 +1,24 @@
 #!/usr/bin/env node
 
 /**
- * Production smoke check — run on the Oracle VM (repo directory).
+ * Production smoke check — run on the deployment host (repo directory).
  *
- *   node scripts/smoke-prod.mjs                 # read-only checks
- *   SMOKE_OWNER_EMAIL=owner@betamods.com \
- *     node scripts/smoke-prod.mjs --full        # + real upload pipeline
+ * Works against either production target; the service list and compose file
+ * are set by the caller:
  *
- * Reads .env.production directly and NEVER prints it or its secrets: the DB
+ *   Oracle (preserved fallback):
+ *     node scripts/smoke-prod.mjs
+ *   Home stack (this PC):
+ *     scripts\home-stack.ps1 smoke
+ *
+ * Reads the env file directly and NEVER prints it or its secrets: the DB
  * check prints only the masked host. Nothing is ever seeded into the
  * production database; the optional --full loop alters it transiently (one
  * builds row + one stored file) and deletes both again in `finally`.
  *
  * Checks:
- *   1. Containers   — app, clamav, caddy running; app + clamav healthy.
+ *   1. Containers   — every service in SMOKE_SERVICES running; those in
+ *                     SMOKE_HEALTHY_SERVICES also reporting healthy.
  *   2. App/HTTPS    — HTTP 200 on SMOKE_BASE_URL (defaults to the VM-local
  *                     app; set SMOKE_BASE_URL=https://betamods.com post-DNS
  *                     to also exercise Caddy + Let's Encrypt TLS).
@@ -26,6 +31,14 @@
  *   SMOKE_ENV_FILE          env file to read (default .env.production)
  *   SMOKE_BASE_URL          app base URL (default http://127.0.0.1:3000)
  *   SMOKE_COMPOSE_FILE      compose file for `docker compose` (default compose.oracle.yml)
+ *   SMOKE_SERVICES          comma-separated services that must be running
+ *                           (default app,clamav,caddy)
+ *   SMOKE_HEALTHY_SERVICES  comma-separated subset that must ALSO be healthy
+ *                           (default app,clamav) — edge proxies have no
+ *                           healthcheck, so they are only required to run
+ *   SMOKE_SCAN_ENDPOINT     scan endpoint to probe, overriding the env file
+ *                           (needed when the endpoint is only reachable on a
+ *                           private Docker network, e.g. http://scan-server:3311)
  *   SMOKE_OWNER_EMAIL       owner whose existing Beta Mod hosts the --full upload
  *   SMOKE_SKIP_CONTAINERS   1 = skip the docker checks (local rehearsal only)
  */
@@ -47,6 +60,11 @@ const BASE = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
 const COMPOSE_FILE = process.env.SMOKE_COMPOSE_FILE ?? "compose.oracle.yml";
 const FULL = process.argv.includes("--full");
 const SKIP_CONTAINERS = process.env.SMOKE_SKIP_CONTAINERS === "1";
+const list = (raw) => raw.split(",").map((s) => s.trim()).filter(Boolean);
+const SERVICES = list(process.env.SMOKE_SERVICES ?? "app,clamav,caddy");
+const HEALTHY_SERVICES = new Set(
+  list(process.env.SMOKE_HEALTHY_SERVICES ?? "app,clamav"),
+);
 const EICAR = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
 
 const env = (key) => {
@@ -61,7 +79,10 @@ const progress = (msg) => console.log(`· ${msg} ...`);
 const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
 
 if (!env("DATABASE_URL")) {
-  console.error(`DATABASE_URL not found in ${envFile} — run this on the Oracle host.`);
+  console.error(
+    `DATABASE_URL not found in ${envFile} — run this on the deployment host, ` +
+      `or set SMOKE_ENV_FILE to that host's env file.`,
+  );
   process.exit(1);
 }
 const sql = postgres(env("DATABASE_URL"), { max: 2 });
@@ -114,16 +135,19 @@ async function checkContainers() {
     ]);
     const rows = JSON.parse(stdout);
     const byService = Object.fromEntries(rows.map((r) => [r.Service, r]));
-    let ok = true;
-    for (const svc of ["app", "clamav", "caddy"]) {
+    for (const svc of SERVICES) {
       const row = byService[svc];
       const running = row?.State === "running";
-      const healthy = svc === "caddy" || row?.Health === "healthy";
-      ok &&= running && healthy;
+      // A service is only required to be healthy if we were told it has a
+      // healthcheck — edge/tunnel containers deliberately don't.
+      const needsHealth = HEALTHY_SERVICES.has(svc);
+      const healthy = !needsHealth || row?.Health === "healthy";
       check(
-        `container ${svc} running${svc === "caddy" ? "" : " + healthy"}`,
+        `container ${svc} running${needsHealth ? " + healthy" : ""}`,
         running && healthy,
-        row ? `state=${row.State} health=${row.Health ?? "n/a"}` : "not found",
+        row
+          ? `state=${row.State} health=${row.Health ?? "n/a"}`
+          : "not found",
       );
     }
   } catch (error) {
@@ -151,9 +175,19 @@ async function checkDatabase() {
 }
 
 async function checkScanChain() {
-  const endpoint = env("SCAN_ENDPOINT") || "http://127.0.0.1:3311";
-  const authHeader = env("MALWARE_SCAN_API_KEY")
-    ? { authorization: `Bearer ${env("MALWARE_SCAN_API_KEY")}` }
+  // SMOKE_SCAN_ENDPOINT wins: the endpoint in the env file can be a
+  // Compose-network name (http://scan-server:3311) that the host cannot
+  // resolve, while the local-verification overlay publishes it on loopback.
+  const endpoint =
+    process.env.SMOKE_SCAN_ENDPOINT || env("SCAN_ENDPOINT") || "http://127.0.0.1:3311";
+  // Either name is accepted. The Oracle env file carries MALWARE_SCAN_API_KEY,
+  // while the home env file carries only SCAN_API_KEY (compose injects the
+  // MALWARE_SCAN_API_KEY side from that one variable). Falling back means the
+  // same script authenticates correctly against a scanner that requires a key,
+  // instead of silently getting a 401 and reporting a false failure.
+  const scanKey = env("MALWARE_SCAN_API_KEY") || env("SCAN_API_KEY");
+  const authHeader = scanKey
+    ? { authorization: `Bearer ${scanKey}` }
     : {};
   try {
     const benign = await makeBenignZip();
@@ -343,8 +377,8 @@ async function fullUploadPipeline() {
           console.error(`WARN: could not delete ${localPath}:`, e.message);
         }
       } else {
-        // On the VM the uploads live in the named Docker volume, not on a
-        // host path — remove it inside the container instead.
+        // On a container host the uploads live in the app-data named volume,
+        // not on a host path — remove it inside the container instead.
         try {
           await execFileAsync("docker", [
             "compose", "-f", COMPOSE_FILE, "exec", "-T", "app",

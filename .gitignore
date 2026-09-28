@@ -34,8 +34,16 @@ yarn-error.log*
 .env
 .env.local
 .env.production
+.env.home
 .env.*.local
 !.env.example
+
+# backup output, if a backup dir is ever pointed inside the repo
+# (the documented default lives outside it — see DEPLOY-HOME.md)
+/backups/
+
+# account recovery codes — secrets, must never be committed
+/github-recovery-codes.txt
 
 # local dev uploads (when STORAGE_DRIVER=local is used)
 /data/

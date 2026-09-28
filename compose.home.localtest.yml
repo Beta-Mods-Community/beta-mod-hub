@@ -1,0 +1,39 @@
+# LOCAL VERIFICATION ONLY. Never use this in the production up command.
+#
+# compose.home.yml publishes nothing on purpose. This overlay adds loopback-only
+# publishes so the complete stack can be exercised — and smoke-checked — from
+# the Windows host BEFORE any Cloudflare tunnel exists:
+#
+#   scripts\home-stack.ps1 verify
+#
+# Both binds are 127.0.0.1, so they are unreachable from the LAN, need no
+# router port forwarding, and never join the public path. This is the same
+# public surface as compose.home.yml alone: zero.
+#
+# Drop this file for production. cloudflared reaches the app at http://app:3000
+# over the private Compose network and never needs a published port.
+#
+# The scan wrapper's port is bound here so the smoke check can exercise the
+# real ClamAV chain from the host. It is gated by SCAN_API_KEY exactly as the
+# app is, so publishing it on loopback does not make the scanner anonymous.
+#
+# NOTE ON STORAGE: this overlay does NOT switch the app to `local` storage, on
+# purpose. Verifying the loopback port with a different storage driver than
+# production would prove the wrong thing — uploads would land in
+# ./data/uploads and no R2 credential, quarantine sweep or presigned download
+# would ever be exercised. Bring the stack up with the real .env.home, which
+# must contain bucket-scoped R2 credentials.
+#
+# If you need to try the plumbing without touching the pilot bucket yet, use
+# a throwaway bucket and its own bucket-scoped credential, then put the real
+# values back before the tunnel exists. Do not point this at a bucket holding
+# anyone's real mod.
+
+services:
+  app:
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  scan-server:
+    ports:
+      - "127.0.0.1:3311:3311"

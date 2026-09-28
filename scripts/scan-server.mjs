@@ -19,6 +19,15 @@
  *   POST /            body = raw file bytes
  *   200 {"clean":true} | {"clean":false,"malware":"Win.Test.EICAR_HDB-1"}
  *   401 bad key | 405 wrong verb/path | 413 too large | 503 clamd error
+ *
+ *   GET  /healthz     readiness probe — PINGs clamd, reports whether a real
+ *                     scan would actually succeed right now
+ *                     200 {"ok":true,"clamd":"PONG"} | 503 {"ok":false,...}
+ *
+ * /healthz is deliberately unauthenticated (the container healthcheck carries
+ * no API key) and strictly read-only. It is reachable only on the private
+ * Compose network — the home stack publishes this port on loopback solely for
+ * local verification, and never publicly.
  */
 
 import { createServer } from "node:http";
@@ -68,11 +77,51 @@ function parseClamavResponse(response) {
   throw new Error(`unexpected clamd response: ${response.trim()}`);
 }
 
+/**
+ * ClamAV's PING/PONG on the same TCP socket INSTREAM uses.
+ *
+ * This is what makes the wrapper's healthcheck meaningful: "the HTTP listener
+ * is bound" is not the same as "a scan would work", and the production stack
+ * gates the app on the latter.
+ */
+function pingClamav() {
+  return new Promise((resolve, reject) => {
+    const socket = net.connect(CLAMD_PORT, CLAMD_HOST, () => {
+      socket.write("zPING\0");
+    });
+
+    let reply = "";
+    socket.setEncoding("utf8");
+    socket.on("data", (chunk) => {
+      reply += chunk;
+    });
+    socket.on("error", reject);
+    socket.on("close", () => {
+      // clamd terminates commands with NUL; strip it so the JSON stays clean.
+      const clean = reply.replace(/\0/g, "").trim();
+      if (/PONG/.test(clean)) resolve(clean);
+      else reject(new Error(`unexpected clamd ping reply: ${clean || "(empty)"}`));
+    });
+    socket.setTimeout(5000, () => {
+      socket.destroy();
+      reject(new Error("clamd ping timed out"));
+    });
+  });
+}
+
 const server = createServer((req, res) => {
   const send = (code, body) => {
     res.writeHead(code, { "Content-Type": "application/json" });
     res.end(JSON.stringify(body));
   };
+
+  if (req.method === "GET" && req.url === "/healthz") {
+    pingClamav().then(
+      (reply) => send(200, { ok: true, clamd: reply }),
+      (error) => send(503, { ok: false, error: error.message }),
+    );
+    return;
+  }
 
   if (req.method !== "POST" || req.url !== "/") {
     send(405, { clean: false, error: "method not allowed" });
