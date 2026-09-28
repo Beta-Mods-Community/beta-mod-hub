@@ -11,9 +11,26 @@
 //      — walks ./data/uploads (local driver) or fetches from R2 (r2 driver)
 //   3. GET /files/<buildId> serves identical bytes
 //   4. EICAR upload -> blocked, no builds row, quarantine left empty
+//   5. the storage ledger: the good upload is `stored`, the blocked one is
+//      `released`, and nothing is left `held` (a leaked reservation would
+//      permanently eat the pilot's storage budget)
+//   6. with STORAGE_DRIVER=r2: GET /files/<buildId> is a 302 to a SHORT-lived
+//      presigned R2 URL, that URL really serves the bytes, an unknown build is
+//      a plain 404 with no redirect, and no quarantined bytes are left on disk
+//   7. the admin kill switch: with uploads paused even an APPROVED owner gets
+//      no form and their POST is refused
+//   8. with PILOT_MODE=on: an unapproved account gets no form AND its POST is
+//      refused; approving restores the form; revoking takes it away again
 //
 // Driver awareness: storage is "local" unless STORAGE_DRIVER=r2 in .env.local.
 // The quarantine always lives on local disk, so the EICAR checks are driver-free.
+// The default local dev run is a good regression test for the pipeline and the
+// ledger; run it once with STORAGE_DRIVER=r2 as well, because presigned
+// downloads and R2 cleanup are only exercised on that path, and once with
+// PILOT_MODE=on, because the allowlist gate is skipped otherwise.
+//
+// This script flips pilot_accounts and the uploads_enabled switch to exercise
+// them, and puts both back. Point it at the DEV database, not production.
 //
 // Prereqs: dev server on :3000, clamd + scan-server running (SCAN_ENDPOINT
 // set), demo dataset seeded (scripts/seed-demo.mjs).
@@ -57,10 +74,9 @@ const check = (name, ok, extra = "") =>
 const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
 
 let s3Client = null;
-/** Fetch a stored object's bytes from R2, mirroring lib/storage.ts config. */
-async function getStoredFromR2(key) {
-  const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+async function r2Client() {
   if (!s3Client) {
+    const { S3Client } = await import("@aws-sdk/client-s3");
     s3Client = new S3Client({
       region: "auto",
       endpoint: env("STORAGE_ENDPOINT"),
@@ -70,14 +86,39 @@ async function getStoredFromR2(key) {
       },
     });
   }
+  return s3Client;
+}
+/** Fetch a stored object's bytes from R2, mirroring lib/storage.ts config. */
+async function getStoredFromR2(key) {
+  const { GetObjectCommand } = await import("@aws-sdk/client-s3");
   try {
-    const out = await s3Client.send(
+    const out = await (await r2Client()).send(
       new GetObjectCommand({ Bucket: env("STORAGE_BUCKET"), Key: key }),
     );
     if (!out.Body) return null;
     return Buffer.from(await out.Body.transformToByteArray());
   } catch {
     return null;
+  }
+}
+
+/**
+ * Delete a stored object.
+ *
+ * Needed because this script resets by deleting build ROWS directly, which
+ * bypasses deleteBetaMod's cleanup. On the r2 driver that would leave a real
+ * orphan in the bucket on every run -- which the backup job then reports as a
+ * failure. Clean up after ourselves instead.
+ */
+async function deleteFromR2(key) {
+  const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+  try {
+    await (await r2Client()).send(
+      new DeleteObjectCommand({ Bucket: env("STORAGE_BUCKET"), Key: key }),
+    );
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -137,10 +178,86 @@ try {
   const modId = mod[0].id;
   const modUrl = `${BASE}/mods/${modId}`;
 
-  // Fresh state for repeat runs.
+  // Fresh state for repeat runs. On r2 the stored objects are deleted too --
+  // otherwise each run leaves an orphan the backup job would flag.
+  const stale = await sql`select file_url from builds
+    where beta_mod_id = ${modId}
+      and version_label in (${BENIGN_LABEL}, ${EVIL_LABEL}, '0.1-debug')`;
   await sql`delete from builds where beta_mod_id = ${modId} and version_label in (${BENIGN_LABEL}, ${EVIL_LABEL}, '0.1-debug')`;
+  if (STORAGE_DRIVER === "r2") {
+    for (const row of stale) await deleteFromR2(row.file_url);
+  }
 
   const cookie = await mintSessionCookie(ownerId);
+
+  // ---- 0. Pilot authorisation (only meaningful with PILOT_MODE=on) -------
+  // The allowlist is the thing that makes this a pilot rather than a public
+  // site, so when pilot mode is on, prove both halves of it: the form is not
+  // rendered for an unapproved account, AND the server action refuses the POST
+  // anyway. The second half is the one that matters -- hiding a form is a
+  // hint, not a gate.
+  const PILOT_MODE = (env("PILOT_MODE") || "off").toLowerCase() === "on";
+  let revokedFields = null;
+  if (PILOT_MODE) {
+    // Known starting state: uploads enabled, this account not approved.
+    await sql`delete from pilot_accounts where user_id = ${ownerId}`;
+    await sql`insert into app_settings (key, value) values ('uploads_enabled', 'true')
+              on conflict (key) do update set value = excluded.value`;
+
+    const denied = await fetch(modUrl, { headers: { Cookie: cookie } });
+    const deniedHtml = await denied.text();
+    check("unapproved tester is not offered the upload form", !uploadFormSegment(deniedHtml), "");
+    check(
+      "unapproved tester sees the invite-only message",
+      /approved pilot testers/.test(deniedHtml),
+      "",
+    );
+
+    // Approve, capture the real form fields, then revoke and replay them.
+    await sql`insert into pilot_accounts (user_id) values (${ownerId})
+              on conflict (user_id) do nothing`;
+    const approved = await fetch(modUrl, { headers: { Cookie: cookie } });
+    const approvedHtml = await approved.text();
+    const approvedSeg = uploadFormSegment(approvedHtml);
+    check("approving the account restores the upload form", Boolean(approvedSeg), "");
+    revokedFields = approvedSeg ? hiddenFields(approvedSeg) : null;
+
+    await sql`delete from pilot_accounts where user_id = ${ownerId}`;
+    const gone = await fetch(modUrl, { headers: { Cookie: cookie } });
+    check(
+      "revoking takes the form away again (the gate is live, not cached)",
+      !uploadFormSegment(await gone.text()),
+      "",
+    );
+
+    // Now the real test: replay those exact $ACTION_* fields while the
+    // account is revoked. A correct run answers with the invite-only refusal
+    // and writes nothing.
+    if (revokedFields) {
+      const replay = await postForm(modUrl, cookie, revokedFields, {
+        filename: "build-0.1-benign.zip",
+        bytes: readFileSync(
+          "C:\\Users\\chast\\AppData\\Local\\Temp\\opencode\\e2e-fixtures\\build-0.1-benign.zip",
+        ),
+        type: "application/zip",
+        versionLabel: BENIGN_LABEL,
+        changelog: "must be refused: unapproved",
+      });
+      const replayBody = replay.body.toString("utf8");
+      const replayRows =
+        await sql`select id from builds where beta_mod_id = ${modId} and version_label = ${BENIGN_LABEL}`;
+      check(
+        "the action refuses an unapproved POST (not just a hidden form)",
+        replay.status !== 303 && /approved pilot testers/.test(replayBody),
+        `status=${replay.status}`,
+      );
+      check("the refused POST created no build", replayRows.length === 0, `rows=${replayRows.length}`);
+    }
+
+    // Approve for the rest of the run, and leave the allowlist as we found it.
+    await sql`insert into pilot_accounts (user_id) values (${ownerId})
+              on conflict (user_id) do nothing`;
+  }
 
   // ---- Fetch the mod page as owner; extract the upload form ------------
   const page = await fetch(modUrl, { headers: { Cookie: cookie } });
@@ -216,12 +333,49 @@ try {
       headers: { Cookie: cookie },
       redirect: "manual",
     });
-    const dlBytes = Buffer.from(await dl.arrayBuffer());
-    check(
-      `GET /files/<id> serves fixture bytes (${dl.status})`,
-      dl.status === 200 && sha256(dlBytes) === fixtureSha,
-      `served ${sha256(dlBytes).slice(0, 12)}`,
-    );
+    if (STORAGE_DRIVER === "r2") {
+      // Production behaviour: a 302 to a short-lived presigned R2 URL, so the
+      // archive travels R2 -> downloader instead of through the home PC.
+      const location = dl.headers.get("location") ?? "";
+      check(
+        `GET /files/<id> redirects to a presigned R2 URL (${dl.status})`,
+        dl.status === 302 &&
+          location.startsWith("https://") &&
+          /X-Amz-Signature=/.test(location) &&
+          /X-Amz-Expires=/.test(location),
+        `status=${dl.status} location=${location.slice(0, 80)}...`,
+      );
+      const ttl = Number(location.match(/X-Amz-Expires=(\d+)/)?.[1] ?? "0");
+      check(
+        "presigned URL expiry is short (not a long-lived public link)",
+        ttl > 0 && ttl <= 900,
+        `X-Amz-Expires=${ttl}`,
+      );
+      // The signed URL is what actually serves the bytes, so follow it and
+      // confirm the archive really is retrievable end to end.
+      if (location.startsWith("https://")) {
+        const followed = await fetch(location);
+        const followedBytes = Buffer.from(await followed.arrayBuffer());
+        check(
+          `presigned URL serves the fixture bytes (${followed.status})`,
+          followed.status === 200 && sha256(followedBytes) === fixtureSha,
+          `served ${sha256(followedBytes).slice(0, 12)}`,
+        );
+      }
+      // A missing build must be a plain 404, never a redirect.
+      const missing = await fetch(`${BASE}/files/00000000-0000-0000-0000-000000000000`, {
+        headers: { Cookie: cookie },
+        redirect: "manual",
+      });
+      check("GET /files/<unknown id> -> 404, no redirect", missing.status === 404, `status=${missing.status}`);
+    } else {
+      const dlBytes = Buffer.from(await dl.arrayBuffer());
+      check(
+        `GET /files/<id> serves fixture bytes (${dl.status})`,
+        dl.status === 200 && sha256(dlBytes) === fixtureSha,
+        `served ${sha256(dlBytes).slice(0, 12)}`,
+      );
+    }
   }
 
   // ---- 4. EICAR upload -> blocked ----------------------------------------
@@ -248,6 +402,46 @@ try {
     console.log("blocked message:", m?.[0]?.trim());
   }
 
+  // ---- 4b. The blocked upload must not have consumed storage -------------
+  // A rejected upload releases its reservation. If it did not, every failed
+  // attempt would permanently eat into the pilot's budget.
+  const ledger = await sql`
+    select state, coalesce(sum(bytes), 0)::bigint as bytes, count(*)::int as n
+    from storage_reservations
+    where user_id = ${ownerId}
+    group by state order by state
+  `;
+  const held = ledger.find((r) => r.state === "held");
+  const released = ledger.find((r) => r.state === "released");
+  const storedRow = ledger.find((r) => r.state === "stored");
+  check(
+    "no reservation left in flight after the run",
+    !held,
+    `held bytes=${held?.bytes ?? 0}`,
+  );
+  check(
+    "the EICAR attempt is recorded as released, not held or stored",
+    Boolean(released) && Number(released.n) >= 1,
+    `released=${released?.n ?? 0}`,
+  );
+  check(
+    "the successful upload is recorded as stored",
+    Boolean(storedRow) && Number(storedRow.n) >= 1,
+    `stored=${storedRow?.n ?? 0} bytes=${storedRow?.bytes ?? 0}`,
+  );
+
+  // ---- 4c. The bucket holds the archive and nothing else ------------------
+  // With R2 the local volume is scratch, so the only copy must be in the
+  // bucket -- and an EICAR sample must never be one of its objects.
+  if (STORAGE_DRIVER === "r2") {
+    const quarantineDir = path.join(root, "data", "quarantine");
+    const leftovers = readdirSync(quarantineDir).filter(
+      (f) => !f.endsWith(".tmp") && !f.endsWith(".lock"),
+    );
+    check("no quarantined bytes left on the PC", leftovers.length === 0, `left=${leftovers.join(",")}`);
+    console.log(`storage driver: r2 (bucket ${env("STORAGE_BUCKET")})`);
+  }
+
   // ---- verify EICAR actually detectable (sanity on the chain) ------------
   const scanProbe = await fetch("http://127.0.0.1:3311/", {
     method: "POST",
@@ -259,6 +453,41 @@ try {
     probeJson?.clean === false,
     JSON.stringify(probeJson),
   );
+
+  // ---- 5. The admin kill switch (always on, pilot mode or not) -----------
+  // This is the control that stops a runaway upload without a deploy, so it
+  // has to work for an already-approved account, not just an anonymous one.
+  await sql`insert into app_settings (key, value) values ('uploads_enabled', 'false')
+            on conflict (key) do update set value = excluded.value`;
+  const paused = await fetch(modUrl, { headers: { Cookie: cookie } });
+  const pausedHtml = await paused.text();
+  check(
+    "kill switch removes the upload form from an approved owner",
+    !uploadFormSegment(pausedHtml),
+    "",
+  );
+  check("kill switch says uploads are paused", /Uploads are paused/.test(pausedHtml), "");
+  if (fields.length) {
+    const refused = await postForm(modUrl, cookie, fields, {
+      filename: "build-0.1-benign.zip",
+      bytes: benignBytes,
+      type: "application/zip",
+      versionLabel: BENIGN_LABEL,
+      changelog: "must be refused: uploads paused",
+    });
+    const refusedBody = refused.body.toString("utf8");
+    const refusedRows =
+      await sql`select id from builds where beta_mod_id = ${modId} and version_label = ${BENIGN_LABEL}`;
+    check(
+      "the action refuses a POST while uploads are paused",
+      refused.status !== 303 && /Uploads are paused/.test(refusedBody),
+      `status=${refused.status}`,
+    );
+    check("the refused POST created no build", refusedRows.length === 1, `rows=${refusedRows.length}`);
+  }
+  // Leave the switch as we found it.
+  await sql`insert into app_settings (key, value) values ('uploads_enabled', 'true')
+            on conflict (key) do update set value = excluded.value`;
 } catch (error) {
   console.error("ERROR:", error.message);
   results.push("FAIL  run errored");
