@@ -8,6 +8,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -28,6 +29,8 @@ export const betaModStatus = pgEnum("beta_mod_status", [
 export const bugSeverity = pgEnum("bug_severity", ["minor", "major", "blocking"]);
 
 export const bugStatus = pgEnum("bug_status", ["open", "acknowledged", "fixed"]);
+
+export const mediaScanState = pgEnum("media_scan_state", ["clean", "rejected"]);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -121,6 +124,39 @@ export const requirements = pgTable("requirements", {
   nexusModUrl: text("nexus_mod_url"),
 });
 
+export const modMedia = pgTable(
+  "mod_media",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    betaModId: uuid("beta_mod_id")
+      .notNull()
+      .references(() => betaMods.id, { onDelete: "cascade" }),
+    // Final storage key (R2 in production): media/<modId>/<uuid>.<ext>.
+    objectKey: text("object_key").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+    width: bigint("width", { mode: "number" }).notNull(),
+    height: bigint("height", { mode: "number" }).notNull(),
+    // Gallery order, ascending. New uploads get max(position)+1; moves swap.
+    position: bigint("position", { mode: "number" }).notNull().default(0),
+    caption: text("caption"),
+    // At most one per mod (partial unique index in the SQL contract). The hero
+    // is what Browse cards show and the gallery starts on.
+    isHero: boolean("is_hero").notNull().default(false),
+    // Rows are only ever created after a clean scan — see lib/mod-media.ts.
+    scanState: mediaScanState("scan_state").notNull().default("clean"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("mod_media_beta_mod_id_idx").on(table.betaModId),
+    unique("mod_media_position_unique").on(table.betaModId, table.position),
+    uniqueIndex("mod_media_one_hero_per_mod")
+      .on(table.betaModId)
+      .where(sql`is_hero`),
+  ],
+);
+
 export const nexusLinks = pgTable("nexus_links", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
@@ -154,6 +190,10 @@ export const storageReservations = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     // Deleting a build (directly, or by deleting its mod) releases its bytes.
     buildId: uuid("build_id").references(() => builds.id, { onDelete: "cascade" }),
+    // Media uploads settle against a mod_media row instead; deleting that row
+    // releases its bytes the same way. Exactly one of buildId / mediaId is set
+    // by the settle step.
+    mediaId: uuid("media_id").references(() => modMedia.id, { onDelete: "cascade" }),
     bytes: bigint("bytes", { mode: "number" }).notNull(),
     state: storageReservationState("state").notNull().default("held"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -162,6 +202,7 @@ export const storageReservations = pgTable(
   (table) => [
     index("storage_reservations_user_id_idx").on(table.userId),
     index("storage_reservations_state_idx").on(table.state),
+    index("storage_reservations_media_id_idx").on(table.mediaId),
   ],
 );
 
@@ -195,5 +236,6 @@ export type Build = typeof builds.$inferSelect;
 export type BugReport = typeof bugReports.$inferSelect;
 export type ReadySignal = typeof readySignals.$inferSelect;
 export type Requirement = typeof requirements.$inferSelect;
+export type ModMedia = typeof modMedia.$inferSelect;
 export type StorageReservation = typeof storageReservations.$inferSelect;
 export type PilotAccount = typeof pilotAccounts.$inferSelect;

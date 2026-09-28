@@ -78,6 +78,43 @@ CREATE TABLE requirements (
     nexus_mod_url TEXT
 );
 
+-- Media scan state. The upload pipeline is synchronous quarantine -> ClamAV ->
+-- publish, so only 'clean' rows are ever written; 'rejected' exists so the
+-- column is a real contract and a future async/queued design can record its
+-- history without a schema change.
+CREATE TYPE media_scan_state AS ENUM ('clean', 'rejected');
+
+-- One row per published screenshot/gallery image (see lib/mod-media.ts).
+-- Rows are created ONLY after a clean scan and once the bytes are in final
+-- storage, so this table never references an object that hasn't been cleared
+-- for serving. The object lives in final storage (R2 in production) under
+-- media/<modId>/<uuid>.<ext>.
+CREATE TABLE mod_media (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    beta_mod_id UUID NOT NULL REFERENCES beta_mods(id) ON DELETE CASCADE,
+    object_key TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size_bytes BIGINT NOT NULL CHECK (size_bytes > 0),
+    width INTEGER NOT NULL CHECK (width > 0),
+    height INTEGER NOT NULL CHECK (height > 0),
+    -- Gallery order, ascending. New uploads get max(position)+1; moves swap.
+    position INTEGER NOT NULL DEFAULT 0,
+    caption TEXT CHECK (caption IS NULL OR char_length(caption) <= 200),
+    -- At most one per mod (partial unique index below). The hero is what
+    -- Browse cards show and the gallery starts on.
+    is_hero BOOLEAN NOT NULL DEFAULT false,
+    scan_state media_scan_state NOT NULL DEFAULT 'clean',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT mod_media_position_unique UNIQUE (beta_mod_id, position)
+);
+
+CREATE INDEX mod_media_beta_mod_id_idx ON mod_media(beta_mod_id);
+
+-- Exactly one hero per mod, enforced by the database rather than by the action
+-- that sets it (the action still clears the rest, transactionally).
+CREATE UNIQUE INDEX mod_media_one_hero_per_mod ON mod_media(beta_mod_id) WHERE is_hero;
+
 CREATE TABLE nexus_links (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL UNIQUE REFERENCES users(id),
@@ -108,6 +145,11 @@ CREATE TABLE storage_reservations (
     -- ON DELETE CASCADE: deleting a mod cascades to its builds, so deleting a
     -- build releases its stored bytes from the ledger automatically.
     build_id UUID REFERENCES builds(id) ON DELETE CASCADE,
+    -- Media uploads settle against a mod_media row instead; deleting that row
+    -- releases its bytes the same way. Exactly one of build_id / media_id is
+    -- set by the settle step; both are nullable because an upload holds a
+    -- reservation before the row it will settle against exists.
+    media_id UUID REFERENCES mod_media(id) ON DELETE CASCADE,
     bytes BIGINT NOT NULL CHECK (bytes > 0),
     state storage_reservation_state NOT NULL DEFAULT 'held',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -116,6 +158,7 @@ CREATE TABLE storage_reservations (
 
 CREATE INDEX storage_reservations_user_id_idx ON storage_reservations(user_id);
 CREATE INDEX storage_reservations_state_idx ON storage_reservations(state);
+CREATE INDEX storage_reservations_media_id_idx ON storage_reservations(media_id);
 
 -- Who may upload while PILOT_MODE=on. An empty table means nobody uploads,
 -- which is the intended starting state: approvals are explicit.
