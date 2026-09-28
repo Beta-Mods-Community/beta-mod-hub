@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
+  index,
   pgEnum,
   pgTable,
   text,
@@ -119,9 +121,69 @@ export const nexusLinks = pgTable("nexus_links", {
   linkedAt: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// --- Pilot control plane (see lib/pilot.ts for the limits these enforce) ---
+
+export const storageReservationState = pgEnum("storage_reservation_state", [
+  "held",
+  "stored",
+  "released",
+]);
+
+/**
+ * Byte ledger behind the pilot storage caps. An upload takes a `held` row
+ * before a single byte is stored; `stored` rows are what the admin console
+ * reports as used, `held` as reserved, and `released` rows are the attempt
+ * history the rate limit reads (and are not counted against any cap).
+ */
+export const storageReservations = pgTable(
+  "storage_reservations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // Deleting a build (directly, or by deleting its mod) releases its bytes.
+    buildId: uuid("build_id").references(() => builds.id, { onDelete: "cascade" }),
+    bytes: bigint("bytes", { mode: "number" }).notNull(),
+    state: storageReservationState("state").notNull().default("held"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    settledAt: timestamp("settled_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("storage_reservations_user_id_idx").on(table.userId),
+    index("storage_reservations_state_idx").on(table.state),
+  ],
+);
+
+/** Upload approvals while `PILOT_MODE=on`. Empty table = nobody can upload. */
+export const pilotAccounts = pgTable("pilot_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
+  approvedBy: text("approved_by"),
+  note: text("note"),
+  approvedAt: timestamp("approved_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * Admin-flippable runtime switches. A missing row means the default, so the
+ * site never boots frozen because this table is empty.
+ */
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type BetaMod = typeof betaMods.$inferSelect;
 export type Build = typeof builds.$inferSelect;
 export type BugReport = typeof bugReports.$inferSelect;
 export type ReadySignal = typeof readySignals.$inferSelect;
 export type Requirement = typeof requirements.$inferSelect;
+export type StorageReservation = typeof storageReservations.$inferSelect;
+export type PilotAccount = typeof pilotAccounts.$inferSelect;

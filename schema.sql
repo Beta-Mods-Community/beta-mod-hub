@@ -80,3 +80,54 @@ CREATE TABLE nexus_links (
     nexus_api_key_encrypted TEXT NOT NULL,
     linked_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- --- Pilot control plane ----------------------------------------------------
+--
+-- The closed beta is bounded by hard storage caps (see lib/pilot.ts). The
+-- ledger below is what makes those caps real: every accepted upload holds a
+-- reservation for its bytes BEFORE any byte is stored, and concurrent
+-- reservations serialise on a Postgres advisory lock, so N simultaneous
+-- uploads cannot each believe there is room.
+
+-- Lifecycle of a reservation:
+--   held     -> counted against the caps; an upload is in flight
+--   stored   -> counted against the caps; the build exists and the bytes are
+--               in final storage (R2 in production)
+--   released -> NOT counted; the upload failed, was blocked, or the
+--               reservation was reclaimed. Kept as a record of the attempt,
+--               which is also what the upload rate limit counts.
+CREATE TYPE storage_reservation_state AS ENUM ('held', 'stored', 'released');
+
+CREATE TABLE storage_reservations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    -- ON DELETE CASCADE: deleting a mod cascades to its builds, so deleting a
+    -- build releases its stored bytes from the ledger automatically.
+    build_id UUID REFERENCES builds(id) ON DELETE CASCADE,
+    bytes BIGINT NOT NULL CHECK (bytes > 0),
+    state storage_reservation_state NOT NULL DEFAULT 'held',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    settled_at TIMESTAMPTZ
+);
+
+CREATE INDEX storage_reservations_user_id_idx ON storage_reservations(user_id);
+CREATE INDEX storage_reservations_state_idx ON storage_reservations(state);
+
+-- Who may upload while PILOT_MODE=on. An empty table means nobody uploads,
+-- which is the intended starting state: approvals are explicit.
+CREATE TABLE pilot_accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    approved_by TEXT,
+    note TEXT,
+    approved_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Runtime switches an admin can flip without a redeploy. The only key today is
+-- 'uploads_enabled'; a missing row means enabled, so the site does not come up
+-- frozen if this table is ever dropped.
+CREATE TABLE app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

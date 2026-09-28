@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { logout } from "@lib/auth";
+import { getViewer } from "@lib/access";
 import { getSession } from "@lib/session";
 
 const navLinks = [
@@ -10,6 +11,7 @@ const navLinks = [
 
 export default async function Header() {
   const session = await getSession();
+  const viewer = session ? await getViewer() : null;
 
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
@@ -32,6 +34,14 @@ export default async function Header() {
           ))}
           {session?.userId ? (
             <>
+              {viewer?.isAdmin && (
+                <Link
+                  href="/admin"
+                  className="text-zinc-600 transition-colors hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50"
+                >
+                  Admin
+                </Link>
+              )}
               <Link
                 href={`/users/${session.userId}`}
                 className="text-zinc-600 transition-colors hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50"
