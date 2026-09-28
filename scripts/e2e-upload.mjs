@@ -37,14 +37,15 @@
 //
 // Usage: node scripts/e2e-upload.mjs
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import postgres from "postgres";
 import { SignJWT } from "jose";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const envRaw = readFileSync(path.join(root, ".env.local"), "utf8");
+const envFile = process.env.E2E_ENV_FILE || ".env.local";
+const envRaw = readFileSync(path.join(root, envFile), "utf8");
 const env = (key) => {
   const m = envRaw.match(new RegExp(`^${key}=(.+)$`, "m"));
   return m ? m[1].trim() : "";
@@ -52,11 +53,16 @@ const env = (key) => {
 
 const DATABASE_URL = env("DATABASE_URL");
 const SESSION_SECRET = env("SESSION_SECRET");
-const STORAGE_DRIVER = env("STORAGE_DRIVER") || "local";
+const STORAGE_DRIVER =
+  process.env.E2E_STORAGE_DRIVER || env("STORAGE_DRIVER") || "local";
+const SCAN_API_KEY = env("SCAN_API_KEY");
 const BASE = "http://localhost:3000";
 const DEMO_OWNER_EMAIL = "demo-owner@betamods.test";
 const DEMO_MOD_TITLE = "Demo: Emberwood Weapon Pack (Beta)";
-const BENIGN_LABEL = "0.1";
+// Keep the fixture version distinct from seed-demo's real "0.1" build. Bug
+// reports and verdicts are build-scoped, so deleting the seeded build during
+// reset would correctly violate its feedback foreign keys.
+const BENIGN_LABEL = "e2e-0.1";
 const EVIL_LABEL = "0.9-evicar";
 const EICAR =
   "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
@@ -68,6 +74,7 @@ if (!DATABASE_URL || !SESSION_SECRET) {
 
 const sql = postgres(DATABASE_URL, { max: 1 });
 const results = [];
+let pilotRestore = null;
 const check = (name, ok, extra = "") =>
   results.push(`${ok ? "PASS" : "FAIL"}  ${name}${extra ? `  (${extra})` : ""}`);
 
@@ -120,6 +127,15 @@ async function deleteFromR2(key) {
   } catch {
     return false;
   }
+}
+
+/** Remove a known e2e object from local storage without accepting path escape. */
+function deleteFromLocal(key) {
+  const uploadsRoot = path.resolve(root, "data", "uploads");
+  const target = path.resolve(uploadsRoot, key);
+  if (!target.startsWith(`${uploadsRoot}${path.sep}`)) return false;
+  if (existsSync(target)) unlinkSync(target);
+  return true;
 }
 
 async function mintSessionCookie(userId) {
@@ -184,8 +200,10 @@ try {
     where beta_mod_id = ${modId}
       and version_label in (${BENIGN_LABEL}, ${EVIL_LABEL}, '0.1-debug')`;
   await sql`delete from builds where beta_mod_id = ${modId} and version_label in (${BENIGN_LABEL}, ${EVIL_LABEL}, '0.1-debug')`;
-  if (STORAGE_DRIVER === "r2") {
-    for (const row of stale) await deleteFromR2(row.file_url);
+  for (const row of stale) {
+    if (STORAGE_DRIVER === "r2") await deleteFromR2(row.file_url);
+    // Also clear a same-key local fixture left by a previous driver run.
+    deleteFromLocal(row.file_url);
   }
 
   const cookie = await mintSessionCookie(ownerId);
@@ -199,6 +217,16 @@ try {
   const PILOT_MODE = (env("PILOT_MODE") || "off").toLowerCase() === "on";
   let revokedFields = null;
   if (PILOT_MODE) {
+    const [priorApproval, priorSwitch] = await Promise.all([
+      sql`select 1 from pilot_accounts where user_id = ${ownerId} limit 1`,
+      sql`select value from app_settings where key = 'uploads_enabled' limit 1`,
+    ]);
+    pilotRestore = {
+      ownerId,
+      approved: priorApproval.length > 0,
+      uploadsEnabled: priorSwitch[0]?.value ?? null,
+    };
+
     // Known starting state: uploads enabled, this account not approved.
     await sql`delete from pilot_accounts where user_id = ${ownerId}`;
     await sql`insert into app_settings (key, value) values ('uploads_enabled', 'true')
@@ -298,7 +326,7 @@ try {
 
   const buildRow =
     await sql`select id, file_url from builds where beta_mod_id = ${modId} and version_label = ${BENIGN_LABEL} order by uploaded_at desc limit 1`;
-  check("builds row inserted (0.1)", buildRow.length === 1, buildRow[0]?.file_url ?? "none");
+  check("builds row inserted (e2e-0.1)", buildRow.length === 1, buildRow[0]?.file_url ?? "none");
 
   // ---- 2. Bytes at rest === fixture --------------------------------------
   let storedSha = null;
@@ -445,12 +473,15 @@ try {
   // ---- verify EICAR actually detectable (sanity on the chain) ------------
   const scanProbe = await fetch("http://127.0.0.1:3311/", {
     method: "POST",
+    headers: SCAN_API_KEY
+      ? { authorization: `Bearer ${SCAN_API_KEY}` }
+      : undefined,
     body: Buffer.from(EICAR, "latin1"),
   });
   const probeJson = await scanProbe.json().catch(() => null);
   check(
     "scan server flags EICAR directly",
-    probeJson?.clean === false,
+    probeJson?.clean === false && /Eicar-Test-Signature/i.test(probeJson?.malware ?? ""),
     JSON.stringify(probeJson),
   );
 
@@ -488,10 +519,52 @@ try {
   // Leave the switch as we found it.
   await sql`insert into app_settings (key, value) values ('uploads_enabled', 'true')
             on conflict (key) do update set value = excluded.value`;
+
+  // Leave neither a demo row nor object behind. All assertions above have
+  // already exercised the build, download and ledger paths.
+  const cleanupRows = await sql`select id, file_url from builds
+    where beta_mod_id = ${modId} and version_label = ${BENIGN_LABEL}`;
+  let objectCleanupOk = true;
+  for (const row of cleanupRows) {
+    if (STORAGE_DRIVER === "r2") {
+      objectCleanupOk = (await deleteFromR2(row.file_url)) && objectCleanupOk;
+    }
+    objectCleanupOk = deleteFromLocal(row.file_url) && objectCleanupOk;
+  }
+  if (objectCleanupOk) {
+    await sql`delete from builds
+      where beta_mod_id = ${modId} and version_label = ${BENIGN_LABEL}`;
+  }
+  const cleanupRemaining = await sql`select count(*)::int as n from builds
+    where beta_mod_id = ${modId} and version_label = ${BENIGN_LABEL}`;
+  check(
+    "e2e build and stored object cleaned up",
+    objectCleanupOk && Number(cleanupRemaining[0]?.n ?? 0) === 0,
+  );
 } catch (error) {
   console.error("ERROR:", error.message);
   results.push("FAIL  run errored");
 } finally {
+  if (pilotRestore) {
+    try {
+      if (pilotRestore.approved) {
+        await sql`insert into pilot_accounts (user_id) values (${pilotRestore.ownerId})
+                  on conflict (user_id) do nothing`;
+      } else {
+        await sql`delete from pilot_accounts where user_id = ${pilotRestore.ownerId}`;
+      }
+      if (pilotRestore.uploadsEnabled === null) {
+        await sql`delete from app_settings where key = 'uploads_enabled'`;
+      } else {
+        await sql`insert into app_settings (key, value)
+                  values ('uploads_enabled', ${pilotRestore.uploadsEnabled})
+                  on conflict (key) do update set value = excluded.value`;
+      }
+    } catch (restoreError) {
+      console.error("ERROR restoring pilot state:", restoreError.message);
+      results.push("FAIL  pilot state restore errored");
+    }
+  }
   await sql.end();
 }
 
