@@ -40,7 +40,7 @@ name: betamods-home
 #
 #   clamav      healthy  = clamd answers PING with signatures loaded
 #   scan-server healthy  = its /healthz PINGs that same clamd successfully
-#   app         healthy  = Next answers HTTP 200 on :3000
+#   app         healthy  = /api/health confirms database and scanner readiness
 #   cloudflared starts   = only once the app is healthy
 #
 # If ClamAV never comes up, the scan wrapper never starts, the app never
@@ -142,6 +142,12 @@ services:
       STORAGE_BUCKET: ${STORAGE_BUCKET:?set STORAGE_BUCKET in .env.home (R2 bucket name)}
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?set STORAGE_ACCESS_KEY in .env.home (bucket-scoped R2 key)}
       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:?set STORAGE_SECRET_KEY in .env.home (bucket-scoped R2 secret)}
+      # Same fail-fast reasoning as the storage credentials: a missing secret
+      # or database would otherwise boot the stack "healthy" and only fail at
+      # the first sign-in. Requiring them here stops that before the tunnel
+      # starts pointing visitors at a broken app.
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env.home}
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env.home (Neon; see DEPLOY-HOME.md)}
       SCAN_ENDPOINT: http://scan-server:3311
       MALWARE_SCAN_API_KEY: ${SCAN_API_KEY:?set SCAN_API_KEY in .env.home (see DEPLOY-HOME.md)}
       # Closed-beta defaults. Every one of these can be raised in .env.home,

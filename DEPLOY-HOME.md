@@ -151,7 +151,10 @@ Fill in `.env.home`:
 | `STORAGE_BUCKET` | yes | The bucket holding the archives. |
 | `STORAGE_ACCESS_KEY` | yes | **Bucket-scoped** R2 key. See "Storage". |
 | `STORAGE_SECRET_KEY` | yes | **Bucket-scoped** R2 secret. |
-| `ADMIN_EMAILS` | yes | Who may reach `/admin`. Blank means nobody, not everybody. |
+| `ADMIN_USER_IDS` | yes | Explicit account UUIDs allowed into `/admin`. Email never grants admin access. See `ACCOUNT-SETUP.md`. |
+| `APP_URL` | yes | Public HTTPS origin used in verification and password-reset links. |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | yes | Real mail delivery; local preview files are rejected in production. |
+| `SMTP_USER` / `SMTP_PASSWORD` | provider-specific | SMTP credentials, kept in this gitignored environment file. |
 | `PILOT_*` | no | Overrides for the limits in the table at the top. Unset means the default, never "unlimited". |
 | `ENCRYPTION_KEY` | yes (once Nexus features run) | Base64 of exactly 32 random bytes. Generate once and keep stable. |
 | `CLOUDFLARE_TUNNEL_TOKEN` | later | Blank until the tunnel exists. The tunnel profile is off by default. |
@@ -244,8 +247,9 @@ That lists the bucket, prints the object and byte totals, and cross-checks the
 contents against the database. It reports two kinds of drift worth knowing
 about: **orphaned** objects (in the bucket, no build row — wasted spend, often
 a delete that did not finish) and **missing** objects (a build row with no
-file, which will 404 on download). It reads `.env.local` by default; see the
-script's `--env-file` flag to point it elsewhere.
+file, which will 404 on download). It merges credentials from `.env.local` and
+`.env.home` (`.env.home` wins — the value that describes the real bucket), or
+point it at a single file with `--env-file <file>`.
 
 ### Why the bucket is not mirrored
 
@@ -299,7 +303,7 @@ bucket outage takes uploads down; that is the intended behaviour.
 
 ## Running the pilot
 
-`/admin` is the console, reachable only to `ADMIN_EMAILS`. It shows:
+`/admin` is the console, reachable only to `ADMIN_USER_IDS`. It shows:
 
 - **Usage** — bytes reserved in flight, bytes stored, and both caps, from the
   same ledger the upload path uses. If reserved is nonzero and not moving,

@@ -97,6 +97,25 @@ sleep prevention, backup scheduling) lives in
 
 ## Hard constraints (from the spec, repeated here because they're easy to accidentally violate mid-build)
 
+## September 2026 completion work
+
+Account recovery/verification, session revocation, UUID-based administrator
+authorization, scanned media/gallery management, build-scoped feedback and
+private attachments, search pagination, following, notifications and moderation
+are implemented. New dev migrations are `0004`–`0006`; the production branch
+has not been migrated. `schema.sql` and all three `db/*schema.ts` files describe
+the schema. Integration suites run sequentially because storage tests exercise
+shared pilot limits and the upload kill switch.
+
+For this PC, use `Launch Beta Mods.cmd` / `Stop Beta Mods.cmd`; see
+`LOCAL-PREVIEW.md`. The native local preview uses dev Neon + capped R2 + actual
+ClamAV, all services loopback. Docker's Windows socket issue is not resolved by
+this fallback. Public launch, SMTP inbox validation, production migration and
+backup restore rehearsal remain separate gates. `AUTH_MAIL_MODE=preview` and
+`AUTH_ALLOW_UNVERIFIED_LOCAL` are local-development aids, never production setup.
+
+### Upload and integration constraints
+
 - No browser automation against nexusmods.com. API only.
 - The Upload API pushes files to a mod page that already exists — never write code that assumes it can create a new Nexus page.
 - Every uploaded file gets malware-scanned before it's stored or served. No exceptions during development, either — build this in from phase 1, not bolted on later. The upload pipeline is always quarantine → scan → serve; never serve directly from the upload path.

@@ -43,9 +43,8 @@ COPY --from=build /app/public ./public
 # Start the scan wrapper (background) + the Next server (main process).
 # Used by the Oracle fallback target. The home stack overrides `command:` and
 # starts Next only, because its scan wrapper is a separate service.
-# Healthcheck hits the Next server, so scan-server failing won't unhealthily
-# flap the app — uploads surface a 503 from the scan service instead.
+# Readiness checks the database and ClamAV-backed scanner through the app.
 CMD ["sh", "-c", "node scripts/scan-server.mjs & exec npm run start -- -p ${PORT:-3000}"]
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD wget -q -O - http://127.0.0.1:${PORT:-3000}/ > /dev/null || exit 1
+HEALTHCHECK --interval=30s --timeout=15s --start-period=60s --retries=3 \
+  CMD wget -q -O - http://127.0.0.1:${PORT:-3000}/api/health > /dev/null || exit 1
