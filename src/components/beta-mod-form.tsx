@@ -123,9 +123,10 @@ export default function BetaModForm({
           name="description"
           defaultValue={initial?.description}
           rows={8}
-          placeholder="What it does, its current state, known issues, and what kind of testing you want."
+          placeholder={"## About\nWhat this mod changes.\n\n## Installation\nRequired game version, dependencies, and install/uninstall steps.\n\n## Testing\nKnown issues and the specific things you want testers to check."}
           className={inputClass}
         />
+        <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Markdown headings, lists, links, and emphasis are supported. Include installation instructions, the supported game version, known issues, and what you need tested.</p>
         {state?.errors?.description && (
           <p className={errorClass}>{state.errors.description.join(", ")}</p>
         )}

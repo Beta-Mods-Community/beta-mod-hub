@@ -17,10 +17,12 @@
 // push the pilot past Cloudflare's free allowance. See DEPLOY-HOME.md.
 //
 // Credentials come from .env.home (the production file) or .env.local. Secrets
-// are never printed.
+// are never printed. `--env-file <file>` reads a single named file instead of
+// the .env.local + .env.home merge.
 //
 // Usage:
 //   node scripts/r2-inventory.mjs --out C:\betamods-backups\r2-inventory.json
+//   node scripts/r2-inventory.mjs --env-file .env.local --out inventory.json
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -33,7 +35,9 @@ function readEnvFile(file) {
     const env = {};
     for (const line of raw.split(/\r?\n/)) {
       const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
-      if (match) env[match[1]] = match[2].trim();
+      // Blank values are dropped so an empty assignment in one file cannot
+      // shadow a real credential in the other after the merge.
+      if (match && match[2].trim() !== "") env[match[1]] = match[2].trim();
     }
     return env;
   } catch {
@@ -42,8 +46,13 @@ function readEnvFile(file) {
 }
 
 // .env.home first: this describes the production bucket. .env.local is the
-// fallback so the tool still works on a dev machine mid-setup.
-const env = { ...readEnvFile(".env.local"), ...readEnvFile(".env.home") };
+// fallback so the tool still works on a dev machine mid-setup. A named
+// --env-file replaces both.
+const envFileIndex = process.argv.indexOf("--env-file");
+const envSource = envFileIndex >= 0 ? process.argv[envFileIndex + 1] : null;
+const env = envSource
+  ? readEnvFile(envSource)
+  : { ...readEnvFile(".env.local"), ...readEnvFile(".env.home") };
 
 const STORAGE_ENDPOINT = env.STORAGE_ENDPOINT;
 const STORAGE_BUCKET = env.STORAGE_BUCKET;
@@ -104,12 +113,22 @@ if (DATABASE_URL) {
     const { default: postgres } = await import("postgres");
     const sql = postgres(DATABASE_URL, { max: 1 });
     try {
-      const rows = await sql`select file_url from builds`;
-      const known = new Set(rows.map((row) => row.file_url));
+      const rows = await sql`select file_url as object_key from builds`;
+      const [tables] = await sql`select to_regclass('mod_media') as media, to_regclass('bug_attachments') as attachments`;
+      if (tables.media) rows.push(...await sql`select object_key from mod_media where scan_state = 'clean'`);
+      if (tables.attachments) rows.push(...await sql`select object_key from bug_attachments`);
+      const known = new Set(rows.map((row) => row.object_key));
       const present = new Set(objects.map((object) => object.key));
+      let unlinkedReservations = [];
+      if (tables.media) {
+        unlinkedReservations = tables.attachments
+          ? await sql`select r.id, r.bytes from storage_reservations r where r.state = 'stored' and r.build_id is null and r.media_id is null and not exists (select 1 from bug_attachments a where a.reservation_id = r.id)`
+          : await sql`select id, bytes from storage_reservations where state = 'stored' and build_id is null and media_id is null`;
+      }
       drift = {
         orphanedObjects: objects.filter((o) => !known.has(o.key)).map((o) => o.key),
         missingObjects: [...known].filter((key) => !present.has(key)),
+        unlinkedReservations: unlinkedReservations.map((row) => ({ id: row.id, bytes: Number(row.bytes) })),
       };
     } finally {
       await sql.end();
@@ -143,15 +162,19 @@ console.log(`bytes:   ${totalBytes} (${human(totalBytes)})`);
 if (drift?.error) {
   console.log(`drift:   not checked (${drift.error})`);
 } else {
-  console.log(`orphaned objects (in bucket, no build row): ${drift.orphanedObjects.length}`);
-  console.log(`missing objects (build row, not in bucket):  ${drift.missingObjects.length}`);
+  console.log(`orphaned objects (in bucket, no indexed file): ${drift.orphanedObjects.length}`);
+  console.log(`missing objects (indexed file, not in bucket): ${drift.missingObjects.length}`);
+  console.log(`unlinked stored reservations (cleanup required): ${drift.unlinkedReservations.length}`);
   for (const key of drift.orphanedObjects.slice(0, 10)) {
     console.log(`  orphan  ${key}`);
   }
   for (const key of drift.missingObjects.slice(0, 10)) {
     console.log(`  MISSING ${key}`);
   }
-  if (drift.orphanedObjects.length === 0 && drift.missingObjects.length === 0) {
+  for (const reservation of drift.unlinkedReservations.slice(0, 10)) {
+    console.log(`  retained quota ${reservation.id}: ${human(reservation.bytes)}`);
+  }
+  if (drift.orphanedObjects.length === 0 && drift.missingObjects.length === 0 && drift.unlinkedReservations.length === 0) {
     console.log("drift:   none — every object is indexed and every index has an object");
   }
 }

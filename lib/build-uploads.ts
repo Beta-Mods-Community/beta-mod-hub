@@ -2,11 +2,12 @@
 
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "./db";
 import { verifySession } from "./dal";
-import { readPilotLimits } from "./pilot";
+import { effectiveArchiveLimit, readPilotLimits } from "./pilot";
+import { validateBuildArchive } from "./build-upload-policy";
 import {
   deleteQuarantine,
   deleteStored,
@@ -19,11 +20,14 @@ import {
 import { scanUpload } from "./scan";
 import {
   getUploadPermission,
-  markReservationStored,
   releaseReservation,
   reserveStorage,
+  retainReservationForCleanup,
 } from "./storage-usage";
-import { betaMods, builds } from "../db/schema";
+import { betaMods, builds, storageReservations } from "../db/schema";
+import { assertEditableMod, lockModForMutation, mutationMessage } from "./mod-lifecycle";
+import { getAccountWriteError } from "./access";
+import { notifyModFollowers } from "./notifications";
 import {
   BuildUploadFormSchema,
   MAX_UPLOAD_BYTES,
@@ -57,9 +61,11 @@ export async function uploadBuild(
   if (!db) {
     return { message: "The database isn't configured yet — try again shortly." };
   }
+  const accessError = await getAccountWriteError(session.userId);
+  if (accessError) return { message: accessError };
 
   const validatedFields = BuildUploadFormSchema.safeParse({
-    versionLabel: formData.get("versionLabel"),
+    versionLabel: String(formData.get("versionLabel") ?? "").trim(),
     changelog: formData.get("changelog"),
   });
   if (!validatedFields.success) {
@@ -78,7 +84,7 @@ export async function uploadBuild(
 
   // Owner check — the mutating steps below must not run for non-owners.
   const modRows = await db
-    .select({ ownerId: betaMods.ownerId })
+    .select()
     .from(betaMods)
     .where(eq(betaMods.id, betaModId))
     .limit(1);
@@ -86,8 +92,12 @@ export async function uploadBuild(
   if (!mod || mod.ownerId !== session.userId) {
     redirect(`/mods/${betaModId}`);
   }
+  try { assertEditableMod(mod, session.userId); }
+  catch (error) { return { message: mutationMessage(error) }; }
 
   const limits = readPilotLimits();
+  const archiveError = validateBuildArchive(file.name, file.size, effectiveArchiveLimit(limits, MAX_UPLOAD_BYTES));
+  if (archiveError) return { message: archiveError };
 
   // Kill switch and pilot allowlist, in that order. The page also checks these
   // to decide whether to render the form, but this is the check that counts.
@@ -112,15 +122,14 @@ export async function uploadBuild(
   const reservationId = reservation.reservationId;
   // Best-effort: reap any quarantined bytes abandoned by an earlier crash.
   // The volume is scratch space; it should not accumulate.
-  sweepStaleQuarantine();
-
-  // 1. Quarantine — the raw upload lands in an isolated temp location.
-  const quarantineKey = writeQuarantine(new Uint8Array(await file.arrayBuffer()));
+  let quarantineKey: string | null = null;
   const buildId = randomUUID();
   const finalKey = storageKey(`builds/${buildId}`, file.name);
-  let promoted = false;
+  let storageAttempted = false;
 
   try {
+    sweepStaleQuarantine();
+    quarantineKey = writeQuarantine(new Uint8Array(await file.arrayBuffer()));
     // 2. Scan — the quarantined bytes against the malware scanner.
     const quarantineData = readQuarantine(quarantineKey);
     if (!quarantineData) throw new Error("quarantine write failed");
@@ -132,7 +141,7 @@ export async function uploadBuild(
       if (scan.reason === "not-configured") {
         return {
           message:
-            "Malware scanner isn't configured — uploads are disabled until SCAN_ENDPOINT is set.",
+            "Uploads are unavailable because the malware scanner is not ready. Please try again shortly.",
         };
       }
       if (scan.reason === "infected") {
@@ -143,34 +152,56 @@ export async function uploadBuild(
         };
       }
       return {
-        message: `Upload failed — scanner unavailable (${scan.message}). Try again.`,
+        message: "Upload failed because the malware scanner is unavailable. Please try again shortly.",
       };
     }
 
     // 3. Promote — only clean files reach final storage (R2 in production).
+    storageAttempted = true;
     await promoteQuarantine(quarantineKey, finalKey);
-    promoted = true;
 
     // 4. Record the build, then settle the reservation against it. If either
     //    step fails the catch below releases the bytes and removes the object.
     const { versionLabel, changelog } = validatedFields.data;
-    await db.insert(builds).values({
-      id: buildId,
-      betaModId,
-      versionLabel,
-      fileUrl: finalKey,
-      changelog: changelog || null,
+    await db.transaction(async tx => {
+      const currentMod = await lockModForMutation(tx, betaModId);
+      assertEditableMod(currentMod, session.userId);
+      await tx.insert(builds).values({
+        id: buildId, betaModId, versionLabel,
+        fileUrl: finalKey, changelog: changelog || null,
+      });
+      const [settled] = await tx.update(storageReservations)
+        .set({ state: "stored", buildId, settledAt: new Date() })
+        .where(and(eq(storageReservations.id, reservationId), eq(storageReservations.state, "held")))
+        .returning({ id: storageReservations.id });
+      if (!settled) throw new Error("Storage reservation expired");
+      await tx.update(betaMods).set({ updatedAt: new Date() }).where(eq(betaMods.id, betaModId));
+      await notifyModFollowers(tx, betaModId, session.userId, `${currentMod.title}: build ${versionLabel} is available`, `/mods/${betaModId}#files`);
     });
-    await markReservationStored(reservationId, buildId);
-  } catch {
-    deleteQuarantine(quarantineKey);
-    await releaseReservation(reservationId);
-    if (promoted) {
-      // The bytes made it to final storage but the build row did not, so the
-      // object is unreachable and would never be reclaimed by a later delete.
-      await deleteStored(finalKey).catch(() => {});
+  } catch (error) {
+    // A lost COMMIT acknowledgement is not proof that the transaction failed.
+    // Never delete bytes referenced by a successfully committed build.
+    let committed = false;
+    if (storageAttempted) {
+      try {
+        const [saved] = await db.select({ id: builds.id }).from(builds).where(eq(builds.id, buildId));
+        committed = !!saved;
+      } catch {
+        await retainReservationForCleanup(reservationId).catch(() => {});
+        return { message: "The upload result could not be confirmed. Reload this mod page before retrying; storage remains reserved until it can be checked." };
+      }
     }
-    return { message: "Upload failed — please try again." };
+    if (!committed) {
+      let removed = true;
+      if (storageAttempted) {
+        try { await deleteStored(finalKey); } catch { removed = false; }
+      }
+      if (removed) await releaseReservation(reservationId);
+      else await retainReservationForCleanup(reservationId);
+      return { message: mutationMessage(error) };
+    }
+  } finally {
+    if (quarantineKey) deleteQuarantine(quarantineKey);
   }
 
   redirect(`/mods/${betaModId}`);

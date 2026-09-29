@@ -37,11 +37,14 @@
 //
 // Usage: node scripts/e2e-upload.mjs
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
+import { createWriteStream, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, unlinkSync } from "node:fs";
+import os from "node:os";
+import { ZipArchive } from "archiver";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import postgres from "postgres";
 import { SignJWT } from "jose";
+import { assertDevDatabase, readPrivateEnv } from "./dev-database.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const envFile = process.env.E2E_ENV_FILE || ".env.local";
@@ -52,11 +55,18 @@ const env = (key) => {
 };
 
 const DATABASE_URL = env("DATABASE_URL");
+assertDevDatabase(DATABASE_URL, readPrivateEnv(root, ".env.production").DATABASE_URL);
 const SESSION_SECRET = env("SESSION_SECRET");
 const STORAGE_DRIVER =
   process.env.E2E_STORAGE_DRIVER || env("STORAGE_DRIVER") || "local";
-const SCAN_API_KEY = env("SCAN_API_KEY");
-const BASE = "http://localhost:3000";
+// The scan-server the app talks to was launched by local-service.mjs, which
+// merges .env.home OVER .env.local. The direct scan probe below must carry
+// that same key; otherwise the running scanner answers `unauthorized`. (The
+// app-side EICAR path is unaffected — it sends MALWARE_SCAN_API_KEY from the
+// same merged process env.)
+const homeEnv = readPrivateEnv(root, ".env.home");
+const SCAN_API_KEY = homeEnv.SCAN_API_KEY || env("SCAN_API_KEY") || "";
+const BASE = "http://127.0.0.1:3000";
 const DEMO_OWNER_EMAIL = "demo-owner@betamods.test";
 const DEMO_MOD_TITLE = "Demo: Emberwood Weapon Pack (Beta)";
 // Keep the fixture version distinct from seed-demo's real "0.1" build. Bug
@@ -72,9 +82,27 @@ if (!DATABASE_URL || !SESSION_SECRET) {
   process.exit(1);
 }
 
+// Fresh benign fixture per run: no checked-in binary and no machine-specific
+// path. A tiny store-only ZIP crosses the same quarantine -> scan -> promote
+// path the real pipeline uses, and all byte/checksum comparisons are made
+// within this run.
+const fixtureDir = mkdtempSync(path.join(os.tmpdir(), "betamods-e2e-"));
+const FIXTURE_PATH = path.join(fixtureDir, "build-0.1-benign.zip");
+await new Promise((resolve, reject) => {
+  const out = createWriteStream(FIXTURE_PATH);
+  const archive = new ZipArchive({ zlib: { level: 9 } });
+  out.on("close", resolve);
+  archive.on("error", reject);
+  archive.pipe(out);
+  archive.append("Beta Mods e2e benign archive; no personal data.\n", { name: "build-0.1-benign.txt" });
+  archive.finalize();
+});
+const benignBytes = readFileSync(FIXTURE_PATH);
+
 const sql = postgres(DATABASE_URL, { max: 1 });
 const results = [];
 let pilotRestore = null;
+let fixtureRestore = null;
 const check = (name, ok, extra = "") =>
   results.push(`${ok ? "PASS" : "FAIL"}  ${name}${extra ? `  (${extra})` : ""}`);
 
@@ -167,7 +195,7 @@ function hiddenFields(formSegment) {
 /** The <form> segment containing the build file input (name="file"). */
 function uploadFormSegment(html) {
   const forms = html.split(/<form\b/i).slice(1);
-  return forms.find((seg) => seg.includes('name="file"') || seg.includes('id="build-file"')) ?? null;
+  return forms.find((seg) => seg.includes('name="versionLabel"') && seg.includes('id="build-file"')) ?? null;
 }
 
 async function postForm(url, cookie, fields, { filename, bytes, type, versionLabel, changelog }) {
@@ -188,10 +216,12 @@ async function postForm(url, cookie, fields, { filename, bytes, type, versionLab
 
 try {
   const owner = await sql`select id from users where email = ${DEMO_OWNER_EMAIL} limit 1`;
-  const mod = await sql`select id from beta_mods where title = ${DEMO_MOD_TITLE} limit 1`;
+  const mod = await sql`select id, status from beta_mods where title = ${DEMO_MOD_TITLE} limit 1`;
   if (!owner[0] || !mod[0]) throw new Error("demo dataset missing — run scripts/seed-demo.mjs first");
   const ownerId = owner[0].id;
   const modId = mod[0].id;
+  fixtureRestore = { id: modId, status: mod[0].status };
+  await sql`update beta_mods set status = 'beta' where id = ${modId}`;
   const modUrl = `${BASE}/mods/${modId}`;
 
   // Fresh state for repeat runs. On r2 the stored objects are deleted too --
@@ -264,9 +294,7 @@ try {
     if (revokedFields) {
       const replay = await postForm(modUrl, cookie, revokedFields, {
         filename: "build-0.1-benign.zip",
-        bytes: readFileSync(
-          "C:\\Users\\chast\\AppData\\Local\\Temp\\opencode\\e2e-fixtures\\build-0.1-benign.zip",
-        ),
+        bytes: benignBytes,
         type: "application/zip",
         versionLabel: BENIGN_LABEL,
         changelog: "must be refused: unapproved",
@@ -302,9 +330,6 @@ try {
   check(`upload form has $ACTION_* fields`, hasAction, fields.map(([n]) => n).join(", "));
 
   // ---- 1. Benign upload --------------------------------------------------
-  const benignBytes = readFileSync(
-    "C:\\Users\\chast\\AppData\\Local\\Temp\\opencode\\e2e-fixtures\\build-0.1-benign.zip",
-  );
   const fixtureSha = sha256(benignBytes);
   let benignRes;
   try {
@@ -545,6 +570,11 @@ try {
   console.error("ERROR:", error.message);
   results.push("FAIL  run errored");
 } finally {
+  try { rmSync(fixtureDir, { recursive: true, force: true }); } catch { /* best effort */ }
+  if (fixtureRestore) {
+    try { await sql`update beta_mods set status = ${fixtureRestore.status} where id = ${fixtureRestore.id}`; }
+    catch { results.push("FAIL  fixture status restore failed"); }
+  }
   if (pilotRestore) {
     try {
       if (pilotRestore.approved) {

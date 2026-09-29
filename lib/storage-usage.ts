@@ -281,6 +281,46 @@ export async function markReservationStored(
     .where(eq(storageReservations.id, reservationId));
 }
 
+/** A decoded image may be smaller or larger than its original container.
+ * Resize its held charge under the same global lock used by new uploads.
+ */
+export async function resizeHeldReservation(
+  reservationId: string,
+  userId: string,
+  nextBytes: number,
+  limits: PilotLimits,
+): Promise<void> {
+  if (!db || !Number.isSafeInteger(nextBytes) || nextBytes <= 0) throw new Error("Storage is unavailable.");
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${RESERVATION_LOCK_KEY}::bigint)`);
+    const [held] = await tx.select().from(storageReservations).where(and(
+      eq(storageReservations.id, reservationId), eq(storageReservations.userId, userId), eq(storageReservations.state, "held"),
+    )).for("update");
+    if (!held) throw new Error("The upload reservation expired. Please retry.");
+    const [totals] = await tx.select({
+      total: sql<string>`coalesce(sum(${storageReservations.bytes}), 0)`,
+      mine: sql<string>`coalesce(sum(${storageReservations.bytes}) filter (where ${storageReservations.userId} = ${userId}), 0)`,
+    }).from(storageReservations).where(inArray(storageReservations.state, ["held", "stored"]));
+    const verdict = evaluateReservation({
+      storedBytes: bytes(totals.total) - held.bytes, reservedBytes: 0,
+      testerStoredBytes: bytes(totals.mine) - held.bytes, testerReservedBytes: 0,
+      attemptsInWindow: 0, requestedBytes: nextBytes, limits,
+    });
+    if (!verdict.ok) throw new Error(verdict.message);
+    await tx.update(storageReservations).set({ bytes: nextBytes }).where(eq(storageReservations.id, reservationId));
+  });
+}
+
+/** If an object cannot be removed after a failed publish, keep charging it.
+ * A stored unlinked reservation never expires; inventory exposes the orphan
+ * for operator cleanup without silently freeing billable capacity.
+ */
+export async function retainReservationForCleanup(reservationId: string): Promise<void> {
+  if (!db) throw new Error("Cannot retain the storage charge.");
+  await db.update(storageReservations).set({ state: "stored", settledAt: new Date() })
+    .where(and(eq(storageReservations.id, reservationId), eq(storageReservations.state, "held")));
+}
+
 /**
  * Give the bytes back after a failed, blocked or abandoned upload. The row stays
  * as attempt history (which the rate limit counts) but stops counting against

@@ -23,8 +23,10 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import postgres from "postgres";
 import { SignJWT } from "jose";
+import { assertDevDatabase, readPrivateEnv } from "./dev-database.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+assertDevDatabase(readPrivateEnv(root, ".env.local").DATABASE_URL, readPrivateEnv(root, ".env.production").DATABASE_URL);
 const envRaw = readFileSync(path.join(root, ".env.local"), "utf8");
 const env = (key) => {
   const m = envRaw.match(new RegExp(`^${key}=(.+)$`, "m"));

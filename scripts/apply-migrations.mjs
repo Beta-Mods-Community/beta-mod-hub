@@ -15,34 +15,14 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import postgres from "postgres";
+import { assertDevDatabase, readPrivateEnv } from "./dev-database.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dryRun = process.argv.includes("--dry-run");
 
-function readEnv(file) {
-  try {
-    return readFileSync(path.join(root, file), "utf8");
-  } catch {
-    return "";
-  }
-}
-
-const DATABASE_URL = readEnv(".env.local").match(/^DATABASE_URL=(.+)$/m)?.[1]?.trim() ?? "";
-const PRODUCTION_URL =
-  readEnv(".env.production").match(/^DATABASE_URL=(.+)$/m)?.[1]?.trim() ?? "";
-
-if (!DATABASE_URL) {
-  console.error("DATABASE_URL missing from .env.local");
-  process.exit(1);
-}
-if (DATABASE_URL === PRODUCTION_URL) {
-  console.error(
-    "REFUSING: .env.local DATABASE_URL is the .env.production endpoint.\n" +
-      "This script only migrates the dev branch. Apply db/migrations/*.sql to\n" +
-      "production by hand, deliberately.",
-  );
-  process.exit(1);
-}
+const DATABASE_URL = readPrivateEnv(root, ".env.local").DATABASE_URL;
+const PRODUCTION_URL = readPrivateEnv(root, ".env.production").DATABASE_URL;
+assertDevDatabase(DATABASE_URL, PRODUCTION_URL);
 
 const dir = path.join(root, "db", "migrations");
 const files = readdirSync(dir)
