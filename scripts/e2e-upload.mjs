@@ -45,6 +45,7 @@ import path from "node:path";
 import postgres from "postgres";
 import { SignJWT } from "jose";
 import { assertDevDatabase, readPrivateEnv } from "./dev-database.mjs";
+import { captureUploadTestState, expectedUploadCheckCount, restoreUploadTestState } from "./e2e-upload-state.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const envFile = process.env.E2E_ENV_FILE || ".env.local";
@@ -59,6 +60,8 @@ assertDevDatabase(DATABASE_URL, readPrivateEnv(root, ".env.production").DATABASE
 const SESSION_SECRET = env("SESSION_SECRET");
 const STORAGE_DRIVER =
   process.env.E2E_STORAGE_DRIVER || env("STORAGE_DRIVER") || "local";
+const PILOT_MODE = (env("PILOT_MODE") || "off").toLowerCase() === "on";
+const expectedChecks = expectedUploadCheckCount(STORAGE_DRIVER, PILOT_MODE);
 // The scan-server the app talks to was launched by local-service.mjs, which
 // merges .env.home OVER .env.local. The direct scan probe below must carry
 // that same key; otherwise the running scanner answers `unauthorized`. (The
@@ -101,12 +104,17 @@ const benignBytes = readFileSync(FIXTURE_PATH);
 
 const sql = postgres(DATABASE_URL, { max: 1 });
 const results = [];
-let pilotRestore = null;
+const skipped = [];
+let controlsRestore = null;
 let fixtureRestore = null;
 const check = (name, ok, extra = "") =>
   results.push(`${ok ? "PASS" : "FAIL"}  ${name}${extra ? `  (${extra})` : ""}`);
 
 const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
+
+console.log(`e2e configuration: storage=${STORAGE_DRIVER}, pilot=${PILOT_MODE ? "on" : "off"}; expected ${expectedChecks} checks`);
+if (!PILOT_MODE) skipped.push("pilot authorization group: 6 checks (PILOT_MODE is not on in the selected env file)");
+if (STORAGE_DRIVER !== "r2") skipped.push("R2-specific signed-download and scratch checks (local download-byte check used instead)");
 
 let s3Client = null;
 async function r2Client() {
@@ -216,12 +224,16 @@ async function postForm(url, cookie, fields, { filename, bytes, type, versionLab
 
 try {
   const owner = await sql`select id from users where email = ${DEMO_OWNER_EMAIL} limit 1`;
-  const mod = await sql`select id, status from beta_mods where title = ${DEMO_MOD_TITLE} limit 1`;
+  const mod = await sql`select id, owner_id, status from beta_mods where title = ${DEMO_MOD_TITLE} limit 1`;
   if (!owner[0] || !mod[0]) throw new Error("demo dataset missing — run scripts/seed-demo.mjs first");
   const ownerId = owner[0].id;
   const modId = mod[0].id;
+  if (mod[0].owner_id !== ownerId) throw new Error("Demo fixture mod is not owned by the demo owner. No fixture changes made.");
+  controlsRestore = await captureUploadTestState(sql, ownerId, PILOT_MODE);
   fixtureRestore = { id: modId, status: mod[0].status };
   await sql`update beta_mods set status = 'beta' where id = ${modId}`;
+  await sql`insert into app_settings (key, value) values ('uploads_enabled', 'true')
+            on conflict (key) do update set value = excluded.value`;
   const modUrl = `${BASE}/mods/${modId}`;
 
   // Fresh state for repeat runs. On r2 the stored objects are deleted too --
@@ -244,23 +256,10 @@ try {
   // rendered for an unapproved account, AND the server action refuses the POST
   // anyway. The second half is the one that matters -- hiding a form is a
   // hint, not a gate.
-  const PILOT_MODE = (env("PILOT_MODE") || "off").toLowerCase() === "on";
   let revokedFields = null;
   if (PILOT_MODE) {
-    const [priorApproval, priorSwitch] = await Promise.all([
-      sql`select 1 from pilot_accounts where user_id = ${ownerId} limit 1`,
-      sql`select value from app_settings where key = 'uploads_enabled' limit 1`,
-    ]);
-    pilotRestore = {
-      ownerId,
-      approved: priorApproval.length > 0,
-      uploadsEnabled: priorSwitch[0]?.value ?? null,
-    };
-
     // Known starting state: uploads enabled, this account not approved.
     await sql`delete from pilot_accounts where user_id = ${ownerId}`;
-    await sql`insert into app_settings (key, value) values ('uploads_enabled', 'true')
-              on conflict (key) do update set value = excluded.value`;
 
     const denied = await fetch(modUrl, { headers: { Cookie: cookie } });
     const deniedHtml = await denied.text();
@@ -308,6 +307,8 @@ try {
         `status=${replay.status}`,
       );
       check("the refused POST created no build", replayRows.length === 0, `rows=${replayRows.length}`);
+    } else {
+      skipped.push("revoked-account POST replay: approved form was unavailable (run must fail)");
     }
 
     // Approve for the rest of the run, and leave the allowlist as we found it.
@@ -414,6 +415,8 @@ try {
           followed.status === 200 && sha256(followedBytes) === fixtureSha,
           `served ${sha256(followedBytes).slice(0, 12)}`,
         );
+      } else {
+        skipped.push("signed-download byte check: no HTTPS redirect was returned (run must fail)");
       }
       // A missing build must be a plain 404, never a redirect.
       const missing = await fetch(`${BASE}/files/00000000-0000-0000-0000-000000000000`, {
@@ -541,9 +544,8 @@ try {
     );
     check("the refused POST created no build", refusedRows.length === 1, `rows=${refusedRows.length}`);
   }
-  // Leave the switch as we found it.
-  await sql`insert into app_settings (key, value) values ('uploads_enabled', 'true')
-            on conflict (key) do update set value = excluded.value`;
+  // The finally block restores the exact previous switch row, even when pilot
+  // mode is off or a check throws. Never assume the starting value was true.
 
   // Leave neither a demo row nor object behind. All assertions above have
   // already exercised the build, download and ledger paths.
@@ -575,24 +577,12 @@ try {
     try { await sql`update beta_mods set status = ${fixtureRestore.status} where id = ${fixtureRestore.id}`; }
     catch { results.push("FAIL  fixture status restore failed"); }
   }
-  if (pilotRestore) {
+  if (controlsRestore) {
     try {
-      if (pilotRestore.approved) {
-        await sql`insert into pilot_accounts (user_id) values (${pilotRestore.ownerId})
-                  on conflict (user_id) do nothing`;
-      } else {
-        await sql`delete from pilot_accounts where user_id = ${pilotRestore.ownerId}`;
-      }
-      if (pilotRestore.uploadsEnabled === null) {
-        await sql`delete from app_settings where key = 'uploads_enabled'`;
-      } else {
-        await sql`insert into app_settings (key, value)
-                  values ('uploads_enabled', ${pilotRestore.uploadsEnabled})
-                  on conflict (key) do update set value = excluded.value`;
-      }
+      await restoreUploadTestState(sql, controlsRestore);
     } catch (restoreError) {
-      console.error("ERROR restoring pilot state:", restoreError.message);
-      results.push("FAIL  pilot state restore errored");
+      console.error("ERROR restoring upload controls:", restoreError.message);
+      results.push("FAIL  upload control state restore errored");
     }
   }
   await sql.end();
@@ -600,9 +590,13 @@ try {
 
 console.log("\n--- e2e upload results ---");
 for (const line of results) console.log(line);
+for (const reason of skipped) console.log(`SKIP  ${reason}`);
 const failures = results.filter((l) => l.startsWith("FAIL"));
-if (failures.length) {
-  console.error(`\n${failures.length} check(s) failed`);
+const passed = results.length - failures.length;
+console.log(`\n${passed}/${results.length} checks passed; expected ${expectedChecks} checks for storage=${STORAGE_DRIVER}, pilot=${PILOT_MODE ? "on" : "off"}.`);
+if (failures.length || results.length !== expectedChecks) {
+  if (failures.length) console.error(`${failures.length} check(s) failed`);
+  if (results.length !== expectedChecks) console.error("Assertion count mismatch: the configured run did not complete its expected checks.");
   process.exitCode = 1;
 } else {
   console.log("\nAll checks passed.");

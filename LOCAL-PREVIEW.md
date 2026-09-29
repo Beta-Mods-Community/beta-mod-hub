@@ -47,6 +47,37 @@ Remove-Item Env:BETAMODS_BUILD_CHECK
 This uses `.next-check` instead of `.next`. Neither contains source data;
 both are gitignored. Normal container builds keep `.next`.
 
+## Upload-pipeline regression check
+
+The native preview forces R2 storage and pilot mode on. The upload e2e script
+defaults to `.env.local`, which can describe a different configuration. For
+this preview, explicitly select the private `.env.home` configuration and R2:
+
+```powershell
+$previousE2eEnvFile = $env:E2E_ENV_FILE
+$previousE2eDriver = $env:E2E_STORAGE_DRIVER
+try {
+  $env:E2E_ENV_FILE='.env.home'
+  $env:E2E_STORAGE_DRIVER='r2'
+  npm.cmd run e2e
+} finally {
+  $env:E2E_ENV_FILE = $previousE2eEnvFile
+  $env:E2E_STORAGE_DRIVER = $previousE2eDriver
+}
+```
+
+The production-endpoint guard still runs before connecting. Do not point this
+test at production or run it concurrently with uploads, other mutation suites,
+or admin approval/switch changes: it temporarily toggles shared upload controls
+and uses the existing demo fixture. It restores the original switch row and
+approval metadata in `finally`, including an originally missing switch row.
+
+A complete R2 + pilot-on run has **29 checks**. R2 + pilot-off has 23;
+local + pilot-on has 25; local + pilot-off has 19. The output prints the selected
+configuration, explicit skipped groups, and exact passed/total counts. Setting
+only `E2E_STORAGE_DRIVER=r2` does not turn on pilot coverage. Storage-cap race
+coverage is in the separate integration suite, not these HTTP checks.
+
 ## Before a public pilot
 
 - Configure a real HTTPS `APP_URL` and SMTP delivery; test reset and verification
