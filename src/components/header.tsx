@@ -13,7 +13,7 @@ export default async function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--header-bg)] backdrop-blur-xl">
-      <div className="site-container flex h-16 items-center justify-between gap-4">
+      <div className="site-container flex h-16 items-center justify-between gap-2 sm:gap-4">
         <Link
           href="/"
           aria-label="Beta Mods home"
@@ -25,13 +25,8 @@ export default async function Header() {
           >
             β
           </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-bold tracking-tight text-[var(--text)]">
-              Beta Mods
-            </span>
-            <span className="hidden font-mono text-[0.6rem] font-medium uppercase tracking-[0.16em] text-[var(--muted)] sm:block">
-              Mods in testing
-            </span>
+          <span className="truncate text-sm font-bold tracking-tight text-[var(--text)] sm:text-base">
+            Beta Mods
           </span>
         </Link>
         <HeaderNav

@@ -21,9 +21,8 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const mail = accountMailConfig();
   return (
     <main className="site-container w-full max-w-2xl flex-1 py-10 sm:py-14">
-      <p className="eyebrow">Account</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight">Account settings</h1>
-      <p className="mt-3 text-sm text-[var(--text-soft)]">Manage your email and password. <Link href="/profile/edit" className="text-[var(--accent)] underline underline-offset-4">Edit your public profile</Link></p>
+      <h1 className="text-3xl font-semibold tracking-tight">Account settings</h1>
+      <p className="mt-3 text-sm text-[var(--text-soft)]">Verify your email or change your password. <Link href="/profile/edit" className="text-[var(--accent)] underline underline-offset-4">Edit your public profile</Link></p>
       {created === "1" && <p role="status" className="mt-5 text-sm text-[var(--accent)]">Your account is created. Verify your email before posting or uploading.</p>}
       <section className="panel mt-7 space-y-4 p-5 sm:p-7" aria-labelledby="account-email">
         <h2 id="account-email" className="text-lg font-semibold">Email address</h2>

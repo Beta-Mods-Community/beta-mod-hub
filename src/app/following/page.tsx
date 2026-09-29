@@ -1,24 +1,72 @@
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
+import { ArrowUpRight, Bookmark } from "lucide-react";
+
 import { verifySession } from "@lib/dal";
 import { db } from "@lib/db";
 import { betaMods } from "../../../db/schema";
 import { modFollows } from "../../../db/community-schema";
 import { setFollow } from "@lib/community";
 import StatusBadge from "@/components/status-badge";
+
 export const metadata = { title: "Following" };
+
 export default async function FollowingPage() {
   const { userId } = await verifySession();
-  const rows = db ? await db.select({ mod: betaMods }).from(modFollows).innerJoin(betaMods, eq(betaMods.id, modFollows.betaModId))
-    .where(eq(modFollows.userId, userId)).orderBy(desc(modFollows.createdAt)).limit(500) : [];
+  const rows = db
+    ? await db.select({ mod: betaMods }).from(modFollows)
+      .innerJoin(betaMods, eq(betaMods.id, modFollows.betaModId))
+      .where(eq(modFollows.userId, userId))
+      .orderBy(desc(modFollows.createdAt)).limit(500)
+    : [];
   // Hidden listings are omitted even for followers; author/admin can use their management views.
   const visible = rows.filter(({ mod }) => !mod.hiddenAt);
-  return <main className="site-container flex-1 py-10"><h1 className="text-3xl font-semibold">Following</h1>
-    <p className="mt-3 text-sm text-[var(--muted)]">New builds appear in your notifications.</p>
-    <ul className="panel mt-6 divide-y divide-[var(--line)]">{visible.map(({ mod }) => <li key={mod.id} className="flex flex-wrap items-center justify-between gap-4 p-5">
-      <div><Link href={`/mods/${mod.id}`} className="font-semibold hover:text-[var(--accent)]">{mod.title}</Link><p className="my-2 text-sm text-[var(--muted)]">{mod.game}</p><StatusBadge status={mod.status}/></div>
-      <form action={setFollow.bind(null, mod.id, false)}><button className="button-secondary">Unfollow</button></form>
-    </li>)}</ul>
-    {!visible.length && <p className="mt-8">You are not following any available mods. <Link className="text-[var(--accent)] underline" href="/browse">Browse mods</Link></p>}
-  </main>;
+
+  return (
+    <main className="site-container flex-1 py-10 sm:py-12">
+      <header>
+        <h1 className="text-3xl font-semibold tracking-tight text-text">Following</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+          Keep track of mods you want to test. New builds appear in your notifications.
+        </p>
+      </header>
+
+      {visible.length > 0 ? (
+        <ul className="panel mt-7 divide-y divide-line">
+          {visible.map(({ mod }) => (
+            <li key={mod.id} className="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <StatusBadge status={mod.status} />
+                  <span className="text-xs text-muted">{mod.game}</span>
+                </div>
+                <Link href={`/mods/${mod.id}`} className="mt-3 block break-words font-semibold text-text hover:text-accent">
+                  {mod.title}
+                </Link>
+              </div>
+              <form action={setFollow.bind(null, mod.id, false)}>
+                <button type="submit" className="button-secondary" aria-label={`Unfollow ${mod.title}`}>
+                  Unfollow
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <section className="mt-7 flex items-start gap-4 border-t border-line py-10" aria-labelledby="following-empty-heading">
+          <Bookmark className="mt-1 h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
+          <div>
+            <h2 id="following-empty-heading" className="text-base font-semibold text-text">No followed mods to show</h2>
+            <p className="mt-2 max-w-lg text-sm leading-6 text-muted">
+              Browse active betas and choose Follow on a mod page to keep it here and receive updates when a new build is posted.
+            </p>
+            <Link href="/browse" className="button-secondary mt-4">
+              Browse beta mods
+              <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+        </section>
+      )}
+    </main>
+  );
 }

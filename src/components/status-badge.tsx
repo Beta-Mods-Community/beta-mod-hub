@@ -1,7 +1,7 @@
 const styles: Record<string, string> = {
   alpha:
     "border-amber-500/35 bg-amber-500/10 text-amber-200",
-  beta: "border-cyan-500/35 bg-cyan-500/10 text-cyan-200",
+  beta: "border-accent/35 bg-accent-soft text-accent-strong",
   rc: "border-violet-500/35 bg-violet-500/10 text-violet-200",
   promoted:
     "border-emerald-500/35 bg-emerald-500/10 text-emerald-200",

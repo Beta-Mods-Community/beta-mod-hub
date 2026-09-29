@@ -154,7 +154,7 @@ export default async function UserProfilePage({
         </div>
 
         {mods.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-muted">
             No beta mods authored yet.
           </p>
         ) : (
@@ -189,7 +189,7 @@ export default async function UserProfilePage({
         </div>
 
         {tested.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-muted">
             No ready votes cast yet.
           </p>
         ) : (
@@ -238,7 +238,7 @@ export default async function UserProfilePage({
         </div>
 
         {reports.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-muted">
             No bug reports filed yet.
           </p>
         ) : (

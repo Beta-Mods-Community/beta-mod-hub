@@ -4,13 +4,10 @@ import { notFound } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
 import {
   ArrowLeft,
-  Bug,
-  CheckCircle2,
   Clock3,
   Download,
   ExternalLink,
   FileArchive,
-  Package,
   ShieldCheck,
   UserRound,
   Wrench,
@@ -19,7 +16,6 @@ import {
 import BugReports from "@/components/bug-reports";
 import BuildUploadForm from "@/components/build-upload-form";
 import DeleteModButton from "@/components/delete-mod-button";
-import ModArtwork from "@/components/mod-artwork";
 import ModGallery from "@/components/mod-gallery";
 import ModMediaManager from "@/components/mod-media-manager";
 import Markdown from "@/components/markdown";
@@ -47,11 +43,12 @@ import { addRequirement, removeRequirement } from "@lib/requirements";
 import { getSession } from "@lib/session";
 import { getUploadPermission } from "@lib/storage-usage";
 
-const TAB_LINKS = [
+const SECTION_LINKS = [
   { href: "#overview", label: "Overview" },
   { href: "#files", label: "Files" },
   { href: "#requirements", label: "Requirements" },
   { href: "#bugs", label: "Bugs" },
+  { href: "#testing", label: "Testing" },
 ] as const;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -143,31 +140,13 @@ export default async function BetaModPage({
       )}
 
       <article className="panel overflow-hidden">
-        {media.length > 0 ? <div className="border-b border-[var(--line)]">
-          <ModGallery key={gallery.find((image) => image.isHero)?.id ?? mod.id} media={gallery} title={mod.title} />
+        <div className="border-b border-[var(--line)]">
+          {media.length > 0 && <ModGallery key={gallery.find((image) => image.isHero)?.id ?? mod.id} media={gallery} title={mod.title} />}
           <div className="p-5 sm:p-7">
             <div className="flex flex-wrap items-center gap-3"><StatusBadge status={mod.status} /><p className="eyebrow">{mod.game}</p></div>
             <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">{mod.title}</h1>
           </div>
-        </div> : (
-        <div className="relative border-b border-[var(--line)]">
-          <ModArtwork
-            title={mod.title}
-            game={mod.game}
-            className="min-h-56 sm:min-h-72 lg:min-h-80"
-          />
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(7,11,13,0.9),transparent_58%)]" />
-          <div className="absolute left-5 top-5 sm:left-7 sm:top-7">
-            <StatusBadge status={mod.status} />
-          </div>
-          <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8">
-            <p className="eyebrow">{mod.game}</p>
-            <h1 className="mt-2 max-w-4xl text-3xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
-              {mod.title}
-            </h1>
-          </div>
         </div>
-        )}
 
         <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-0">
@@ -213,17 +192,14 @@ export default async function BetaModPage({
 
       <nav
         aria-label="Mod page sections"
-        className="mt-5 flex gap-1 overflow-x-auto border-b border-[var(--line)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-[var(--line)] py-2"
       >
-        {TAB_LINKS.map((item, index) => (
+        <span className="text-xs text-[var(--muted)]">On this page</span>
+        {SECTION_LINKS.map((item) => (
           <a
             key={item.href}
             href={item.href}
-            className={`shrink-0 border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
-              index === 0
-                ? "border-[var(--accent)] text-[var(--text)]"
-                : "border-transparent text-[var(--muted)] hover:text-[var(--text)]"
-            }`}
+            className="inline-flex min-h-11 items-center text-sm font-medium text-[var(--text-soft)] underline-offset-4 transition-colors hover:text-[var(--accent)] hover:underline"
           >
             {item.label}
             {item.href === "#files" && builds.length > 0 ? ` ${builds.length}` : ""}
@@ -233,9 +209,90 @@ export default async function BetaModPage({
       </nav>
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
-        <div className="min-w-0 space-y-6">
-          <section id="overview" className="panel scroll-mt-24 p-5 sm:p-7">
-            <SectionHeading eyebrow="Overview" title="About this beta" />
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1">
+          <section id="testing" className="panel scroll-mt-24 p-5" aria-labelledby="testing-heading">
+            <h2 id="testing-heading" className="text-lg font-semibold text-[var(--text)]">
+              Latest build
+            </h2>
+            {latestBuild ? (
+              <>
+                <p className="mt-1 text-sm text-[var(--text-soft)]">{latestBuild.versionLabel}</p>
+                <p className="mt-1 text-xs text-[var(--muted)]">Uploaded {formatDate(latestBuild.uploadedAt)}</p>
+                <Link href={`/files/${latestBuild.id}`} className="button-primary mt-4 w-full">
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                  Download {latestBuild.versionLabel}
+                </Link>
+                <p className="mt-3 flex items-center gap-1.5 text-xs text-emerald-300">
+                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                  ClamAV scan passed
+                </p>
+                <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
+                  The archive was scanned before storage. Compatibility still needs testing.
+                </p>
+
+                <h3 className="mt-5 border-t border-[var(--line)] pt-5 text-sm font-semibold">Tester verdicts</h3>
+                <dl className="mt-3 grid grid-cols-2 gap-4">
+                  <div>
+                    <dt className="text-xs text-[var(--muted)]">Ready</dt>
+                    <dd className="mt-1 text-2xl font-semibold tabular-nums">{tally.ready}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-[var(--muted)]">Not ready</dt>
+                    <dd className="mt-1 text-2xl font-semibold tabular-nums">{tally.total - tally.ready}</dd>
+                  </div>
+                </dl>
+                <p className="mt-3 text-xs leading-5 text-[var(--muted)]">
+                  {tally.total > 0
+                    ? `${tally.total} ${tally.total === 1 ? "tester has" : "testers have"} voted on this build.`
+                    : "No votes for this build yet."}
+                </p>
+
+                {readOnly ? (
+                  <p className="mt-4 text-xs text-[var(--muted)]">Voting is closed.</p>
+                ) : isOwner ? (
+                  <p className="mt-4 text-xs text-[var(--muted)]">Authors cannot vote on their own builds.</p>
+                ) : session ? (
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <form action={voteReady.bind(null, mod.id, latestBuild.id, true)}>
+                      <button
+                        type="submit"
+                        aria-pressed={myVote === true}
+                        className={myVote === true ? voteActiveClass : voteIdleClass}
+                      >
+                        Ready
+                      </button>
+                    </form>
+                    <form action={voteReady.bind(null, mod.id, latestBuild.id, false)}>
+                      <button
+                        type="submit"
+                        aria-pressed={myVote === false}
+                        className={myVote === false ? voteActiveClass : voteIdleClass}
+                      >
+                        Not ready
+                      </button>
+                    </form>
+                  </div>
+                ) : (
+                  <Link href="/login" className="button-secondary mt-4 w-full">Sign in to vote</Link>
+                )}
+              </>
+            ) : (
+              <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
+                No build has been uploaded. Downloads and voting open with the first build.
+              </p>
+            )}
+            {!isOwner && !readOnly && <div className="mt-5 border-t border-[var(--line)] pt-5">
+              <h3 className="text-sm font-semibold">Follow this mod</h3>
+              <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Get a notification here for new builds and retest requests.</p>
+              {session ? <form action={setFollow.bind(null, mod.id, !following)}><button className="button-secondary mt-3 w-full">{following ? "Unfollow mod" : "Follow mod"}</button></form> : <Link href="/login" className="button-secondary mt-3 w-full">Sign in to follow</Link>}
+            </div>}
+          </section>
+          {session && <ReportContentForm modId={mod.id} />}
+        </aside>
+
+        <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-start-1">
+          <section id="overview" className="scroll-mt-24 border-b border-[var(--line)] pb-8">
+            <SectionHeading title="About this beta" />
             {mod.description ? (
               <div className="mt-5"><Markdown>{mod.description}</Markdown></div>
             ) : (
@@ -248,9 +305,9 @@ export default async function BetaModPage({
             <div className="mt-5"><ModMediaManager betaModId={mod.id} media={gallery} uploadPermission={uploadPermission} /></div>
           </details>}
 
-          <section id="files" className="panel scroll-mt-24 p-5 sm:p-7">
+          <section id="files" className="scroll-mt-24 border-b border-[var(--line)] pb-8">
             <div className="flex flex-wrap items-end justify-between gap-4">
-              <SectionHeading eyebrow="Files" title="Test builds" />
+              <SectionHeading title="Test builds" />
               <span className="text-xs text-[var(--muted)]">
                 {builds.length} {builds.length === 1 ? "build" : "builds"}
               </span>
@@ -304,9 +361,9 @@ export default async function BetaModPage({
             )}
 
             {isOwner && !readOnly && (
-              <details className="mt-5 rounded-md border border-[var(--line)] bg-[var(--surface-soft)]">
+              <details open={builds.length === 0} className="mt-5 rounded-md border border-[var(--line)] bg-[var(--surface-soft)]">
                 <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text)] marker:hidden">
-                  Upload a new build
+                  {builds.length === 0 ? "Upload the first build" : "Upload a new build"}
                 </summary>
                 <div className="border-t border-[var(--line)] p-4 sm:p-5">
                   {uploadPermission.allowed ? (
@@ -319,8 +376,8 @@ export default async function BetaModPage({
             )}
           </section>
 
-          <section id="requirements" className="panel scroll-mt-24 p-5 sm:p-7">
-            <SectionHeading eyebrow="Compatibility" title="Requirements" />
+          <section id="requirements" className="scroll-mt-24 border-b border-[var(--line)] pb-8">
+            <SectionHeading title="Requirements" />
             {requirements.length === 0 ? (
               <EmptyCopy>No external requirements have been recorded.</EmptyCopy>
             ) : (
@@ -390,16 +447,16 @@ export default async function BetaModPage({
           <BugReports betaModId={mod.id} builds={builds} viewerId={session?.userId} isOwner={isOwner} readOnly={readOnly} filters={{ bugStatus, bugBuild, bugPage }} />
 
           {isOwner && !readOnly && (
-            <section className="panel p-5 sm:p-7">
-              <SectionHeading eyebrow="Nexus Mods" title="Publish your release" />
+            <section className="border-t border-[var(--line)] pt-8">
+              <SectionHeading title="Publish on Nexus Mods" />
               <p className="mt-4 text-sm leading-6 text-[var(--text-soft)]">
                 Download the latest build, description, requirements, and screenshots as a package to upload to Nexus Mods. Add the Nexus page URL here once it is published.
               </p>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                <a href={`/mods/${mod.id}/promotion/download`} className="button-secondary">
+                {latestBuild ? <a href={`/mods/${mod.id}/promotion/download`} className="button-secondary">
                   <Download className="h-4 w-4" aria-hidden="true" />
                   Download release package
-                </a>
+                </a> : <a href="#files" className="button-secondary">Upload a build to create a release package</a>}
               </div>
               <form action={confirmPromotion} className="mt-5 grid gap-3 border-t border-[var(--line)] pt-5 sm:grid-cols-[minmax(0,1fr)_auto]">
                 {promote === "invalid" && (
@@ -426,137 +483,26 @@ export default async function BetaModPage({
           )}
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-24">
-          {!isOwner && !readOnly && <section className="panel p-5">
-            <h2 className="text-sm font-semibold">Follow this mod</h2>
-            <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Get a notification here when the author uploads a build or requests a retest.</p>
-            {session ? <form action={setFollow.bind(null, mod.id, !following)}><button className="button-secondary mt-4 w-full">{following ? "Unfollow mod" : "Follow mod"}</button></form> : <Link href="/login" className="button-secondary mt-4 w-full">Sign in to follow</Link>}
-          </section>}
-          <section className="panel p-5" aria-labelledby="release-signal-heading">
-            <p className="eyebrow">Current build</p>
-            <h2 id="release-signal-heading" className="mt-2 text-lg font-semibold text-[var(--text)]">
-              Tester votes
-            </h2>
-            {latestBuild ? (
-              <>
-                <p className="mt-1 text-xs text-[var(--muted)]">Version {latestBuild.versionLabel}</p>
-                <div className="mt-5 flex items-baseline gap-2">
-                  <span className="text-4xl font-semibold tracking-tight text-[var(--text)]">{tally.ready}</span>
-                  <span className="text-sm text-[var(--muted)]">of {tally.total} ready</span>
-                </div>
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--surface-soft)]" aria-hidden="true">
-                  <div
-                    className="h-full bg-[var(--accent)]"
-                    style={{ width: tally.total > 0 ? `${(tally.ready / tally.total) * 100}%` : "0%" }}
-                  />
-                </div>
-                <p className="mt-3 text-xs leading-5 text-[var(--muted)]">
-                  {tally.total > 0
-                    ? "Only verdicts for the latest build are counted."
-                    : "No votes for this build yet."}
-                </p>
-
-                {readOnly ? (
-                  <p className="mt-4 text-xs text-[var(--muted)]">Voting is closed.</p>
-                ) : isOwner ? (
-                  <p className="mt-4 text-xs text-[var(--muted)]">Authors cannot vote on their own builds.</p>
-                ) : session ? (
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <form action={voteReady.bind(null, mod.id, latestBuild.id, true)}>
-                      <button
-                        type="submit"
-                        aria-pressed={myVote === true}
-                        className={myVote === true ? voteActiveClass : voteIdleClass}
-                      >
-                        Ready
-                      </button>
-                    </form>
-                    <form action={voteReady.bind(null, mod.id, latestBuild.id, false)}>
-                      <button
-                        type="submit"
-                        aria-pressed={myVote === false}
-                        className={myVote === false ? voteActiveClass : voteIdleClass}
-                      >
-                        Not ready
-                      </button>
-                    </form>
-                  </div>
-                ) : (
-                  <Link href="/login" className="button-secondary mt-4 w-full">Sign in to vote</Link>
-                )}
-              </>
-            ) : (
-              <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
-                Voting opens when the first build is uploaded.
-              </p>
-            )}
-          </section>
-
-          {latestBuild && (
-            <section className="panel p-5">
-              <div className="flex items-start gap-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
-                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                </span>
-                <div>
-                  <h2 className="text-sm font-semibold text-[var(--text)]">Scan passed</h2>
-                  <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
-                    The current archive passed ClamAV before storage. This is a malware scan, not a compatibility guarantee.
-                  </p>
-                </div>
-              </div>
-              <Link href={`/files/${latestBuild.id}`} className="button-primary mt-5 w-full">
-                <Download className="h-4 w-4" aria-hidden="true" />
-                Download {latestBuild.versionLabel}
-              </Link>
-            </section>
-          )}
-
-          <section className="panel p-5">
-            <p className="eyebrow">Mod details</p>
-            <dl className="mt-4 space-y-3 text-sm">
-              <Fact label="Builds" value={String(builds.length)} icon={<Package className="h-3.5 w-3.5" />} />
-              <Fact label="Open bugs" value={String(openBugs)} icon={<Bug className="h-3.5 w-3.5" />} />
-              <Fact label="Ready verdicts" value={tally.total > 0 ? `${tally.ready}/${tally.total}` : "Awaiting"} icon={<CheckCircle2 className="h-3.5 w-3.5" />} />
-            </dl>
-          </section>
-          {session && <ReportContentForm modId={mod.id} />}
-        </aside>
       </div>
     </main>
   );
 }
 
-function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) {
+function SectionHeading({ title }: { title: string }) {
   return (
-    <div>
-      <p className="eyebrow">{eyebrow}</p>
-      <h2 className="mt-2 text-xl font-semibold tracking-tight text-[var(--text)]">{title}</h2>
-    </div>
+    <h2 className="text-xl font-semibold tracking-tight text-[var(--text)]">{title}</h2>
   );
 }
 
 function EmptyCopy({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mt-5 rounded-md border border-dashed border-[var(--line-strong)] bg-[var(--surface-soft)] px-4 py-7 text-center text-sm text-[var(--muted)]">
+    <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
       {children}
     </p>
   );
 }
 
-function Fact({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-[var(--line)] pb-3 last:border-0 last:pb-0">
-      <dt className="flex items-center gap-2 text-[var(--muted)]">
-        <span aria-hidden="true">{icon}</span>
-        {label}
-      </dt>
-      <dd className="font-semibold text-[var(--text)]">{value}</dd>
-    </div>
-  );
-}
-
 const voteIdleClass =
-  "min-h-10 w-full rounded-md border border-[var(--line-strong)] bg-[var(--surface-soft)] px-2 text-xs font-semibold text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]";
+  "min-h-11 w-full rounded-md border border-[var(--line-strong)] bg-[var(--surface-soft)] px-2 text-xs font-semibold text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]";
 const voteActiveClass =
-  "min-h-10 w-full rounded-md border border-[var(--accent)] bg-[var(--accent)] px-2 text-xs font-semibold text-[var(--accent-contrast)]";
+  "min-h-11 w-full rounded-md border border-[var(--accent)] bg-[var(--accent)] px-2 text-xs font-semibold text-[var(--accent-contrast)]";

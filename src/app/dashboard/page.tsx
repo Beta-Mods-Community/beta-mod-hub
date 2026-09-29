@@ -6,7 +6,6 @@ import {
   ClipboardList,
   Clock3,
   FlaskConical,
-  Plus,
   UserCheck,
 } from "lucide-react";
 
@@ -61,23 +60,12 @@ export default async function DashboardPage({
   ]);
 
   return (
-    <main className="site-container flex-1 py-10 sm:py-14">
-      <header className="border-b border-[var(--line)] pb-8">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="eyebrow">Dashboard</p>
-            <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-[-0.03em] text-[var(--text)] sm:text-4xl">
-              Welcome back, {user?.displayName ?? "modder"}.
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-soft)] sm:text-base">
-              Manage your mods, check bug reports, and review tester votes.
-            </p>
-          </div>
-          <Link href="/mods/new" className="button-primary shrink-0">
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Post a beta
-          </Link>
-        </div>
+    <main className="site-container flex-1 py-10 sm:py-12">
+      <header className="border-b border-line">
+        <h1 className="text-3xl font-semibold tracking-tight text-text">Dashboard</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+          Welcome back, {user?.displayName ?? "modder"}. Manage your mods and review your testing history.
+        </p>
 
         <nav aria-label="Dashboard views" className="mt-8 flex gap-7">
           {TABS.map((item) => {
@@ -140,42 +128,22 @@ function BuildingPanel({
 
   return (
     <section className="py-8 sm:py-10" aria-labelledby="releases-heading">
-      <div className="grid gap-px overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3">
-        <Metric
-          label="Active betas"
-          value={testingCount}
-          icon={<FlaskConical className="h-4 w-4" aria-hidden="true" />}
-        />
-        <Metric
-          label="Open bug reports"
-          value={openBugTotal}
-          icon={<Bug className="h-4 w-4" aria-hidden="true" />}
-        />
-        <Metric
-          label="Total projects"
-          value={myMods.length}
-          icon={<ClipboardList className="h-4 w-4" aria-hidden="true" />}
-        />
-      </div>
-
-      <div className="mt-9 flex items-center justify-between gap-4">
-        <div>
-          <p className="eyebrow">Building</p>
-          <h2 id="releases-heading" className="mt-2 text-xl font-semibold text-[var(--text)]">
-            Your mods
-          </h2>
-        </div>
-        <span className="text-xs font-medium text-[var(--muted)]">
-          {myMods.length} {myMods.length === 1 ? "project" : "projects"}
-        </span>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 id="releases-heading" className="text-xl font-semibold text-text">Your mods</h2>
+        {myMods.length > 0 && (
+          <p className="text-sm text-muted">
+            {myMods.length} {myMods.length === 1 ? "project" : "projects"}
+            {" · "}{testingCount} active {testingCount === 1 ? "beta" : "betas"}
+            {" · "}{openBugTotal} open {openBugTotal === 1 ? "bug report" : "bug reports"}
+          </p>
+        )}
       </div>
 
       {myMods.length === 0 ? (
         <EmptyState
           icon={<FlaskConical className="h-5 w-5" aria-hidden="true" />}
-          title="No releases in testing"
-          description="Create a beta page, upload a scanned build, and invite a small group of testers."
-          action={{ href: "/mods/new", label: "Post your first beta" }}
+          title="No beta mods yet"
+          description="Use Post a beta to create a mod page, upload a build, and invite testers. Your projects and their feedback will appear here."
         />
       ) : (
         <div className="mt-5 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)]">
@@ -254,10 +222,7 @@ function TestingPanel({
         <span className="grid h-9 w-9 place-items-center rounded-md border border-[var(--line)] bg-[var(--surface)] text-[var(--accent)]">
           <UserCheck className="h-4 w-4" aria-hidden="true" />
         </span>
-        <div>
-          <p className="eyebrow">Testing</p>
-          <h2 className="mt-1 text-xl font-semibold text-[var(--text)]">Your votes</h2>
-        </div>
+        <h2 className="text-xl font-semibold text-text">Your votes</h2>
       </div>
 
       {votedMods.length === 0 ? (
@@ -322,10 +287,7 @@ function TestingPanel({
         <span className="grid h-9 w-9 place-items-center rounded-md border border-[var(--line)] bg-[var(--surface)] text-[var(--accent)]">
           <ClipboardList className="h-4 w-4" aria-hidden="true" />
         </span>
-        <div>
-          <p className="eyebrow">Reports</p>
-          <h2 className="mt-1 text-xl font-semibold text-[var(--text)]">Bugs you filed</h2>
-        </div>
+        <h2 className="text-xl font-semibold text-text">Bugs you filed</h2>
       </div>
 
       {reports.length === 0 ? (
@@ -368,31 +330,7 @@ function TestingPanel({
         </div>
       )}
 
-      <p className="mt-5 flex items-center gap-2 text-xs text-[var(--muted)]">
-        <Bug className="h-3.5 w-3.5" aria-hidden="true" />
-        Reports stay structured. Beta Mods has no general comment wall.
-      </p>
     </section>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="bg-[var(--surface)] px-5 py-4 sm:px-6">
-      <div className="flex items-center gap-2 text-[var(--muted)]">
-        {icon}
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em]">{label}</span>
-      </div>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-[var(--text)]">{value}</p>
-    </div>
   );
 }
 
@@ -408,18 +346,20 @@ function EmptyState({
   action?: { href: string; label: string };
 }) {
   return (
-    <div className="mt-5 border border-dashed border-[var(--line-strong)] bg-[var(--surface)] px-6 py-12 text-center">
-      <span className="mx-auto grid h-10 w-10 place-items-center rounded-md border border-[var(--line)] bg-[var(--surface-raised)] text-[var(--accent)]">
+    <div className="mt-5 flex items-start gap-4 border-t border-line py-8">
+      <span className="mt-1 shrink-0 text-muted">
         {icon}
       </span>
-      <h3 className="mt-4 text-base font-semibold text-[var(--text)]">{title}</h3>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--text-soft)]">{description}</p>
-      {action && (
-        <Link href={action.href} className="button-secondary mt-5">
-          {action.label}
-          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </Link>
-      )}
+      <div>
+        <h3 className="text-base font-semibold text-text">{title}</h3>
+        <p className="mt-2 max-w-lg text-sm leading-6 text-muted">{description}</p>
+        {action && (
+          <Link href={action.href} className="button-secondary mt-4">
+            {action.label}
+            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

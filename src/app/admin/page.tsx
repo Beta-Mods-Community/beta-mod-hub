@@ -17,10 +17,9 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const card =
-  "rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900";
+const card = "panel p-5 sm:p-6";
 const heading =
-  "mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400";
+  "mb-3 flex items-center gap-2 text-lg font-semibold text-text";
 
 export default async function AdminPage() {
   const viewer = await requireAdmin();
@@ -37,12 +36,12 @@ export default async function AdminPage() {
   const adminCount = readAdminUserIds().size;
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
+    <main className="site-container max-w-4xl flex-1 py-10 sm:py-12">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+        <h1 className="text-3xl font-semibold tracking-tight text-text">
           Pilot control
         </h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-sm leading-6 text-muted">
           Signed in as {viewer.email ?? viewer.userId}. These caps are enforced
           by the app itself — Cloudflare budget alerts are warnings, not limits.
         </p>
@@ -57,15 +56,15 @@ export default async function AdminPage() {
         <p
           className={`text-sm font-medium ${
             uploadsEnabled
-              ? "text-emerald-700 dark:text-emerald-400"
-              : "text-red-700 dark:text-red-400"
+              ? "text-emerald-400"
+              : "text-red-400"
           }`}
         >
           {uploadsEnabled
             ? "Open — approved uploaders can add builds."
             : "Disabled — every new upload is refused right now."}
         </p>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-1 text-sm leading-6 text-muted">
           The switch takes effect on the next request. Builds already stored
           stay listed and keep downloading.
         </p>
@@ -80,7 +79,7 @@ export default async function AdminPage() {
         </h2>
 
         {!usage ? (
-          <p className="text-sm text-red-600 dark:text-red-400">
+          <p className="text-sm leading-6 text-red-400">
             Usage is unknown, so uploads are being refused. That is the
             fail-closed behaviour, not a bug — check the database connection.
           </p>
@@ -88,37 +87,37 @@ export default async function AdminPage() {
           <>
             <dl className="grid gap-4 sm:grid-cols-3">
               <div>
-                <dt className="text-xs text-zinc-500 dark:text-zinc-400">
+                <dt className="text-xs text-muted">
                   Stored
                 </dt>
-                <dd className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+                <dd className="text-xl font-semibold text-text">
                   {formatBytes(usage.storedBytes)}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-zinc-500 dark:text-zinc-400">
+                <dt className="text-xs text-muted">
                   Reserved (in flight)
                 </dt>
-                <dd className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+                <dd className="text-xl font-semibold text-text">
                   {formatBytes(usage.reservedBytes)}
-                  <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                  <span className="ml-1 text-xs font-normal text-muted">
                     {usage.heldReservations} held
                   </span>
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-zinc-500 dark:text-zinc-400">
+                <dt className="text-xs text-muted">
                   Total / cap
                 </dt>
                 <dd
                   className={`text-xl font-semibold ${
                     usage.totalBytes > limits.maxTotalBytes
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-zinc-950 dark:text-zinc-50"
+                      ? "text-red-400"
+                      : "text-text"
                   }`}
                 >
                   {formatBytes(usage.totalBytes)}
-                  <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                  <span className="ml-1 text-xs font-normal text-muted">
                     of {formatBytes(limits.maxTotalBytes)}
                   </span>
                 </dd>
@@ -126,21 +125,21 @@ export default async function AdminPage() {
             </dl>
 
             {usage.perUser.length > 0 && (
-              <ul className="mt-5 divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+              <ul className="mt-5 divide-y divide-line text-sm">
                 {usage.perUser.map((row) => (
                   <li
                     key={row.userId}
                     className="flex flex-wrap items-center justify-between gap-2 py-2"
                   >
-                    <span className="min-w-0 truncate text-zinc-700 dark:text-zinc-300">
+                    <span className="min-w-0 truncate text-text-soft">
                       {row.displayName ?? row.userId}
                       {row.reservedBytes > 0 && (
-                        <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">
+                        <span className="ml-2 text-xs text-amber-400">
                           +{formatBytes(row.reservedBytes)} in flight
                         </span>
                       )}
                     </span>
-                    <span className="text-zinc-500 dark:text-zinc-400">
+                    <span className="text-muted">
                       {formatBytes(row.storedBytes)} /{" "}
                       {formatBytes(limits.maxBytesPerTester)}
                     </span>
@@ -151,7 +150,7 @@ export default async function AdminPage() {
           </>
         )}
 
-        <p className="mt-5 border-t border-zinc-200 pt-4 text-xs leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        <p className="mt-5 border-t border-line pt-4 text-xs leading-5 text-muted">
           {storedBytes === null
             ? "Bucket listing unavailable — the R2 driver is not active here, or the listing failed."
             : `The bucket holds ${formatBytes(storedBytes)} across ${storedObjects?.length ?? 0} object(s). The ${formatBytes(limits.maxTotalBytes)} application cap is the only thing keeping this inside the free allowance.`}
@@ -164,24 +163,24 @@ export default async function AdminPage() {
           <Users className="h-4 w-4" />
           Approved uploaders
         </h2>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-sm leading-6 text-muted">
           {limits.mode === "on"
             ? `Pilot mode is ON — only the ${approved.length} approved account(s) below can upload, out of ${limits.maxApprovedUploaders} allowed. Everyone else is refused.`
             : "Pilot mode is OFF — the allowlist is not consulted, and every mod owner can upload."}
         </p>
 
         {approved.length > 0 ? (
-          <ul className="mt-4 divide-y divide-zinc-200 dark:divide-zinc-800">
+          <ul className="mt-4 divide-y divide-line">
             {approved.map((account) => (
               <li
                 key={account.userId}
                 className="flex items-center justify-between gap-3 py-2.5"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-zinc-950 dark:text-zinc-50">
+                  <p className="truncate text-sm font-medium text-text">
                     {account.displayName}
                   </p>
-                  <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                  <p className="truncate text-xs text-muted">
                     {account.email ?? "no email"} · approved{" "}
                     {formatDate(account.approvedAt)}
                     {account.approvedBy ? ` by ${account.approvedBy}` : ""}
@@ -190,7 +189,7 @@ export default async function AdminPage() {
                 <form action={revokeUploader.bind(null, account.userId)}>
                   <button
                     type="submit"
-                    className="flex items-center gap-1 text-xs text-zinc-500 underline-offset-4 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
+                    className="flex min-h-11 items-center gap-2 rounded-md border border-line-strong px-3 text-sm text-text-soft hover:border-red-400 hover:text-red-400"
                   >
                     <Ban className="h-3.5 w-3.5" />
                     Remove
@@ -200,7 +199,7 @@ export default async function AdminPage() {
             ))}
           </ul>
         ) : (
-          <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-4 text-sm text-muted">
             Nobody is approved yet
             {limits.mode === "on"
               ? ", so nobody can upload. That is the intended starting state."
@@ -214,10 +213,10 @@ export default async function AdminPage() {
       </section>
 
       <ModerationPanel />
-      <p className="mt-8 text-xs text-zinc-500 dark:text-zinc-400">
+      <p className="mt-8 text-xs leading-5 text-muted">
         Admin identities come from <code>ADMIN_USER_IDS</code> (
         {adminCount === 0 ? "unset" : `${adminCount} configured`}); changing it
-        needs a restart. <Link href="/dashboard">Back to dashboard</Link>
+        needs a restart. <Link href="/dashboard" className="inline-flex min-h-11 items-center text-text-soft underline underline-offset-4 hover:text-text">Back to dashboard</Link>
       </p>
     </main>
   );

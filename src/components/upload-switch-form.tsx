@@ -5,10 +5,9 @@ import { ShieldAlert, ShieldCheck } from "lucide-react";
 
 import { setUploads, type AdminFormState } from "@lib/admin";
 
-const buttonPrimary =
-  "inline-flex items-center gap-1.5 rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-zinc-50 dark:text-zinc-950";
+const buttonPrimary = "button-primary";
 const buttonDanger =
-  "inline-flex items-center gap-1.5 rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-red-600";
+  "inline-flex min-h-11 items-center gap-1.5 rounded-md border border-rose-400/40 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-200 transition-colors hover:bg-rose-500/20 disabled:opacity-50";
 
 /**
  * The pilot kill switch. Renders whichever action is currently NOT the state,
@@ -40,7 +39,7 @@ export default function UploadSwitchForm({ enabled }: { enabled: boolean }) {
             : "Re-enable uploads"}
       </button>
       {state?.message && (
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+        <p role="status" className="mt-2 text-sm text-muted">
           {state.message}
         </p>
       )}
