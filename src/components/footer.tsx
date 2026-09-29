@@ -5,6 +5,9 @@ const footerLinks = [
   { href: "/browse", label: "Browse betas" },
   { href: "/mods/new", label: "Post a beta" },
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/contact", label: "Contact" },
+  { href: "/rules", label: "Site rules" },
+  { href: "/privacy", label: "Privacy" },
 ] as const;
 
 export default function Footer() {

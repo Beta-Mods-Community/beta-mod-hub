@@ -107,15 +107,14 @@ export function readPilotLimits(env: Env = process.env): PilotLimits {
 }
 
 /**
- * Admin identities, by email. Empty set means "no admin console" — the page
- * then refuses everyone rather than defaulting to open.
+ * Explicit, immutable account IDs. Email ownership is never inferred.
  */
-export function readAdminEmails(env: Env = process.env): Set<string> {
+export function readAdminUserIds(env: Env = process.env): Set<string> {
   return new Set(
-    (env.ADMIN_EMAILS ?? "")
+    (env.ADMIN_USER_IDS ?? "")
       .split(",")
       .map((value) => value.trim().toLowerCase())
-      .filter(Boolean),
+      .filter((value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value)),
   );
 }
 

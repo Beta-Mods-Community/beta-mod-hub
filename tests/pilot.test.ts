@@ -8,7 +8,7 @@ import {
   GiB,
   MiB,
   PILOT_DEFAULTS,
-  readAdminEmails,
+  readAdminUserIds,
   readPilotLimits,
   type PilotLimits,
   type ReservationFacts,
@@ -96,19 +96,22 @@ describe("readPilotLimits", () => {
   });
 });
 
-describe("readAdminEmails", () => {
+describe("readAdminUserIds", () => {
   it("is empty when unset, which means no admin can get in", () => {
-    assert.equal(readAdminEmails({}).size, 0);
+    assert.equal(readAdminUserIds({}).size, 0);
   });
 
   it("normalises case, whitespace and stray commas", () => {
-    const admins = readAdminEmails({
-      ADMIN_EMAILS: " Owner@BetaMods.com ,second@example.com,, ",
+    const admins = readAdminUserIds({
+      ADMIN_USER_IDS: " 4EC5CB11-FBAE-49E1-8D64-DD0C001152B8 ,invalid,, ",
+      ADMIN_EMAILS: "owner@betamods.com",
     });
     assert.deepEqual([...admins].sort(), [
-      "owner@betamods.com",
-      "second@example.com",
+      "4ec5cb11-fbae-49e1-8d64-dd0c001152b8",
     ]);
+  });
+  it("never grants access based on an email configuration", () => {
+    assert.equal(readAdminUserIds({ ADMIN_EMAILS: "owner@betamods.com" }).size, 0);
   });
 });
 

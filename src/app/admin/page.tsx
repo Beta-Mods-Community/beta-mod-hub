@@ -3,10 +3,11 @@ import { Ban, Gauge, ShieldAlert, Users } from "lucide-react";
 
 import ApproveUploaderForm from "@/components/approve-uploader-form";
 import UploadSwitchForm from "@/components/upload-switch-form";
+import ModerationPanel from "@/components/moderation-panel";
 import { requireAdmin } from "@lib/access";
 import { revokeUploader } from "@lib/admin";
 import { formatDate } from "@lib/format";
-import { formatBytes, readAdminEmails, readPilotLimits } from "@lib/pilot";
+import { formatBytes, readAdminUserIds, readPilotLimits } from "@lib/pilot";
 import { storedObjectInventory } from "@lib/storage";
 import {
   getStorageUsage,
@@ -33,7 +34,7 @@ export default async function AdminPage() {
   const storedObjects = await storedObjectInventory().catch(() => null);
   const storedBytes =
     storedObjects?.reduce((total, object) => total + object.size, 0) ?? null;
-  const adminCount = readAdminEmails().size;
+  const adminCount = readAdminUserIds().size;
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
@@ -212,8 +213,9 @@ export default async function AdminPage() {
         )}
       </section>
 
+      <ModerationPanel />
       <p className="mt-8 text-xs text-zinc-500 dark:text-zinc-400">
-        Admin identities come from <code>ADMIN_EMAILS</code> (
+        Admin identities come from <code>ADMIN_USER_IDS</code> (
         {adminCount === 0 ? "unset" : `${adminCount} configured`}); changing it
         needs a restart. <Link href="/dashboard">Back to dashboard</Link>
       </p>

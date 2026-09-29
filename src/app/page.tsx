@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Bug, CheckCircle2, UploadCloud } from "lucide-react";
 
 import ModCard from "@/components/mod-card";
-import { getBrowseFeed } from "@lib/dal";
+import { getCatalogPage } from "@lib/catalog";
 
 const workflow = [
   {
@@ -26,7 +26,7 @@ const workflow = [
 ];
 
 export default async function Home() {
-  const latestMods = (await getBrowseFeed(undefined, "newest")).slice(0, 3);
+  const latestMods = (await getCatalogPage()).mods.slice(0, 3);
 
   return (
     <main className="flex-1 bg-zinc-950 text-zinc-100">
