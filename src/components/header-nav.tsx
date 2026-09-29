@@ -5,11 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  Bell,
+  Bookmark,
   LogIn,
   LogOut,
   Menu,
   Search,
   Shield,
+  Settings,
   Upload,
   UserRound,
   X,
@@ -18,6 +21,7 @@ import {
 type HeaderNavProps = {
   userId: string | null;
   isAdmin: boolean;
+  unread: number;
   logoutAction: () => Promise<void>;
 };
 
@@ -51,6 +55,7 @@ function mobileLinkClass(active: boolean) {
 export default function HeaderNav({
   userId,
   isAdmin,
+  unread,
   logoutAction,
 }: HeaderNavProps) {
   const pathname = usePathname();
@@ -62,7 +67,7 @@ export default function HeaderNav({
     <div className="flex items-center">
       <nav
         aria-label="Primary navigation"
-        className="hidden items-center gap-1 lg:flex"
+        className="hidden items-center gap-1 xl:flex"
       >
         {primaryLinks.map((link) => {
           const active = isCurrent(pathname, link.href);
@@ -82,6 +87,10 @@ export default function HeaderNav({
 
         {userId ? (
           <>
+            <Link href="/following" className={desktopLinkClass(isCurrent(pathname, "/following"))}>Following</Link>
+            <Link href="/notifications" className={desktopLinkClass(isCurrent(pathname, "/notifications"))} aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}>
+              <Bell className="h-4 w-4" aria-hidden/>{unread > 0 && <span className="ml-1 text-xs text-[var(--accent)]">{unread > 99 ? "99+" : unread}</span>}
+            </Link>
             {isAdmin && (
               <Link
                 href="/admin"
@@ -100,6 +109,7 @@ export default function HeaderNav({
                 Profile
               </Link>
             )}
+            <Link href="/account" className={desktopLinkClass(isCurrent(pathname, "/account"))} aria-label="Account settings"><Settings aria-hidden className="h-4 w-4" /></Link>
             <Link href="/mods/new" className="button-primary ml-2 !min-h-10 !px-3.5">
               <Upload aria-hidden className="h-4 w-4" />
               Post a beta
@@ -129,7 +139,7 @@ export default function HeaderNav({
         aria-controls="mobile-navigation"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-[var(--line)] bg-[var(--surface)] text-[var(--text-soft)] transition-colors hover:border-[var(--line-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)] lg:hidden"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-[var(--line)] bg-[var(--surface)] text-[var(--text-soft)] transition-colors hover:border-[var(--line-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)] xl:hidden"
       >
         {open ? (
           <X aria-hidden className="h-5 w-5" />
@@ -145,7 +155,7 @@ export default function HeaderNav({
             aria-label="Close navigation menu"
             tabIndex={-1}
             onClick={() => setOpen(false)}
-            className="fixed inset-0 top-16 z-30 cursor-default bg-black/45 backdrop-blur-[2px] lg:hidden"
+            className="fixed inset-0 top-16 z-30 cursor-default bg-black/45 backdrop-blur-[2px] xl:hidden"
           />
           <nav
             id="mobile-navigation"
@@ -156,7 +166,7 @@ export default function HeaderNav({
                 menuButtonRef.current?.focus();
               }
             }}
-            className="fixed inset-x-0 top-16 z-40 max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-[var(--line)] bg-[var(--background)] p-3 shadow-2xl lg:hidden"
+            className="fixed inset-x-0 top-16 z-40 max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-[var(--line)] bg-[var(--background)] p-3 shadow-2xl xl:hidden"
           >
             <div className="mx-auto flex max-w-2xl flex-col gap-1">
               {primaryLinks.map((link) => {
@@ -178,6 +188,9 @@ export default function HeaderNav({
 
               {userId ? (
                 <>
+                  <Link href="/following" onClick={() => setOpen(false)} className={mobileLinkClass(isCurrent(pathname, "/following"))}><Bookmark className="h-4 w-4" aria-hidden/>Following</Link>
+                  <Link href="/notifications" onClick={() => setOpen(false)} className={mobileLinkClass(isCurrent(pathname, "/notifications"))}><Bell className="h-4 w-4" aria-hidden/>Notifications{unread > 0 ? ` (${unread})` : ""}</Link>
+                  <Link href="/account" onClick={() => setOpen(false)} className={mobileLinkClass(isCurrent(pathname, "/account"))}><Settings className="h-4 w-4" aria-hidden/>Account settings</Link>
                   {isAdmin && (
                     <Link
                       href="/admin"

@@ -55,14 +55,14 @@ export default function SignupForm() {
           id="password"
           name="password"
           type="password"
-          placeholder="8+ chars, letters, numbers, a symbol"
+          placeholder="At least 12 characters"
           className={inputClass}
           autoComplete="new-password"
         />
         {state?.errors?.password && (
           <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-4 text-sm text-rose-300">
             {state.errors.password.map((error) => (
-              <li key={error}>Password must {error.toLowerCase()}</li>
+              <li key={error}>{error}</li>
             ))}
           </ul>
         )}

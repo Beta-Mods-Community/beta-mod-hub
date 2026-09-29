@@ -10,12 +10,12 @@ export const metadata = { title: "Sign in" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ nexus?: string }>;
+  searchParams: Promise<{ nexus?: string; password?: string }>;
 }) {
   const session = await getSession();
   if (session?.userId) redirect("/dashboard");
 
-  const { nexus } = await searchParams;
+  const { nexus, password } = await searchParams;
   const ssoAvailable = ssoConfigured();
 
   return (
@@ -57,6 +57,8 @@ export default async function LoginPage({
         )}
 
         <LoginForm />
+        {(password === "reset" || password === "changed") && <p role="status" className="mt-4 text-sm text-[var(--accent)]">Your password was updated and all devices were signed out. Sign in with your new password.</p>}
+        <Link href="/forgot-password" className="mt-4 block text-center text-sm text-[var(--accent)] underline-offset-4 hover:underline">Forgot your password?</Link>
         <p className="mt-6 text-center text-sm text-[var(--muted)]">
           New here?{" "}
           <Link

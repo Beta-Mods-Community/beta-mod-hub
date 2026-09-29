@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   index,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -38,11 +39,33 @@ export const users = pgTable("users", {
   // Local sign-in fallback for the pre-SSO period; null for SSO-only accounts.
   email: text("email").unique(),
   passwordHash: text("password_hash"),
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+  sessionVersion: integer("session_version").notNull().default(0),
+  suspendedAt: timestamp("suspended_at", { withTimezone: true }),
   displayName: text("display_name").notNull(),
   avatarUrl: text("avatar_url"),
   bio: text("bio"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [uniqueIndex("users_email_casefold_unique").on(sql`lower(${table.email})`).where(sql`${table.email} is not null`)]);
+
+// Only SHA-256 digests are stored. Issuing a new token invalidates its predecessor.
+export const accountTokens = pgTable("account_tokens", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  purpose: text("purpose").notNull(),
+  email: text("email").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique("account_tokens_user_purpose_unique").on(table.userId, table.purpose),
+  index("account_tokens_expiry_idx").on(table.expiresAt),
+]);
+
+export const authRateLimits = pgTable("auth_rate_limits", {
+  key: text("key").primaryKey(),
+  attempts: integer("attempts").notNull().default(1),
+  resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+}, (table) => [index("auth_rate_limits_expiry_idx").on(table.resetAt)]);
 
 export const betaMods = pgTable("beta_mods", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -57,6 +80,7 @@ export const betaMods = pgTable("beta_mods", {
   // Set when the author confirms promotion — the live Nexus page this mod
   // now lives on. The beta page becomes read-only and links here.
   nexusUrl: text("nexus_url"),
+  hiddenAt: timestamp("hidden_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

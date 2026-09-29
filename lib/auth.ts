@@ -2,102 +2,55 @@
 
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import { db } from "./db";
 import { createSession, deleteSession } from "./session";
 import { users } from "../db/schema";
-import {
-  LoginFormSchema,
-  SignupFormSchema,
-  type LoginFormState,
-  type SignupFormState,
-} from "./definitions";
+import { issueAccountToken, takeAuthAttempt } from "./account-security";
+import { accountMailConfig } from "./account-mail";
+import { LoginFormSchema, SignupFormSchema, type LoginFormState, type SignupFormState } from "./definitions";
 
-export async function signup(
-  state: SignupFormState,
-  formData: FormData,
-): Promise<SignupFormState> {
-  const validatedFields = SignupFormSchema.safeParse({
-    displayName: formData.get("displayName"),
-    email: formData.get("email"),
-    password: formData.get("password"),
-  });
+// Valid bcrypt hash used for missing accounts so they still pay the password
+// comparison cost. It is not a usable account credential.
+const DUMMY_HASH = "$2b$12$gB7Of3ZWUa.iLK.qNWvvNuCe.kyLW0PmQE2z2XPmxAUevnTWzwKKe";
+const UNAVAILABLE = "Sign-in is temporarily unavailable. Please try again shortly.";
+const LIMITED = "Too many attempts. Please wait 15 minutes before trying again.";
 
-  if (!validatedFields.success) {
-    return { errors: validatedFields.error.flatten().fieldErrors };
-  }
-
-  if (!db) {
-    return { message: "The database isn't configured yet — try again shortly." };
-  }
-
-  const { displayName, email, password } = validatedFields.data;
-
-  const existing = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
-
-  if (existing[0]) {
-    return { errors: { email: ["An account with this email already exists."] } };
-  }
-
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  const inserted = await db
-    .insert(users)
-    .values({ displayName, email, passwordHash })
-    .returning({ id: users.id });
-
-  const user = inserted[0];
-  if (!user) {
-    return { message: "Something went wrong creating your account. Try again." };
-  }
-
-  await createSession(user.id);
-  redirect("/dashboard");
+export async function signup(_state: SignupFormState, formData: FormData): Promise<SignupFormState> {
+  const fields = SignupFormSchema.safeParse({ displayName: formData.get("displayName"), email: formData.get("email"), password: formData.get("password") });
+  if (!fields.success) return { errors: fields.error.flatten().fieldErrors };
+  if (!db) return { message: UNAVAILABLE };
+  const { displayName, email, password } = fields.data;
+  try {
+    if (!await takeAuthAttempt("signup", email)) return { message: "Too many account requests. Please try again in an hour." };
+    const passwordHash = await bcrypt.hash(password, 12);
+    const [user] = await db.insert(users).values({ displayName, email, passwordHash })
+      .onConflictDoNothing().returning({ id: users.id });
+    if (!user) return { message: "Unable to create an account with those details. Try signing in or resetting your password." };
+    // Account creation remains possible during local development. Public
+    // posting is separately gated on verification, never inferred from email.
+    if (accountMailConfig()) {
+      try { await issueAccountToken(user.id, email, "verify-email"); } catch { /* Account page offers a retry and reports delivery status honestly. */ }
+    }
+    await createSession(user.id);
+  } catch { return { message: "Account creation is temporarily unavailable. Please try again shortly." }; }
+  redirect("/account?created=1");
 }
 
-export async function login(
-  state: LoginFormState,
-  formData: FormData,
-): Promise<LoginFormState> {
-  const validatedFields = LoginFormSchema.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password"),
-  });
-
-  if (!validatedFields.success) {
-    return { errors: validatedFields.error.flatten().fieldErrors };
-  }
-
-  if (!db) {
-    return { message: "The database isn't configured yet — try again shortly." };
-  }
-
-  const { email, password } = validatedFields.data;
-
-  const rows = await db
-    .select({ id: users.id, passwordHash: users.passwordHash })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
-
-  const user = rows[0];
-  // Same message whether the account is missing or the password is wrong,
-  // so we never confirm which emails are registered.
-  if (!user || !user.passwordHash) {
-    return { message: "Invalid email or password." };
-  }
-
-  const matches = await bcrypt.compare(password, user.passwordHash);
-  if (!matches) {
-    return { message: "Invalid email or password." };
-  }
-
-  await createSession(user.id);
+export async function login(_state: LoginFormState, formData: FormData): Promise<LoginFormState> {
+  const fields = LoginFormSchema.safeParse({ email: formData.get("email"), password: formData.get("password") });
+  if (!fields.success) return { errors: fields.error.flatten().fieldErrors };
+  if (!db) return { message: UNAVAILABLE };
+  const { email, password } = fields.data;
+  try {
+    if (!await takeAuthAttempt("login", email)) return { message: LIMITED };
+    const [user] = await db.select({ id: users.id, passwordHash: users.passwordHash, sessionVersion: users.sessionVersion, suspendedAt: users.suspendedAt })
+      .from(users).where(sql`lower(${users.email}) = ${email}`).limit(1);
+    const matches = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
+    if (!matches || !user?.passwordHash || user.suspendedAt) return { message: "Invalid email or password." };
+    await createSession(user.id, user.sessionVersion);
+  } catch { return { message: UNAVAILABLE }; }
   redirect("/dashboard");
 }
 

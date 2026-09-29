@@ -3,10 +3,11 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 
 import { db } from "./db";
 import { decrypt } from "./session";
+import { getViewer } from "./access";
 import { emptyReputationHistory, type ReputationHistory } from "./reputation";
 import { betaMods, bugReports, builds, readySignals, requirements, users } from "../db/schema";
 
@@ -58,6 +59,7 @@ const betaModColumns = {
   tags: betaMods.tags,
   status: betaMods.status,
   nexusUrl: betaMods.nexusUrl,
+  hiddenAt: betaMods.hiddenAt,
   createdAt: betaMods.createdAt,
   updatedAt: betaMods.updatedAt,
   ownerId: betaMods.ownerId,
@@ -74,18 +76,24 @@ export const getBetaMod = cache(async (id: string) => {
     .where(eq(betaMods.id, id))
     .limit(1);
 
-  return rows[0] ?? null;
+  const mod = rows[0];
+  if (mod?.hiddenAt) {
+    const viewer = await getViewer();
+    if (!viewer?.isAdmin && viewer?.userId !== mod.ownerId) return null;
+  }
+  return mod ?? null;
 });
 
 /** Mods a given user owns — dashboard "Building" tab and profile pages. */
 export const getModsByOwner = cache(async (userId: string) => {
   if (!db) return [];
+  const viewer = await getViewer();
 
   return db
     .select(betaModColumns)
     .from(betaMods)
     .leftJoin(users, eq(users.id, betaMods.ownerId))
-    .where(eq(betaMods.ownerId, userId))
+    .where(and(eq(betaMods.ownerId, userId), viewer?.isAdmin || viewer?.userId === userId ? undefined : isNull(betaMods.hiddenAt)))
     .orderBy(desc(betaMods.updatedAt));
 });
 
@@ -99,6 +107,7 @@ export const listActiveBetaMods = cache(async (game?: string) => {
     .where(
       and(
         notInArray(betaMods.status, ["promoted", "abandoned"]),
+        isNull(betaMods.hiddenAt),
         game ? eq(betaMods.game, game) : undefined,
       ),
     )
@@ -109,7 +118,7 @@ export const listActiveBetaMods = cache(async (game?: string) => {
 export const listBetaModGames = cache(async () => {
   if (!db) return [];
 
-  const rows = await db.selectDistinct({ game: betaMods.game }).from(betaMods);
+  const rows = await db.selectDistinct({ game: betaMods.game }).from(betaMods).where(and(isNull(betaMods.hiddenAt), notInArray(betaMods.status, ["promoted", "abandoned"])));
   return rows
     .map((row) => row.game)
     .filter(Boolean)
@@ -136,7 +145,9 @@ export const getBuildById = cache(async (id: string) => {
     .where(eq(builds.id, id))
     .limit(1);
 
-  return rows[0] ?? null;
+  const build = rows[0];
+  if (build && !(await getBetaMod(build.betaModId))) return null;
+  return build ?? null;
 });
 
 export const getBuildsByModId = cache(async (betaModId: string) => {

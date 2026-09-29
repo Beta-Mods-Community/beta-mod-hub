@@ -13,7 +13,7 @@ import * as schema from "../db/schema";
 const connectionString = process.env.DATABASE_URL;
 
 export const client = connectionString
-  ? postgres(connectionString, { max: 10, prepare: false })
+  ? postgres(connectionString, { max: 10, prepare: false, connect_timeout: 10 })
   : null;
 
 export const db = client ? drizzle(client, { schema }) : null;

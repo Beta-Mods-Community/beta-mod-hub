@@ -5,15 +5,16 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 
 import { db } from "./db";
-import { readAdminEmails } from "./pilot";
+import { readAdminUserIds } from "./pilot";
+import { allowsUnverifiedLocalAccounts } from "./account-policy";
 import { getSession } from "./session";
 import { users } from "../db/schema";
 
 /**
  * Who is calling, and are they the owner of this site.
  *
- * There is no roles table: the pilot is run by one person, so ADMIN_EMAILS in
- * the environment is the whole admin list. An unset or empty list means there
+ * Administrator IDs are explicitly configured in ADMIN_USER_IDS. Email
+ * strings never grant administrative access. An unset or empty list means there
  * is no admin console at all — `isAdmin` is false for everyone, and the admin
  * page refuses rather than defaulting to open.
  *
@@ -33,11 +34,11 @@ export const getViewer = cache(async () => {
     email = rows[0]?.email ?? null;
   }
 
-  const admins = readAdminEmails();
+  const admins = readAdminUserIds();
   return {
     userId: session.userId,
     email,
-    isAdmin: email !== null && admins.has(email.toLowerCase()),
+    isAdmin: admins.has(session.userId.toLowerCase()),
   };
 });
 
@@ -45,5 +46,25 @@ export const getViewer = cache(async () => {
 export async function requireAdmin() {
   const viewer = await getViewer();
   if (!viewer?.isAdmin) redirect("/");
+  return viewer;
+}
+
+/** Used by mutating actions to return useful form errors before any write. */
+export async function getAccountWriteError(userId: string): Promise<string | null> {
+  if (!db) return "The database is temporarily unavailable.";
+  const [user] = await db.select({ emailVerifiedAt: users.emailVerifiedAt, suspendedAt: users.suspendedAt })
+    .from(users).where(eq(users.id, userId)).limit(1);
+  if (!user || user.suspendedAt) return "This account is unavailable.";
+  if (!user.emailVerifiedAt && !allowsUnverifiedLocalAccounts()) {
+    return "Verify your email in Account settings before posting or uploading.";
+  }
+  return null;
+}
+
+export async function requireVerifiedAccount() {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
+  const error = await getAccountWriteError(viewer.userId);
+  if (error) redirect("/account");
   return viewer;
 }

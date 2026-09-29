@@ -13,6 +13,9 @@ CREATE TABLE users (
     -- don't want to link Nexus. Null for Nexus-SSO-only accounts.
     email TEXT UNIQUE,
     password_hash TEXT,
+    email_verified_at TIMESTAMPTZ,
+    session_version INTEGER NOT NULL DEFAULT 0,
+    suspended_at TIMESTAMPTZ,
     display_name TEXT NOT NULL,
     avatar_url TEXT,
     bio TEXT,
@@ -20,6 +23,25 @@ CREATE TABLE users (
     -- reputation_score is derived at query time from ready_signals +
     -- bug_reports, not stored here — see spec (lib/reputation.ts).
 );
+CREATE UNIQUE INDEX users_email_casefold_unique ON users(lower(email)) WHERE email IS NOT NULL;
+
+CREATE TABLE account_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    purpose TEXT NOT NULL CHECK (purpose IN ('verify-email', 'reset-password')),
+    email TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT account_tokens_user_purpose_unique UNIQUE (user_id, purpose)
+);
+CREATE INDEX account_tokens_expiry_idx ON account_tokens(expires_at);
+
+CREATE TABLE auth_rate_limits (
+    key TEXT PRIMARY KEY,
+    attempts INTEGER NOT NULL DEFAULT 1,
+    reset_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX auth_rate_limits_expiry_idx ON auth_rate_limits(reset_at);
 
 CREATE TABLE beta_mods (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -32,6 +54,7 @@ CREATE TABLE beta_mods (
     -- Set when the author confirms promotion: the live Nexus page URL.
     -- That page is the mod's home once promoted; this beta page links to it.
     nexus_url TEXT,
+    hidden_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -178,3 +201,58 @@ CREATE TABLE app_settings (
     value TEXT NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Following, in-site notifications, and administrator moderation.
+CREATE TABLE mod_follows (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    beta_mod_id UUID NOT NULL REFERENCES beta_mods(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(user_id, beta_mod_id)
+);
+CREATE INDEX mod_follows_mod_idx ON mod_follows(beta_mod_id);
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL, href TEXT NOT NULL, read BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX notifications_user_date_idx ON notifications(user_id, created_at);
+CREATE TABLE content_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    beta_mod_id UUID NOT NULL REFERENCES beta_mods(id) ON DELETE CASCADE,
+    reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reason TEXT NOT NULL, resolved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(reporter_id, beta_mod_id)
+);
+CREATE TABLE moderation_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), actor_id UUID NOT NULL REFERENCES users(id),
+    target_id UUID NOT NULL, action TEXT NOT NULL, reason TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Structured author updates and the reporter's latest build-specific retest.
+CREATE TABLE bug_report_workflow (
+    report_id UUID PRIMARY KEY REFERENCES bug_reports(id) ON DELETE CASCADE,
+    author_response TEXT,
+    responded_at TIMESTAMPTZ,
+    retest_status TEXT NOT NULL DEFAULT 'not-requested'
+        CHECK (retest_status IN ('not-requested', 'requested', 'resolved', 'still-present')),
+    retest_build_id UUID REFERENCES builds(id) ON DELETE SET NULL,
+    retest_notes TEXT,
+    retested_at TIMESTAMPTZ
+);
+
+-- Private diagnostic files: only reporter and author may request downloads.
+-- reservation_id is the quota link; attachment deletion removes it explicitly.
+CREATE TABLE bug_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    report_id UUID NOT NULL REFERENCES bug_reports(id) ON DELETE CASCADE,
+    beta_mod_id UUID NOT NULL REFERENCES beta_mods(id) ON DELETE CASCADE,
+    uploader_id UUID NOT NULL REFERENCES users(id),
+    reservation_id UUID NOT NULL UNIQUE REFERENCES storage_reservations(id),
+    object_key TEXT NOT NULL UNIQUE,
+    filename TEXT NOT NULL,
+    size_bytes BIGINT NOT NULL CHECK (size_bytes > 0 AND size_bytes <= 20971520),
+    scan_state TEXT NOT NULL DEFAULT 'clean' CHECK (scan_state = 'clean'),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX bug_attachments_mod_idx ON bug_attachments(beta_mod_id);
