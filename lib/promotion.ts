@@ -22,7 +22,7 @@ import { sanitizeFilename } from "./storage";
  *   ├── changelog.txt            paste into Nexus's Articles/changelog step
  *   ├── requirements.txt         dependency checklist (search-and-link, not paste)
  *   ├── files/                   the mod archive, ready to drag into Files
- *   └── media/                   (not generated yet — no screenshot support)
+ *   └── media/                   scanned screenshots, numbered in gallery order
  *
  * The note in the spec is load-bearing: no browser automation against
  * nexusmods.com, and the package stays the flow even if the API scope grows —
@@ -64,6 +64,8 @@ export type PromotionPackageInput = {
   requirements: PromotionRequirement[];
   /** Reads the build archive from final (scanned) storage. */
   readStoredFile: () => Promise<StoredFile>;
+  /** Already-scanned media in gallery order, from final storage only. */
+  media?: Array<{ filename: string; caption: string | null; readStoredFile: () => Promise<StoredFile> }>;
 };
 
 export type PromotionPackageResult =
@@ -212,8 +214,8 @@ function buildTextFiles(input: PromotionPackageInput, summary: string) {
       `${descriptionPlain}\n\n` +
       `Release build: ${build.versionLabel}\n` +
       `---\n` +
-      `This package was generated from a BetaMods beta. Screenshots were not\n` +
-      `included (no media support yet) — drop them into the Nexus media steps.\n`,
+      `This package was generated from a BetaMods beta.\n` +
+      `${input.media?.length ?? 0} scanned screenshot(s) included in media/, in gallery order.\n`,
     "changelog.txt":
       `${mod.title} ${build.versionLabel} (${formatDate(build.uploadedAt)})\n\n` +
       `${build.changelog?.trim() || "No changelog was recorded for this build.\n"}`,
@@ -258,16 +260,19 @@ export async function buildPromotionPackage(
   const zipPath = path.join(scratchDir, zipFilename);
 
   const texts = buildTextFiles(input, derived.summary);
+  const archive = new ZipArchive({ zlib: { level: 6 } });
+  const sink = createWriteStream(zipPath);
+  const closed = new Promise<void>((resolve) => sink.once("close", resolve));
+  const done = new Promise<void>((resolve, reject) => {
+    sink.on("close", resolve);
+    sink.on("error", reject);
+    archive.on("error", reject);
+  });
+  // A later media read may fail before the final await; register a handler
+  // immediately so stream failure cannot become an unhandled rejection.
+  void done.catch(() => {});
 
   try {
-    const archive = new ZipArchive({ zlib: { level: 6 } });
-    const sink = createWriteStream(zipPath);
-
-    const done = new Promise<void>((resolve, reject) => {
-      sink.on("close", resolve);
-      sink.on("error", reject);
-      archive.on("error", reject);
-    });
     if (process.env.NODE_ENV === "development") {
       archive.on("warning", (err) => console.warn(err));
     }
@@ -279,7 +284,17 @@ export async function buildPromotionPackage(
     archive.append(Buffer.from(stored.data.buffer, stored.data.byteOffset, stored.data.byteLength), {
       name: `${root}/files/${fileBase}`,
     });
-    // media/ is intentionally not populated — no screenshot support yet.
+    const captions: string[] = [];
+    for (const [index, media] of (input.media ?? []).entries()) {
+      const image = await media.readStoredFile();
+      if (!image) throw new Error("A screenshot is missing from final storage.");
+      const filename = `${String(index + 1).padStart(2, "0")}-${sanitizeFilename(media.filename)}`;
+      archive.append(Buffer.from(image.data.buffer, image.data.byteOffset, image.data.byteLength), {
+        name: `${root}/media/${filename}`,
+      });
+      captions.push(`${filename}${media.caption ? `: ${media.caption}` : ""}`);
+    }
+    if (captions.length) archive.append(`${captions.join("\n")}\n`, { name: `${root}/media/captions.txt` });
     await archive.finalize();
     await done;
 
@@ -295,6 +310,9 @@ export async function buildPromotionPackage(
       },
     };
   } catch {
+    archive.abort();
+    sink.destroy();
+    await closed;
     await rm(scratchDir, { recursive: true, force: true });
     return { ok: false, error: "Failed to assemble the promotion package." };
   }

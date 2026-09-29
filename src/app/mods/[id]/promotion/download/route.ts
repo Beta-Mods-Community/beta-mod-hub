@@ -5,6 +5,7 @@ import { getBetaMod, getBuildsByModId, getRequirementsByModId } from "@lib/dal";
 import { buildPromotionPackage } from "@lib/promotion";
 import { getSession } from "@lib/session";
 import { readStored } from "@lib/storage";
+import { getModMedia } from "@lib/media-service";
 
 /**
  * Download route for a mod's promotion package (spec "The promotion package").
@@ -34,6 +35,7 @@ export async function GET(
   }
 
   const requirements = await getRequirementsByModId(id);
+  const media = await getModMedia(id);
 
   const result = await buildPromotionPackage({
     mod: {
@@ -53,6 +55,11 @@ export async function GET(
       nexusModUrl: r.nexusModUrl,
     })),
     readStoredFile: () => readStored(latest.fileUrl),
+    media: media.map((image) => ({
+      filename: image.objectKey.split("/").at(-1) || `${image.id}.webp`,
+      caption: image.caption,
+      readStoredFile: () => readStored(image.objectKey),
+    })),
   });
 
   if (!result.ok) {

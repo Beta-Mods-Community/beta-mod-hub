@@ -21,6 +21,7 @@ export type ModCardData = {
   total: number;
   buildCount: number;
   lastBuildAt: Date | string | null;
+  heroMediaId?: string | null;
 };
 
 export default function ModCard({ mod, className = "" }: { mod: ModCardData; className?: string }) {
@@ -35,7 +36,10 @@ export default function ModCard({ mod, className = "" }: { mod: ModCardData; cla
       className={`group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/80 shadow-[0_12px_40px_rgba(0,0,0,0.18)] transition duration-200 hover:-translate-y-0.5 hover:border-cyan-400/50 hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${className}`}
     >
       <div className="relative">
-        <ModArtwork title={mod.title} game={mod.game} className="aspect-[16/9]" />
+        {mod.heroMediaId ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={`/media/${mod.heroMediaId}`} alt={`${mod.title} screenshot`} loading="lazy" className="aspect-[16/9] w-full object-cover" />
+        ) : <ModArtwork title={mod.title} game={mod.game} className="aspect-[16/9]" />}
         <div className="absolute left-4 top-4"><StatusBadge status={mod.status} /></div>
       </div>
       <div className="flex flex-1 flex-col p-5">

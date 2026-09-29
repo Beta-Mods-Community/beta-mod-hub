@@ -7,10 +7,9 @@
  * so the rules can be unit-tested with crafted headers and reused by the
  * upload server action exactly as-is.
  *
- * `sniffImage` parses enough of each container to prove (a) it really is a PNG
- * / JPEG / WebP and (b) its pixel dimensions — the same bytes that get
- * ClamAV-scanned. A file that fails to sniff is rejected before any byte is
- * stored, so the storage layer never sees a candidate that isn't an image.
+ * `sniffImage` is a cheap header inspection, not complete image validation.
+ * Publishing uses image-decode.ts to decode all pixels and strip metadata,
+ * and media-upload.ts scans both the original and normalized bytes.
  */
 
 export const ACCEPTED_IMAGE_MIMES = ["image/png", "image/jpeg", "image/webp"] as const;
@@ -132,16 +131,16 @@ function sniffWebp(data: Uint8Array): SniffedImage | null {
   const payload = data.subarray(20);
 
   if (fourcc === "VP8 ") {
-    // Lossy: 3-byte sync code (9D 01 2A) then a 4-byte little-endian word with
-    // width-1 in the low 14 bits and height-1 in bits 16-29.
-    if (payload.length < 7) return null;
-    if (payload[0] !== 0x9d || payload[1] !== 0x01 || payload[2] !== 0x2a) {
+    // Lossy keyframe: frame tag(3), sync(3), width(2), height(2). The low
+    // 14 bits are the actual dimensions (unlike VP8X and VP8L).
+    if (payload.length < 10) return null;
+    if (payload[3] !== 0x9d || payload[4] !== 0x01 || payload[5] !== 0x2a) {
       return null;
     }
     const raw =
-      payload[3] | (payload[4] << 8) | (payload[5] << 16) | (payload[6] << 24);
-    const width = 1 + (raw & 0x3fff);
-    const height = 1 + ((raw >> 16) & 0x3fff);
+      payload[6] | (payload[7] << 8) | (payload[8] << 16) | (payload[9] << 24);
+    const width = raw & 0x3fff;
+    const height = (raw >> 16) & 0x3fff;
     return dimensionsOrNull("image/webp", width, height);
   }
 

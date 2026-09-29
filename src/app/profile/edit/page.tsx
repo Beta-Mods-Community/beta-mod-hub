@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 
 import ProfileForm from "@/components/profile-form";
 import { getUser } from "@lib/dal";
@@ -30,6 +31,7 @@ export default async function EditProfilePage() {
           }}
         />
       </div>
+      <Link href="/account" className="mt-5 inline-block text-sm text-[var(--accent)] underline underline-offset-4">Email and password settings</Link>
     </main>
   );
 }

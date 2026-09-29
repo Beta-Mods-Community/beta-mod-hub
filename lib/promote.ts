@@ -7,6 +7,9 @@ import { db } from "./db";
 import { verifySession } from "./dal";
 import { betaMods } from "../db/schema";
 import { PromotionConfirmSchema } from "./definitions";
+import { assertEditableMod, lockModForMutation, mutationMessage } from "./mod-lifecycle";
+import { getAccountWriteError } from "./access";
+import { notifyModFollowers } from "./notifications";
 
 /**
  * Promotion actions (spec "Promotion flow", steps 1–5).
@@ -24,17 +27,6 @@ export async function confirmPromotion(formData: FormData) {
   const session = await verifySession();
   if (!db) redirect(`/mods/${betaModId}`);
 
-  // Owner-only.
-  const modRows = await db
-    .select({ id: betaMods.id, ownerId: betaMods.ownerId })
-    .from(betaMods)
-    .where(eq(betaMods.id, betaModId))
-    .limit(1);
-  const mod = modRows[0];
-  if (!mod || mod.ownerId !== session.userId) {
-    redirect(`/mods/${betaModId}`);
-  }
-
   const validated = PromotionConfirmSchema.safeParse({
     nexusUrl: formData.get("nexusUrl"),
   });
@@ -42,14 +34,21 @@ export async function confirmPromotion(formData: FormData) {
     redirect(`/mods/${betaModId}?promote=invalid`);
   }
 
-  await db
-    .update(betaMods)
-    .set({
-      status: "promoted",
-      nexusUrl: validated.data.nexusUrl,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(betaMods.id, betaModId), eq(betaMods.ownerId, session.userId)));
-
-  redirect(`/mods/${betaModId}`);
+  const url = new URL(validated.data.nexusUrl);
+  if (url.protocol !== "https:" || url.username || url.password || !["www.nexusmods.com", "nexusmods.com"].includes(url.hostname) || !/^\/[^/]+\/mods\/\d+\/?$/.test(url.pathname)) {
+    redirect(`/mods/${betaModId}?promote=invalid`);
+  }
+  let errorMessage = await getAccountWriteError(session.userId);
+  if (!errorMessage) {
+    try {
+      await db.transaction(async tx => {
+        const mod = await lockModForMutation(tx, betaModId);
+        assertEditableMod(mod, session.userId);
+        await tx.update(betaMods).set({ status: "promoted", nexusUrl: url.toString(), updatedAt: new Date() })
+          .where(and(eq(betaMods.id, betaModId), eq(betaMods.ownerId, session.userId)));
+        await notifyModFollowers(tx, betaModId, session.userId, `${mod.title} is now published on Nexus`, `/mods/${betaModId}`);
+      });
+    } catch (error) { errorMessage = mutationMessage(error); }
+  }
+  redirect(`/mods/${betaModId}${errorMessage ? `?feedback=${encodeURIComponent(errorMessage)}` : ""}`);
 }

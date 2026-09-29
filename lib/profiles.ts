@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "./db";
 import { verifySession } from "./dal";
+import { getAccountWriteError } from "./access";
 import { users } from "../db/schema";
 import { ProfileFormSchema, type ProfileFormState } from "./definitions";
 
@@ -28,6 +29,8 @@ export async function updateProfile(
   }
 
   const session = await verifySession();
+  const accountError = await getAccountWriteError(session.userId);
+  if (accountError) return { message: accountError };
   if (!db) {
     return { message: "The database isn't configured yet — try again shortly." };
   }

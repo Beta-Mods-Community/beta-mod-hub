@@ -11,11 +11,9 @@ import {
 /**
  * The image gate for the mod media pipeline, exercised with crafted headers.
  *
- * sniffImage has to prove three things about a buffer before the upload action
- * may store a single byte: that it really is a PNG/JPEG/WebP, and what its
- * pixel dimensions are (the file-size cap is enforced by the action against
- * MAX_MEDIA_BYTES). These fixtures are header-shaped, not decodable by an
- * image library — decoding is the browser's job and not this unit's concern.
+ * These fixtures test header inspection only. Real image decoding, metadata
+ * removal, corruption rejection and the scan-before-store boundary are
+ * covered by media-upload.test.ts; headers alone never authorize publishing.
  */
 
 /** A minimal PNG with the given dimensions: signature + IHDR. */

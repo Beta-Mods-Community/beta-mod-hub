@@ -1,5 +1,7 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { and, eq, sql } from "drizzle-orm";
 import {
   ArrowLeft,
   Bug,
@@ -14,29 +16,33 @@ import {
   Wrench,
 } from "lucide-react";
 
-import BugReportForm from "@/components/bug-report-form";
+import BugReports from "@/components/bug-reports";
 import BuildUploadForm from "@/components/build-upload-form";
 import DeleteModButton from "@/components/delete-mod-button";
 import ModArtwork from "@/components/mod-artwork";
-import ReportStatusBadge from "@/components/report-status-badge";
-import ReputationBadge from "@/components/reputation-badge";
-import SeverityBadge from "@/components/severity-badge";
+import ModGallery from "@/components/mod-gallery";
+import ModMediaManager from "@/components/mod-media-manager";
+import Markdown from "@/components/markdown";
+import ReportContentForm from "@/components/report-content-form";
+import { modFollows } from "@/db/community-schema";
+import { bugReports } from "@/db/schema";
+import { db } from "@lib/db";
+import { setFollow } from "@lib/community";
+import { getModMedia } from "@lib/media-service";
+import { MediaIdSchema } from "@lib/media-policy";
 import StatusBadge from "@/components/status-badge";
 import {
   getBetaMod,
   getBuildsByModId,
-  getBugReportsByModId,
   getMyReadyVote,
   getReadyTally,
-  getReputationHistoryByUserIds,
   getRequirementsByModId,
 } from "@lib/dal";
 import { MAX_UPLOAD_BYTES } from "@lib/definitions";
-import { setBugReportStatus, voteReady } from "@lib/feedback";
+import { voteReady } from "@lib/feedback";
 import { formatDate } from "@lib/format";
 import { effectiveArchiveLimit, readPilotLimits } from "@lib/pilot";
 import { confirmPromotion } from "@lib/promote";
-import { computeReputation } from "@lib/reputation";
 import { addRequirement, removeRequirement } from "@lib/requirements";
 import { getSession } from "@lib/session";
 import { getUploadPermission } from "@lib/storage-usage";
@@ -48,27 +54,47 @@ const TAB_LINKS = [
   { href: "#bugs", label: "Bugs" },
 ] as const;
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const mod = MediaIdSchema.safeParse(id).success ? await getBetaMod(id) : null;
+  // Hidden listings never disclose their title or description in metadata,
+  // including when an owner/admin can view the page for moderation.
+  if (!mod || mod.hiddenAt) return { title: "Mod unavailable", description: "This mod is not available.", robots: { index: false, follow: false } };
+  const plain = (mod.description ?? "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/<[^>]*>/g, "")
+    .replace(/[#*_`>~|]/g, "")
+    .replace(/\s+/g, " ").trim();
+  const excerpt = Array.from(plain).slice(0, 157).join("");
+  const description = plain ? `${excerpt}${Array.from(plain).length > 157 ? "…" : ""}` : `${mod.title} for ${mod.game}. View test builds, requirements and bug reports.`;
+  return { title: mod.title, description, openGraph: { title: mod.title, description, type: "website", siteName: "Beta Mods" } };
+}
+
 export default async function BetaModPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ promote?: string; req?: string }>;
+  searchParams: Promise<{ promote?: string; req?: string; feedback?: string; bugStatus?: string; bugBuild?: string; bugPage?: string }>;
 }) {
   const { id } = await params;
-  const { promote, req } = await searchParams;
-  const [mod, builds, bugReports, tally, requirements, session] =
+  if (!MediaIdSchema.safeParse(id).success) notFound();
+  const { promote, req, feedback, bugStatus, bugBuild, bugPage } = await searchParams;
+  const [mod, builds, tally, requirements, session, media, bugCounts] =
     await Promise.all([
       getBetaMod(id),
       getBuildsByModId(id),
-      getBugReportsByModId(id),
       getReadyTally(id),
       getRequirementsByModId(id),
       getSession(),
+      getModMedia(id),
+      db ? db.select({ count: sql<number>`count(*)::int` }).from(bugReports).where(and(eq(bugReports.betaModId, id), eq(bugReports.status, "open"))) : [],
     ]);
   if (!mod) notFound();
 
   const isPromoted = mod.status === "promoted";
+  const readOnly = isPromoted || mod.status === "abandoned" || Boolean(mod.hiddenAt);
   const isOwner = session?.userId === mod.ownerId;
   const latestBuild = builds[0] ?? null;
   const myVote =
@@ -80,18 +106,9 @@ export default async function BetaModPage({
     : ({ allowed: false, message: "Sign in to upload." } as const);
   const maxArchiveBytes = effectiveArchiveLimit(pilotLimits, MAX_UPLOAD_BYTES);
 
-  const reporterIds = [
-    ...new Set(bugReports.map((report) => report.reporterId).filter(Boolean)),
-  ];
-  const reputationByUser =
-    reporterIds.length > 0
-      ? await getReputationHistoryByUserIds(reporterIds)
-      : new Map();
-  const reporterScore = (userId: string | null) =>
-    userId && reputationByUser.has(userId)
-      ? computeReputation(reputationByUser.get(userId)!)
-      : null;
-  const openBugs = bugReports.filter((report) => report.status === "open").length;
+  const openBugs = bugCounts[0]?.count ?? 0;
+  const following = session && db ? Boolean((await db.select({ id: modFollows.betaModId }).from(modFollows).where(and(eq(modFollows.betaModId, mod.id), eq(modFollows.userId, session.userId))).limit(1))[0]) : false;
+  const gallery = media.map(({ id, width, height, caption, isHero, position }) => ({ id, width, height, caption, isHero, position }));
 
   return (
     <main className="site-container flex-1 py-7 sm:py-10">
@@ -104,6 +121,9 @@ export default async function BetaModPage({
           Active betas
         </Link>
       </nav>
+
+      {feedback && <p role="alert" className="mb-5 rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">{feedback.slice(0, 300)}</p>}
+      {readOnly && !isPromoted && <p className="mb-5 rounded-md border border-[var(--line)] bg-[var(--surface)] p-4 text-sm text-[var(--text-soft)]">{mod.hiddenAt ? "This mod is hidden while it is under review." : "This beta is archived. New uploads and feedback are closed."}</p>}
 
       {isPromoted && (
         <section className="mb-5 flex flex-col gap-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -123,6 +143,13 @@ export default async function BetaModPage({
       )}
 
       <article className="panel overflow-hidden">
+        {media.length > 0 ? <div className="border-b border-[var(--line)]">
+          <ModGallery key={gallery.find((image) => image.isHero)?.id ?? mod.id} media={gallery} title={mod.title} />
+          <div className="p-5 sm:p-7">
+            <div className="flex flex-wrap items-center gap-3"><StatusBadge status={mod.status} /><p className="eyebrow">{mod.game}</p></div>
+            <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">{mod.title}</h1>
+          </div>
+        </div> : (
         <div className="relative border-b border-[var(--line)]">
           <ModArtwork
             title={mod.title}
@@ -140,6 +167,7 @@ export default async function BetaModPage({
             </h1>
           </div>
         </div>
+        )}
 
         <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-0">
@@ -171,7 +199,7 @@ export default async function BetaModPage({
               </div>
             )}
           </div>
-          {isOwner && !isPromoted && (
+          {isOwner && !readOnly && (
             <div className="flex flex-wrap gap-2 lg:justify-end">
               <Link href={`/mods/${mod.id}/edit`} className="button-secondary">
                 <Wrench className="h-3.5 w-3.5" aria-hidden="true" />
@@ -209,13 +237,16 @@ export default async function BetaModPage({
           <section id="overview" className="panel scroll-mt-24 p-5 sm:p-7">
             <SectionHeading eyebrow="Overview" title="About this beta" />
             {mod.description ? (
-              <p className="mt-5 whitespace-pre-wrap text-[0.94rem] leading-7 text-[var(--text-soft)]">
-                {mod.description}
-              </p>
+              <div className="mt-5"><Markdown>{mod.description}</Markdown></div>
             ) : (
               <EmptyCopy>No description has been added yet.</EmptyCopy>
             )}
           </section>
+
+          {isOwner && !readOnly && <details className="panel p-5 sm:p-7">
+            <summary className="cursor-pointer text-base font-semibold text-[var(--text)]">Screenshots and cover image</summary>
+            <div className="mt-5"><ModMediaManager betaModId={mod.id} media={gallery} uploadPermission={uploadPermission} /></div>
+          </details>}
 
           <section id="files" className="panel scroll-mt-24 p-5 sm:p-7">
             <div className="flex flex-wrap items-end justify-between gap-4">
@@ -256,9 +287,7 @@ export default async function BetaModPage({
                         Uploaded {formatDate(build.uploadedAt)}
                       </p>
                       {build.changelog && (
-                        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--text-soft)]">
-                          {build.changelog}
-                        </p>
+                        <div className="mt-3"><Markdown>{build.changelog}</Markdown></div>
                       )}
                       <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300">
                         <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
@@ -274,7 +303,7 @@ export default async function BetaModPage({
               </div>
             )}
 
-            {isOwner && !isPromoted && (
+            {isOwner && !readOnly && (
               <details className="mt-5 rounded-md border border-[var(--line)] bg-[var(--surface-soft)]">
                 <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text)] marker:hidden">
                   Upload a new build
@@ -312,7 +341,7 @@ export default async function BetaModPage({
                         {item.nexusModName}
                       </span>
                     )}
-                    {isOwner && !isPromoted && (
+                    {isOwner && !readOnly && (
                       <form action={removeRequirement.bind(null, item.id)}>
                         <button type="submit" className="text-xs text-[var(--muted)] hover:text-[var(--danger)]">
                           Remove
@@ -324,7 +353,7 @@ export default async function BetaModPage({
               </ul>
             )}
 
-            {isOwner && !isPromoted && (
+            {isOwner && !readOnly && (
               <form action={addRequirement} className="mt-5 grid gap-3 sm:grid-cols-2">
                 {req === "invalid" && (
                   <p className="sm:col-span-2 text-xs text-rose-300">
@@ -358,110 +387,13 @@ export default async function BetaModPage({
             )}
           </section>
 
-          <section id="bugs" className="panel scroll-mt-24 p-5 sm:p-7">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <SectionHeading eyebrow="Issue tracker" title="Bug reports" />
-              <span className="text-xs text-[var(--muted)]">
-                {openBugs} open
-              </span>
-            </div>
+          <BugReports betaModId={mod.id} builds={builds} viewerId={session?.userId} isOwner={isOwner} readOnly={readOnly} filters={{ bugStatus, bugBuild, bugPage }} />
 
-            {bugReports.length === 0 ? (
-              <EmptyCopy>No bugs have been reported for this beta.</EmptyCopy>
-            ) : (
-              <div className="mt-5 space-y-3">
-                {bugReports.map((report) => {
-                  const score = reporterScore(report.reporterId);
-                  return (
-                    <article key={report.id} className="rounded-md border border-[var(--line)] bg-[var(--surface-soft)] p-4 sm:p-5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <SeverityBadge severity={report.severity} />
-                        <ReportStatusBadge status={report.status} />
-                        {report.buildVersion && (
-                          <span className="rounded-sm bg-[var(--surface-raised)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-soft)]">
-                            build {report.buildVersion}
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--text-soft)]">
-                        {report.description}
-                      </p>
-                      {report.reproSteps && (
-                        <div className="mt-3 border-l-2 border-[var(--line-strong)] pl-3 text-sm leading-6 text-[var(--muted)]">
-                          <span className="font-semibold text-[var(--text-soft)]">Reproduce: </span>
-                          {report.reproSteps}
-                        </div>
-                      )}
-                      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--line)] pt-3 text-xs text-[var(--muted)]">
-                        {report.reporterId ? (
-                          <Link href={`/users/${report.reporterId}`} className="font-medium text-[var(--text-soft)] hover:text-[var(--accent)]">
-                            {report.reporterName ?? "Unknown tester"}
-                          </Link>
-                        ) : (
-                          <span>{report.reporterName ?? "Unknown tester"}</span>
-                        )}
-                        {score !== null && <ReputationBadge score={score} />}
-                        <span aria-hidden="true">·</span>
-                        <span>{formatDate(report.createdAt)}</span>
-                      </div>
-
-                      {isOwner && !isPromoted && (
-                        <div className="mt-3 flex flex-wrap gap-3 text-xs">
-                          {report.status === "open" && (
-                            <form action={setBugReportStatus.bind(null, report.id, "acknowledged")}>
-                              <button type="submit" className={ownerActionClass}>Acknowledge</button>
-                            </form>
-                          )}
-                          {report.status !== "fixed" ? (
-                            <form action={setBugReportStatus.bind(null, report.id, "fixed")}>
-                              <button type="submit" className={ownerActionClass}>Mark fixed</button>
-                            </form>
-                          ) : (
-                            <form action={setBugReportStatus.bind(null, report.id, "open")}>
-                              <button type="submit" className={ownerActionClass}>Reopen</button>
-                            </form>
-                          )}
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-
-            {isPromoted ? (
-              <p className="mt-5 border-t border-[var(--line)] pt-5 text-sm text-[var(--muted)]">
-                New reports are closed because this release has moved to Nexus.
-              </p>
-            ) : !latestBuild ? (
-              <p className="mt-5 border-t border-[var(--line)] pt-5 text-sm text-[var(--muted)]">
-                Bug reporting opens when the first test build is uploaded.
-              </p>
-            ) : session ? (
-              <details className="mt-5 rounded-md border border-[var(--line)] bg-[var(--surface-soft)]">
-                <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text)] marker:hidden">
-                  File a bug report
-                </summary>
-                <div className="border-t border-[var(--line)] p-4 sm:p-5">
-                  <BugReportForm
-                    betaModId={mod.id}
-                    builds={builds.map((build) => ({ id: build.id, versionLabel: build.versionLabel }))}
-                  />
-                </div>
-              </details>
-            ) : (
-              <p className="mt-5 border-t border-[var(--line)] pt-5 text-sm text-[var(--muted)]">
-                <Link href="/login" className="font-semibold text-[var(--text)] hover:text-[var(--accent)]">Sign in</Link>{" "}
-                to report a bug.
-              </p>
-            )}
-          </section>
-
-          {isOwner && !isPromoted && (
+          {isOwner && !readOnly && (
             <section className="panel p-5 sm:p-7">
               <SectionHeading eyebrow="Nexus Mods" title="Publish your release" />
               <p className="mt-4 text-sm leading-6 text-[var(--text-soft)]">
-                Download the latest build, description, and requirements as a package to upload to Nexus Mods. Add the Nexus page URL here once it is published.
+                Download the latest build, description, requirements, and screenshots as a package to upload to Nexus Mods. Add the Nexus page URL here once it is published.
               </p>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 <a href={`/mods/${mod.id}/promotion/download`} className="button-secondary">
@@ -495,6 +427,11 @@ export default async function BetaModPage({
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24">
+          {!isOwner && !readOnly && <section className="panel p-5">
+            <h2 className="text-sm font-semibold">Follow this mod</h2>
+            <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Get a notification here when the author uploads a build or requests a retest.</p>
+            {session ? <form action={setFollow.bind(null, mod.id, !following)}><button className="button-secondary mt-4 w-full">{following ? "Unfollow mod" : "Follow mod"}</button></form> : <Link href="/login" className="button-secondary mt-4 w-full">Sign in to follow</Link>}
+          </section>}
           <section className="panel p-5" aria-labelledby="release-signal-heading">
             <p className="eyebrow">Current build</p>
             <h2 id="release-signal-heading" className="mt-2 text-lg font-semibold text-[var(--text)]">
@@ -519,13 +456,13 @@ export default async function BetaModPage({
                     : "No votes for this build yet."}
                 </p>
 
-                {isPromoted ? (
+                {readOnly ? (
                   <p className="mt-4 text-xs text-[var(--muted)]">Voting is closed.</p>
                 ) : isOwner ? (
                   <p className="mt-4 text-xs text-[var(--muted)]">Authors cannot vote on their own builds.</p>
                 ) : session ? (
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <form action={voteReady.bind(null, mod.id, true)}>
+                    <form action={voteReady.bind(null, mod.id, latestBuild.id, true)}>
                       <button
                         type="submit"
                         aria-pressed={myVote === true}
@@ -534,7 +471,7 @@ export default async function BetaModPage({
                         Ready
                       </button>
                     </form>
-                    <form action={voteReady.bind(null, mod.id, false)}>
+                    <form action={voteReady.bind(null, mod.id, latestBuild.id, false)}>
                       <button
                         type="submit"
                         aria-pressed={myVote === false}
@@ -583,6 +520,7 @@ export default async function BetaModPage({
               <Fact label="Ready verdicts" value={tally.total > 0 ? `${tally.ready}/${tally.total}` : "Awaiting"} icon={<CheckCircle2 className="h-3.5 w-3.5" />} />
             </dl>
           </section>
+          {session && <ReportContentForm modId={mod.id} />}
         </aside>
       </div>
     </main>
@@ -622,5 +560,3 @@ const voteIdleClass =
   "min-h-10 w-full rounded-md border border-[var(--line-strong)] bg-[var(--surface-soft)] px-2 text-xs font-semibold text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]";
 const voteActiveClass =
   "min-h-10 w-full rounded-md border border-[var(--accent)] bg-[var(--accent)] px-2 text-xs font-semibold text-[var(--accent-contrast)]";
-const ownerActionClass =
-  "font-semibold text-[var(--text-soft)] underline-offset-4 hover:text-[var(--accent)] hover:underline";
