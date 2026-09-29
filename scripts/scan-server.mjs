@@ -155,7 +155,7 @@ const server = createServer((req, res) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, process.env.SCAN_SERVER_HOST || "0.0.0.0", () => {
   console.log(
     `scan server listening on :${PORT} -> clamd ${CLAMD_HOST}:${CLAMD_PORT}`,
   );

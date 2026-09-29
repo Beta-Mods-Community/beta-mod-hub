@@ -54,9 +54,12 @@ export async function scanUpload(data: Uint8Array): Promise<ScanResult> {
       };
     }
 
-    const body = (await response.json()) as { clean: boolean; malware?: string };
-    if (body.clean) return { ok: true };
-    return { ok: false, reason: "infected", malware: body.malware };
+    const body: unknown = await response.json();
+    if (!body || typeof body !== "object" || !("clean" in body) || typeof body.clean !== "boolean") {
+      return { ok: false, reason: "unavailable", message: "scan service returned an invalid result" };
+    }
+    if (body.clean === true) return { ok: true };
+    return { ok: false, reason: "infected", malware: "malware" in body && typeof body.malware === "string" ? body.malware : undefined };
   } catch (error) {
     return {
       ok: false,

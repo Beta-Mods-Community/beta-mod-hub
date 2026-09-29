@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { submitBugReport } from "@lib/feedback";
+import { ATTACHMENT_ACCEPT } from "@lib/feedback-policy";
 
 const inputClass = "field";
 const labelClass = "mb-1.5 block text-sm font-semibold text-[var(--text-soft)]";
@@ -19,9 +20,13 @@ export default function BugReportForm({
     submitBugReport,
     undefined,
   );
+  const [buildId, setBuildId] = useState(builds[0]?.id ?? "");
+  const [severity, setSeverity] = useState("minor");
+  const [description, setDescription] = useState("");
+  const [reproSteps, setReproSteps] = useState("");
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form action={formAction} aria-busy={pending} className="flex flex-col gap-4">
       <input type="hidden" name="betaModId" value={betaModId} />
 
       <div>
@@ -32,7 +37,8 @@ export default function BugReportForm({
           id="affected-build"
           name="buildId"
           required
-          defaultValue={builds[0]?.id}
+          value={buildId}
+          onChange={event => setBuildId(event.target.value)}
           className={inputClass}
         >
           {builds.map((build, index) => (
@@ -53,7 +59,8 @@ export default function BugReportForm({
         <select
           id="severity"
           name="severity"
-          defaultValue="minor"
+          value={severity}
+          onChange={event => setSeverity(event.target.value)}
           className={inputClass}
         >
           <option value="minor">Minor — cosmetic or edge case</option>
@@ -73,6 +80,11 @@ export default function BugReportForm({
           id="description"
           name="description"
           rows={4}
+          required
+          minLength={10}
+          maxLength={4000}
+          value={description}
+          onChange={event => setDescription(event.target.value)}
           placeholder="What did you expect, and what actually happened?"
           className={inputClass}
         />
@@ -89,6 +101,9 @@ export default function BugReportForm({
           id="repro-steps"
           name="reproSteps"
           rows={3}
+          maxLength={2000}
+          value={reproSteps}
+          onChange={event => setReproSteps(event.target.value)}
           placeholder="1. Start a new save  2. Cast the spell  3. ..."
           className={inputClass}
         />
@@ -97,8 +112,14 @@ export default function BugReportForm({
         )}
       </div>
 
+      <div>
+        <label htmlFor="bug-attachment" className={labelClass}>Log or save file (optional)</label>
+        <input id="bug-attachment" name="attachment" type="file" accept={ATTACHMENT_ACCEPT} className={inputClass} />
+        <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Text/log, ZIP, JSON/INI, or game saves (.sav, .save, .fos), up to 20 MiB. Scanned before storage. Only you and the mod author can download it. Remove passwords or personal details first.</p>
+      </div>
+
       {state?.message && (
-        <p className="text-sm text-rose-300">{state.message}</p>
+        <p role="alert" className="text-sm text-rose-300">{state.message} Your report text is preserved. Select an attachment again if you want to include it on retry.</p>
       )}
 
       <button
@@ -106,7 +127,7 @@ export default function BugReportForm({
         disabled={pending}
         className="button-primary self-start"
       >
-        {pending ? "Submitting…" : "Report bug"}
+        {pending ? "Submitting and scanning attachment…" : "Report bug"}
       </button>
     </form>
   );
