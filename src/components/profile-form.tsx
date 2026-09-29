@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 
 import type { ProfileFormState } from "@lib/definitions";
 
@@ -25,61 +25,68 @@ export default function ProfileForm({
   };
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
+  const prefix = useId();
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <div>
-        <label htmlFor="display-name" className={labelClass}>
+        <label htmlFor={`${prefix}-display-name`} className={labelClass}>
           Display name
         </label>
         <input
-          id="display-name"
+          id={`${prefix}-display-name`}
           name="displayName"
           type="text"
           defaultValue={initial?.displayName}
           className={inputClass}
+          aria-invalid={Boolean(state?.errors?.displayName)}
+          aria-describedby={state?.errors?.displayName ? `${prefix}-display-name-error` : undefined}
         />
         {state?.errors?.displayName && (
-          <p className={errorClass}>{state.errors.displayName.join(", ")}</p>
+          <p id={`${prefix}-display-name-error`} className={errorClass}>{state.errors.displayName.join(", ")}</p>
         )}
       </div>
 
       <div>
-        <label htmlFor="bio" className={labelClass}>
+        <label htmlFor={`${prefix}-bio`} className={labelClass}>
           Bio
         </label>
         <textarea
-          id="bio"
+          id={`${prefix}-bio`}
           name="bio"
           rows={4}
           defaultValue={initial?.bio}
           placeholder="Short bio — who you are, what you test."
           className={inputClass}
+          aria-invalid={Boolean(state?.errors?.bio)}
+          aria-describedby={state?.errors?.bio ? `${prefix}-bio-error` : undefined}
         />
         {state?.errors?.bio && (
-          <p className={errorClass}>{state.errors.bio.join(", ")}</p>
+          <p id={`${prefix}-bio-error`} className={errorClass}>{state.errors.bio.join(", ")}</p>
         )}
       </div>
 
       <div>
-        <label htmlFor="avatar-url" className={labelClass}>
+        <label htmlFor={`${prefix}-avatar-url`} className={labelClass}>
           Avatar URL
         </label>
         <input
-          id="avatar-url"
+          id={`${prefix}-avatar-url`}
           name="avatarUrl"
           type="url"
           defaultValue={initial?.avatarUrl ?? ""}
           placeholder="https://…/avatar.png (optional)"
           className={inputClass}
+          aria-invalid={Boolean(state?.errors?.avatarUrl)}
+          aria-describedby={state?.errors?.avatarUrl ? `${prefix}-avatar-url-error` : undefined}
         />
         {state?.errors?.avatarUrl && (
-          <p className={errorClass}>{state.errors.avatarUrl.join(", ")}</p>
+          <p id={`${prefix}-avatar-url-error`} className={errorClass}>{state.errors.avatarUrl.join(", ")}</p>
         )}
       </div>
 
       {state?.message && (
-        <p className="text-sm text-rose-300">{state.message}</p>
+        <p role="alert" className="text-sm text-rose-300">{state.message}</p>
       )}
 
       <div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useId } from "react";
 
 import { submitBugReport } from "@lib/feedback";
 import { ATTACHMENT_ACCEPT } from "@lib/feedback-policy";
@@ -20,6 +20,7 @@ export default function BugReportForm({
     submitBugReport,
     undefined,
   );
+  const prefix = useId();
   const [buildId, setBuildId] = useState(builds[0]?.id ?? "");
   const [severity, setSeverity] = useState("minor");
   const [description, setDescription] = useState("");
@@ -30,16 +31,18 @@ export default function BugReportForm({
       <input type="hidden" name="betaModId" value={betaModId} />
 
       <div>
-        <label htmlFor="affected-build" className={labelClass}>
+        <label htmlFor={`${prefix}-buildId`} className={labelClass}>
           Affected build
         </label>
         <select
-          id="affected-build"
+          id={`${prefix}-buildId`}
           name="buildId"
           required
           value={buildId}
           onChange={event => setBuildId(event.target.value)}
           className={inputClass}
+          aria-invalid={Boolean(state?.errors?.buildId)}
+          aria-describedby={state?.errors?.buildId ? `${prefix}-buildId-error` : undefined}
         >
           {builds.map((build, index) => (
             <option key={build.id} value={build.id}>
@@ -48,36 +51,38 @@ export default function BugReportForm({
           ))}
         </select>
         {state?.errors?.buildId && (
-          <p className={errorClass}>{state.errors.buildId.join(", ")}</p>
+          <p id={`${prefix}-buildId-error`} className={errorClass}>{state.errors.buildId.join(", ")}</p>
         )}
       </div>
 
       <div>
-        <label htmlFor="severity" className={labelClass}>
+        <label htmlFor={`${prefix}-severity`} className={labelClass}>
           Severity
         </label>
         <select
-          id="severity"
+          id={`${prefix}-severity`}
           name="severity"
           value={severity}
           onChange={event => setSeverity(event.target.value)}
           className={inputClass}
+          aria-invalid={Boolean(state?.errors?.severity)}
+          aria-describedby={state?.errors?.severity ? `${prefix}-severity-error` : undefined}
         >
           <option value="minor">Minor — cosmetic or edge case</option>
           <option value="major">Major — broken feature or workaround-able</option>
           <option value="blocking">Blocking — can&apos;t play/test properly</option>
         </select>
         {state?.errors?.severity && (
-          <p className={errorClass}>{state.errors.severity.join(", ")}</p>
+          <p id={`${prefix}-severity-error`} className={errorClass}>{state.errors.severity.join(", ")}</p>
         )}
       </div>
 
       <div>
-        <label htmlFor="description" className={labelClass}>
+        <label htmlFor={`${prefix}-description`} className={labelClass}>
           What happened?
         </label>
         <textarea
-          id="description"
+          id={`${prefix}-description`}
           name="description"
           rows={4}
           required
@@ -87,18 +92,20 @@ export default function BugReportForm({
           onChange={event => setDescription(event.target.value)}
           placeholder="What did you expect, and what actually happened?"
           className={inputClass}
+          aria-invalid={Boolean(state?.errors?.description)}
+          aria-describedby={state?.errors?.description ? `${prefix}-description-error` : undefined}
         />
         {state?.errors?.description && (
-          <p className={errorClass}>{state.errors.description.join(", ")}</p>
+          <p id={`${prefix}-description-error`} className={errorClass}>{state.errors.description.join(", ")}</p>
         )}
       </div>
 
       <div>
-        <label htmlFor="repro-steps" className={labelClass}>
+        <label htmlFor={`${prefix}-reproSteps`} className={labelClass}>
           Repro steps (optional)
         </label>
         <textarea
-          id="repro-steps"
+          id={`${prefix}-reproSteps`}
           name="reproSteps"
           rows={3}
           maxLength={2000}
@@ -106,15 +113,17 @@ export default function BugReportForm({
           onChange={event => setReproSteps(event.target.value)}
           placeholder="1. Start a new save  2. Cast the spell  3. ..."
           className={inputClass}
+          aria-invalid={Boolean(state?.errors?.reproSteps)}
+          aria-describedby={state?.errors?.reproSteps ? `${prefix}-reproSteps-error` : undefined}
         />
         {state?.errors?.reproSteps && (
-          <p className={errorClass}>{state.errors.reproSteps.join(", ")}</p>
+          <p id={`${prefix}-reproSteps-error`} className={errorClass}>{state.errors.reproSteps.join(", ")}</p>
         )}
       </div>
 
       <div>
-        <label htmlFor="bug-attachment" className={labelClass}>Log or save file (optional)</label>
-        <input id="bug-attachment" name="attachment" type="file" accept={ATTACHMENT_ACCEPT} className={inputClass} />
+        <label htmlFor={`${prefix}-bug-attachment`} className={labelClass}>Log or save file (optional)</label>
+        <input id={`${prefix}-bug-attachment`} name="attachment" type="file" accept={ATTACHMENT_ACCEPT} className={inputClass} />
         <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Text/log, ZIP, JSON/INI, or game saves (.sav, .save, .fos), up to 20 MiB. Scanned before storage. Only you and the mod author can download it. Remove passwords or personal details first.</p>
       </div>
 

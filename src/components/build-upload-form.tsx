@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useId } from "react";
 
 import { uploadBuild } from "@lib/build-uploads";
 import { formatBytes } from "@lib/pilot";
@@ -24,6 +24,7 @@ export default function BuildUploadForm({
   maxBytes: number;
 }) {
   const [state, formAction, pending] = useActionState(uploadBuild, undefined);
+  const prefix = useId();
   const [versionLabel, setVersionLabel] = useState("");
   const [changelog, setChangelog] = useState("");
   const [fileError, setFileError] = useState<string | null>(null);
@@ -38,11 +39,11 @@ export default function BuildUploadForm({
       <input type="hidden" name="betaModId" value={betaModId} />
 
       <div>
-        <label htmlFor="version-label" className={labelClass}>
+        <label htmlFor={`${prefix}-versionLabel`} className={labelClass}>
           Version label
         </label>
         <input
-          id="version-label"
+          id={`${prefix}-versionLabel`}
           name="versionLabel"
           type="text"
           placeholder="0.2.1"
@@ -51,18 +52,20 @@ export default function BuildUploadForm({
           value={versionLabel}
           onChange={event => setVersionLabel(event.target.value)}
           className={inputClass}
+          aria-invalid={Boolean(state?.errors?.versionLabel)}
+          aria-describedby={state?.errors?.versionLabel ? `${prefix}-versionLabel-error` : undefined}
         />
         {state?.errors?.versionLabel && (
-          <p className={errorClass}>{state.errors.versionLabel.join(", ")}</p>
+          <p id={`${prefix}-versionLabel-error`} className={errorClass}>{state.errors.versionLabel.join(", ")}</p>
         )}
       </div>
 
       <div>
-        <label htmlFor="changelog" className={labelClass}>
+        <label htmlFor={`${prefix}-changelog`} className={labelClass}>
           Changelog
         </label>
         <textarea
-          id="changelog"
+          id={`${prefix}-changelog`}
           name="changelog"
           rows={3}
           placeholder="What changed in this build?"
@@ -70,9 +73,11 @@ export default function BuildUploadForm({
           value={changelog}
           onChange={event => setChangelog(event.target.value)}
           className={inputClass}
+          aria-invalid={Boolean(state?.errors?.changelog)}
+          aria-describedby={state?.errors?.changelog ? `${prefix}-changelog-error` : undefined}
         />
         {state?.errors?.changelog && (
-          <p className={errorClass}>{state.errors.changelog.join(", ")}</p>
+          <p id={`${prefix}-changelog-error`} className={errorClass}>{state.errors.changelog.join(", ")}</p>
         )}
       </div>
 
