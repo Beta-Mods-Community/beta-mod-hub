@@ -6,6 +6,7 @@ $PreviewRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $PreviewStateDir = Join-Path $env:LOCALAPPDATA 'BetaMods\local-preview'
 $PreviewStateFile = Join-Path $PreviewStateDir 'processes.json'
 $ServiceScript = Join-Path $PSScriptRoot 'local-service.mjs'
+. (Join-Path $PSScriptRoot 'local-preview-state.ps1')
 New-Item -ItemType Directory -Path $PreviewStateDir -Force | Out-Null
 
 function Test-PreviewHealth {
@@ -24,11 +25,6 @@ function Assert-LoopbackListeners {
     }
   }
 }
-function Read-PreviewState {
-  if (Test-Path -LiteralPath $PreviewStateFile) { return @(Get-Content -LiteralPath $PreviewStateFile -Raw | ConvertFrom-Json) }
-  return @()
-}
-
 if ($Command -eq 'status') {
   Assert-LoopbackListeners
   foreach ($port in @(3000,3311,3310)) { Write-Host ("Port {0}: {1}" -f $port, (@(Get-PreviewListener $port).Count -gt 0)) }
@@ -38,18 +34,17 @@ if ($Command -eq 'status') {
 }
 
 if ($Command -eq 'stop') {
-  foreach ($entry in (Read-PreviewState)) {
-    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $($entry.pid)" -ErrorAction SilentlyContinue
+  foreach ($entry in (Read-PreviewState -Path $PreviewStateFile)) {
+    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $($entry.pid)" -ErrorAction Stop
     if (!$process) { continue }
     # PID reuse must never cause an unrelated process to be terminated.
-    $sameProcess = $process.CreationDate.ToUniversalTime().ToString('o') -eq $entry.created
-    $knownCommand = $process.CommandLine -and ($process.CommandLine.Contains($ServiceScript) -or ($entry.service -eq 'clamd' -and $process.CommandLine.Contains($entry.executable)))
-    if ($sameProcess -and $knownCommand) {
+    if (Test-PreviewProcessIdentity -Process $process -Entry $entry -ServiceScript $ServiceScript) {
       & taskkill.exe /PID $entry.pid /T /F | Out-Null
+      if ($LASTEXITCODE -ne 0) { throw "Could not stop managed $($entry.service). Process state was retained so stopping can be retried." }
       Write-Host "Stopped managed $($entry.service)."
     } else { Write-Warning "Skipped PID $($entry.pid): it is not the saved preview process." }
   }
-  '[]' | Set-Content -LiteralPath $PreviewStateFile -Encoding UTF8
+  Write-PreviewState -Path $PreviewStateFile -Records @()
   exit 0
 }
 
@@ -63,12 +58,12 @@ foreach ($port in @(3000,3311)) {
   if (@(Get-PreviewListener $port).Count -gt 0) { throw "Port $port is already in use. Stop the prior preview first; no unrelated process was stopped." }
 }
 $NodeExecutable = (Get-Command node.exe -ErrorAction Stop).Source
-$SavedProcesses = @(Read-PreviewState)
+$SavedProcesses = @(Read-PreviewState -Path $PreviewStateFile)
 function Save-StartedProcess($Process, [string] $Name, [string] $Executable) {
   $details = Get-CimInstance Win32_Process -Filter "ProcessId = $($Process.Id)"
   if (!$details) { throw "$Name exited early. Check $PreviewStateDir logs." }
   $script:SavedProcesses += [pscustomobject]@{ pid=$Process.Id; service=$Name; executable=$Executable; created=$details.CreationDate.ToUniversalTime().ToString('o') }
-  ConvertTo-Json -InputObject @($script:SavedProcesses) | Set-Content -LiteralPath $PreviewStateFile -Encoding UTF8
+  Write-PreviewState -Path $PreviewStateFile -Records @($script:SavedProcesses)
 }
 
 if (@(Get-PreviewListener 3310).Count -eq 0) {
