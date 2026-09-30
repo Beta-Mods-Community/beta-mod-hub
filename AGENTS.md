@@ -47,7 +47,7 @@ Both preserved Compose targets run that same scan wrapper against the `deploy/cl
 
 ## Hosting decision
 
-### Current direction (2026-09-29): bounded cloud-only pilot, not deployed
+### Current direction (2026-09-29): bounded cloud-only pilot, gated deployment
 
 The owner has explicitly rejected using their PC as a production dependency.
 Do not deploy a home tunnel, configure always-on Windows hosting, or present
@@ -57,7 +57,9 @@ The selected small-pilot target is Render Free native Node 22, an isolated Neon
 Free pilot branch, a dedicated Supabase Free private S3 bucket, Transloadit
 Community scanning and Resend Free HTTPS mail. See `DEPLOY-CLOUD.md` and
 `.env.cloud.example`. Provider accounts and the isolated pilot database are
-prepared; server credentials are privately staged and hosted verification remains pending. See the
+prepared; the Free Render service is live behind its private pilot gate and
+server credentials are private. Initial health/gate checks pass; account and
+full upload/memory/backup verification remain pending. See the
 deployment document's checkpoint: repository code is not proof of a deployed,
 tested or memory-safe host.
 

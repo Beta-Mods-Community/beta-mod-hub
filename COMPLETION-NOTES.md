@@ -2,7 +2,9 @@
 
 ## Bounded cloud-only implementation checkpoint — 2026-09-29
 
-**Not deployed. No hosted end-to-end or 512 MB memory validation is claimed.**
+**Historical implementation checkpoint; see "Subsequent gated deployment"
+below for the live Free pilot. No full hosted end-to-end or 512 MB memory
+validation is claimed.**
 
 ### Verified checkpoint after implementation
 
@@ -309,3 +311,33 @@ weakens a production check.
   cloud/Transloadit secret-value scan found no matches in commit candidates.
 - Cloud implementation preserved in local commits `25f1230`, `fc83a87`, and
   `29a897c`. The working local preview and earlier hosting targets are intact.
+
+### Subsequent gated deployment
+
+The owner approved the gated Free launch. Commit `3f5cf73` was pushed to
+`Beta-Mods/beta-mod-hub` and successfully deployed on Render as
+`https://betamods-pilot.onrender.com` (service `srv-dau736ad0e5s73ehajng`).
+Build/start took 1m40s. Manual deploys remain enabled; no paid resources, custom
+website DNS or PC runtime were introduced.
+
+Hosted HTTP checks passed 14/14 (health, gate rejection/cookie controls and
+account forms), private S3 credentials passed a read-only empty-bucket check,
+and the application's setup-test email was marked Delivered by Resend.
+Chrome blocked both automated and owner-submitted gate POSTs with
+`ERR_BLOCKED_BY_CLIENT`; a normal GET still loads the gate. The HTTP smoke
+explicitly supplied Origin, missing the native-form behavior under the gate's
+`no-referrer` policy. Commit `06f75a2` fixes that form response to `strict-origin`
+while preserving null/missing/foreign-origin rejection, cookie flags and
+token-safe redirects. That commit is now live (deploy
+`dep-dau7bgvavr4c7380b5k0`, 1m33s); native Chrome Continue succeeded and normal
+navigation reached signup. No browser security setting was disabled or
+bypassed. Owner password/signup is left as a private user handoff. This is
+not a completed account-verification/reset or hosted upload rehearsal. Memory
+boundary tests and backup/restore are still required before inviting testers.
+
+Private numeric memory evidence added in `aebfca1` avoids Render Free's paid
+metrics UI: startup RSS 139,997,184 bytes / cgroup peak 132,194,304; gate POST
+RSS 148,688,896 / cgroup peak 139,132,928; actual limit 536,870,912. No public
+metrics endpoint or request data was added. Final local gates at `06f75a2`:
+239/239 unit, typecheck, lint and isolated cloud build passed. Local preview
+and cloud `/api/health` both returned 200/ok. No new hosted uploads yet.

@@ -1,15 +1,17 @@
 # Bounded cloud-only tester pilot
 
-Status: implementation in progress, **not deployed or ready to share**. Updated
+Status: **deployed behind the private gate; not ready to share with testers**. Updated
 2026-09-29. This is a small, private testing target with no PC dependency, not an
 unlimited public mod host. The preserved home and Oracle targets are unchanged.
 
 Account checkpoint: Render account/email verification and Supabase GitHub
 sign-in are complete for Beta-Mods. Render's existing GitHub App installation
-was verified as limited to `Beta-Mods/beta-mod-hub`. Its undeployed form is set
+was verified as limited to `Beta-Mods/beta-mod-hub`. Its service is configured
 to native Node, Free, the cloud build/start commands, `/api/health`, and manual
-deploys. The reviewed cloud implementation is now in local commits; push and
-confirm that revision before submitting the prepared deployment.
+deploys. Commit `3f5cf73` was pushed and deployed successfully on Render Free
+as service `srv-dau736ad0e5s73ehajng` (deploy
+`dep-dau736qd0e5s73eham6g`). The assigned origin is
+`https://betamods-pilot.onrender.com`; startup/build completed in 1m40s.
 
 The Supabase organization `Beta Mods` (`lgbhnbysmhshrugobuqe`) is on Free. The
 owner completed the private password step; project `betamods-pilot`
@@ -23,21 +25,40 @@ confirms $0/month, no payment method, and overages disabled. Sender subdomain
 records, which are now saved in Cloudflare (DKIM TXT and two DNS-only CNAMEs).
 All three resolve publicly and Resend reports the domain and each record
 verified. The owner approved the sending-only key restricted to this subdomain;
-it is saved privately. No website DNS change, incoming-mail change, deployment
-or paid plan was made.
+it is saved privately. No website DNS change, incoming-mail change or paid plan
+was made. Only the owner-approved gated Render pilot was deployed.
 
 Neon Free schema-only branch `cloud-pilot` (`br-spring-dream-b4iu8p39`) was
 created from dev in project `winter-feather-56089874`, with expiry set to Never.
 A read-only comparison confirmed its 19 tables, 128 columns, 167 constraints
-and 40 indexes match dev; all 19 public tables contain zero rows. Its pooled
-connection is saved only in gitignored `.env.cloud.local`; existing dev and
-production configuration is unchanged. Independent app secrets and the
+and 40 indexes match dev; all 19 public tables were empty at creation. Its pooled
+connection is saved in gitignored `.env.cloud.local` and the dedicated Render
+environment; existing dev and production configuration is unchanged. Independent app secrets and the
 existing dedicated Transloadit credentials are also prepared in that private
 file. The owner-approved credentials and app configuration have been imported
-into Render's undeployed service form. Initial startup obtains `APP_URL` from
-Render's own `RENDER_EXTERNAL_URL`, not a guessed hostname; record the actual
-origin after creation. Use Chrome for these sign-in flows; the in-app Supabase and Resend
+into Render's private service environment. Initial startup obtains `APP_URL`
+from Render's own `RENDER_EXTERNAL_URL`, not a guessed hostname; the actual
+origin is also saved in the private local configuration. Use Chrome for these sign-in flows; the in-app Supabase and Resend
 tabs became unresponsive during login.
+
+Hosted HTTP checks passed 14/14: DB health, anonymous gate redirects, invalid
+origin/code refusal, secure 24-hour gate cookie, tampered-cookie rejection and
+gated home/login/signup/recovery forms. One expected invalid-code rate-limit
+record was retained. Read-only S3 authentication and the empty bucket passed.
+A single setup email using the application's real HTTPS mail adapter was
+accepted and shown Delivered by Resend to the owner. This is not yet an actual
+account-verification/reset round trip. Chrome blocked both automated and manual
+gate-form submissions with `ERR_BLOCKED_BY_CLIENT`; ordinary GET navigation
+works. Investigation also found a real form bug: the gate document's
+`no-referrer` policy makes native POSTs send `Origin: null`, unlike the HTTP
+smoke's explicitly supplied Origin. Commit `06f75a2` changes only the form
+document to `strict-origin`; null/missing/foreign POST origins remain rejected.
+The fixed commit is live in deploy `dep-dau7bgvavr4c7380b5k0` (1m33s).
+Actual Chrome native-form retesting now passes: Continue set the gate cookie
+and reached the homepage, then normal navigation reached signup. No browser
+protection was disabled or bypassed. The fix passed 239 unit tests, typecheck,
+lint and the isolated cloud build. Owner password/signup/email verification
+remain a private user handoff.
 
 ## Selected target
 
@@ -144,7 +165,7 @@ reuse `.env.home` wholesale or repoint the local preview.
 
 1. Complete Render login and explicitly approve its GitHub App for
    `Beta-Mods/beta-mod-hub` only. Account login and the restricted installation
-   have been verified; service deployment is still pending.
+   have been verified; the gated Free service is deployed.
    Select native **Node**, not the repository's existing Dockerfile. Pin Node
    22 using Render's `NODE_VERSION` setting.
    [Node version configuration](https://render.com/docs/node-version).
@@ -207,6 +228,20 @@ checks the built manifest for the 9mb form limit and refuses a mismatched build.
 memory, so this is not a 256 MiB total-process cap. Do not replace this command
 with `next start`, Docker Compose or the Windows preview launcher.
 
+Render Free hides CPU/memory charts behind a paid compute upgrade. Do not
+upgrade for this check. `scripts/cloud-memory.mjs` emits private numeric-only
+startup and exclusive-job summaries: process RSS/heap/external/array-buffer
+usage, fixed-path Linux cgroup current/peak/limit where available, and bounded
+500 ms samples (at most 600 samples, five minutes). Process/kernel peaks are
+lifetime high-water marks; sampled peaks can miss short spikes. No request
+identifiers or secrets are logged, and there is no public metrics endpoint.
+Use these records plus restart/failure checks for the hosted memory gate;
+unavailable counters are reported as null, never invented.
+Initial real-host evidence after deploy: startup RSS 139,997,184 bytes, cgroup
+current/peak 132,194,304 bytes, cgroup limit 536,870,912 bytes. The gate POST
+finished in 46 ms with RSS 148,688,896 and cgroup peak 139,132,928 bytes. This is
+startup/gate evidence only, not the required upload/image/export boundary test.
+
 Health checks query the database and validate configuration. They do not spend
 a scan request and **do not prove scanner, storage or email availability**.
 
@@ -235,6 +270,7 @@ a scan request and **do not prove scanner, storage or email availability**.
   automatic overage option was introduced. Record the reviewed revision and
   evidence. Only then share the host URL privately; custom website DNS can wait.
 
-No deployment, end-to-end hosted validation or completed account setup is
-claimed by this document. If a quota is hit, pause uploads or wait for reset;
+Deployment and the limited checks above are verified; account signup, full
+hosted upload/scan/download, memory boundaries and backup/restore gates are
+still pending. If a quota is hit, pause uploads or wait for reset;
 do not weaken scanning, increase cloud caps, add a card or switch to paid compute.
