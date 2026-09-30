@@ -12,6 +12,10 @@ import { CLOUD_SCAN_MAX_BYTES, createScanEnvelope, SCAN_ENVELOPE_NAME, SCAN_ENVE
 // https://transloadit.com/docs/robots/file-hash/
 const API = "https://api2.transloadit.com/assemblies";
 const MAX_RESPONSE_BYTES = 256 * 1024;
+// Provider max_size covers the entire multipart body, not just the ZIP. Reserve
+// bounded space for signed params, signature and multipart framing; the input
+// remains capped separately at 8 MiB before any request is made.
+const SCAN_MULTIPART_ALLOWANCE_BYTES = 4 * 1024;
 const COMMUNITY_NOTICE = "Some files in this Assembly were auto-watermarked because you're on the Community plan. Processing is slower because of this. Upgrading to any paid plan will increase file conversion speed and remove the watermarks.";
 let activeScan = false;
 type JsonObject = Record<string, unknown>;
@@ -42,7 +46,7 @@ export function signedScanParams(credentials: TransloaditCredentials, now: numbe
     auth: {
       key: credentials.key,
       expires: new Date(now + 5 * 60_000).toISOString(),
-      max_size: CLOUD_SCAN_MAX_BYTES + SCAN_ENVELOPE_OVERHEAD,
+      max_size: CLOUD_SCAN_MAX_BYTES + SCAN_ENVELOPE_OVERHEAD + SCAN_MULTIPART_ALLOWANCE_BYTES,
       max_number_of_files: 1,
     },
     nonce: randomUUID(),

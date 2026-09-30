@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash, createHmac } from "node:crypto";
-import { CLOUD_SCAN_MAX_BYTES, createScanEnvelope, SCAN_ENVELOPE_NAME } from "../lib/cloud-zip";
+import { CLOUD_SCAN_MAX_BYTES, createScanEnvelope, SCAN_ENVELOPE_NAME, SCAN_ENVELOPE_OVERHEAD } from "../lib/cloud-zip";
 import { evaluateManagedScan, scanWithTransloadit, signedScanParams, transloaditCredentials, type TransloaditCredentials } from "../lib/transloadit-scan";
 
 const credentials: TransloaditCredentials = { key: "synthetic-key", secret: "synthetic-secret-no-live-access", algorithm: "sha384" };
@@ -30,7 +30,7 @@ test("signed params force one bounded upload, scan decline errors and full SHA25
   assert.equal(signed.signature, `sha384:${createHmac("sha384", credentials.secret).update(signed.params).digest("hex")}`);
   const params = JSON.parse(signed.params);
   assert.equal(params.auth.max_number_of_files, 1);
-  assert.ok(params.auth.max_size < CLOUD_SCAN_MAX_BYTES + 1024);
+  assert.equal(params.auth.max_size, CLOUD_SCAN_MAX_BYTES + SCAN_ENVELOPE_OVERHEAD + 4 * 1024);
   assert.equal(params.steps.scanned.error_on_decline, true);
   assert.deepEqual(params.steps.scanned.ignore_errors, []);
   assert.equal(params.steps.hashed.use, "scanned");
@@ -83,6 +83,30 @@ test("live-shaped mocked request posts only a server-controlled exact-byte ZIP",
   }) as typeof fetch;
   assert.deepEqual(await scanWithTransloadit(data, { credentials, fetchImpl }), { ok: true });
   assert.equal(calls, 1);
+});
+
+test("exact 8 MiB input fits the signed total multipart cap with maximum-length credentials", async () => {
+  const boundary = Buffer.alloc(CLOUD_SCAN_MAX_BYTES, 0x61);
+  const boundaryEnvelope = createScanEnvelope(boundary);
+  const boundaryHash = createHash("sha256").update(boundaryEnvelope).digest("hex");
+  const longestCredentials: TransloaditCredentials = { key: "k".repeat(256), secret: "s".repeat(256), algorithm: "sha384" };
+  let calls = 0;
+  const fetchImpl = (async (url, init) => {
+    calls++;
+    const form = init?.body as FormData;
+    const signedParams = JSON.parse(form.get("params") as string);
+    assert.equal(signedParams.auth.key.length, 256);
+    assert.match(form.get("signature") as string, /^sha384:[a-f0-9]{96}$/);
+    const bodyBytes = (await new Request(url, { method: "POST", body: form }).arrayBuffer()).byteLength;
+    assert.ok(bodyBytes > boundaryEnvelope.length, "multipart framing must be accounted for beyond file bytes");
+    assert.equal(signedParams.auth.max_size, boundaryEnvelope.length + 4 * 1024);
+    assert.ok(bodyBytes <= signedParams.auth.max_size, "serialized multipart must fit the provider's signed total-body cap");
+    return json(completed(boundaryHash, boundaryEnvelope.length));
+  }) as typeof fetch;
+  assert.deepEqual(await scanWithTransloadit(boundary, { credentials: longestCredentials, fetchImpl }), { ok: true });
+  assert.equal(calls, 1);
+  assert.equal((await scanWithTransloadit(Buffer.alloc(CLOUD_SCAN_MAX_BYTES + 1), { credentials: longestCredentials, fetchImpl })).ok, false);
+  assert.equal(calls, 1, "one byte beyond the input cap must not make another request");
 });
 
 test("polls only the fixed trusted host, ignores provider URLs, sends no credentials in GET", async () => {
