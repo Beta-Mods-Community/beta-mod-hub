@@ -333,8 +333,9 @@ token-safe redirects. That commit is now live (deploy
 navigation reached signup. No browser security setting was disabled or
 bypassed. The owner then completed signup and real email verification. Resend
 shows delivery and the isolated database confirms verification; no development
-account was copied or session minted. Administrator/uploader approval remains
-pending. Eleven additional hosted gate checks passed. This is not a completed
+account was copied or session minted. The owner subsequently approved admin
+and uploader access; both are verified live at `fa1b3a3`, deploy
+`dep-dau7rodg1s2s73bqf05g`. Eleven additional hosted gate checks passed. This is not a completed
 password-reset or hosted upload rehearsal. Memory
 boundary tests and backup/restore are still required before inviting testers.
 
@@ -343,4 +344,57 @@ metrics UI: startup RSS 139,997,184 bytes / cgroup peak 132,194,304; gate POST
 RSS 148,688,896 / cgroup peak 139,132,928; actual limit 536,870,912. No public
 metrics endpoint or request data was added. Final local gates at `06f75a2`:
 239/239 unit, typecheck, lint and isolated cloud build passed. Local preview
-and cloud `/api/health` both returned 200/ok. No new hosted uploads yet.
+and cloud `/api/health` both returned 200/ok at that checkpoint.
+
+First hosted upload rehearsal: a synthetic exact-8-MiB ZIP failed closed as
+scanner-unavailable after 7.744 seconds. No build or stored object exists;
+storage reservation was released and zero drift confirmed. The scan budget
+retains its 27 estimated MiB charge and the attempt remains counted. Signed
+read-only provider inspection found no new Assembly. The scanner's signed
+size ceiling omitted multipart request overhead; fix `3a05483` adds bounded
+4 KiB transport allowance and a real serialized-request boundary regression.
+240/240 unit, typecheck, lint and isolated cloud build pass; deployed as
+`dep-dau835flot8c73a29k50` (1m37s). Failed-path
+sampled RSS was 267,812,864 bytes, cgroup usage 226,021,376 bytes, limit
+536,870,912 bytes. This is not a successful hosted scan or image/export memory
+gate. No file cap, budget, scan policy, paid plan or website DNS was relaxed.
+
+The 8-MiB retry succeeded through actual hosted scan -> private S3 -> browser
+download. Both downloaded bytes and a separate S3 GET match fixture SHA256
+`d4a795a68ea068f3ef0486a0a1e2ef8117f0dbd251a9e7d7a3f52c64c2ecddf7`.
+One build/object, zero drift/held reservations; budget 54 estimated MiB at this
+checkpoint, 2 attempts retained. A concurrent mutation received HTTP 503 during
+the upload. Successful request 51.655s, sampled RSS 273,911,808 and cgroup
+254,312,448 bytes (512 MiB limit). Hosted EICAR then stalled before reaching the
+server: Windows antivirus blocked reading its inert ZIP. No provider job,
+reservation or charge; protection unchanged. Hosted rejection remains unverified.
+
+### Hosted image/export checkpoint (Sep 29 CDT / Sep 30 UTC)
+
+- `008638b` fixes Next internal action redirects by using the validated HTTP
+  loopback origin; public HTTPS/CSRF/cookies are unchanged. Live edit/save now
+  navigates normally, with no new redirect SSL error observed.
+- `2d7b1c4` lowers cloud images to 4,194,304 pixels after the earlier 8 MP test
+  reached RSS 475,385,856 bytes. Local image limits remain unchanged. Both
+  commits are pushed; latest Render deploy `dep-dau8ahid0e5s73em6320` is live.
+- New 2048 x 2048, 16-bit RGBA stress fixture passed original/canonical scans:
+  6,489,170-byte WebP, exact SHA256 verified. Measured peak RSS 389,435,392 /
+  cgroup 386,576,384 bytes out of 536,870,912, duration 37.021s. One difficult
+  fixture, not a sustained-load or exhaustive-format guarantee.
+- Private 92-byte diagnostic attachment passed scan and authorized owner
+  download/hash verification. Other-user denial still needs hosted rehearsal.
+- Actual 19,065,538-byte release-package download contains nine entries;
+  embedded build and new image hashes match. Export sampled RSS 289,701,888 /
+  cgroup 299,491,328 bytes over 8.968s. Full 32 MiB input boundary not tested.
+- Final read-only DB/S3 audit: four objects, 21,128,942 bytes; exact ledger,
+  no held reservations, missing objects or orphans. Scan counter retains 138
+  estimated MiB; five hourly attempts retained, next naturally frees at
+  04:14:49 UTC. No quota bypasses. Temporary listing archived as Abandoned,
+  objects retained and charged, nothing permanently deleted.
+- Exact-code gates: 243/243 unit, lint, typecheck and isolated cloud build pass.
+  Prior 43/43 dev integration evidence is unchanged, not a fresh run here.
+- Still private, not Discord-ready. Remaining gates: hosted rejection/failure
+  and permission cases, password reset, repeated/cold/restart memory checks,
+  full export boundary and off-PC backup/restore. Backup proposal requires
+  approval to reduce total storage to 100 MiB and grant private GitHub Actions
+  access to dedicated backup credentials. Nothing scheduled or granted yet.

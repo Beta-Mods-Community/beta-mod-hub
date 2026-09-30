@@ -59,9 +59,86 @@ and reached the homepage, then normal navigation reached signup. No browser
 protection was disabled or bypassed. The fix passed 239 unit tests, typecheck,
 lint and the isolated cloud build. The owner then completed real signup and
 email verification; delivery was confirmed in Resend and verification in the
-isolated pilot database. Administrator/uploader permission is awaiting the
-owner's explicit approval. Eleven subsequent hosted gate regression checks
-passed without database writes, mail, scans or uploads.
+isolated pilot database. The owner explicitly approved administrator and
+uploader permission; both are now applied and verified in the real admin UI.
+The owner-access deployment was `fa1b3a3`, deploy `dep-dau7rodg1s2s73bqf05g` (1m27s).
+Eleven subsequent hosted gate regression checks passed without database
+writes, mail, scans or uploads.
+
+The first real hosted upload used a synthetic exact-8-MiB ZIP and failed closed
+as scanner-unavailable. Its reservation was released, no build was published,
+and the private bucket remained empty with zero drift. The 27 estimated MiB
+scan charge and upload attempt were retained, not reset/refunded. Read-only
+provider inspection found no new Assembly. Investigation found that signed
+`auth.max_size` omitted multipart request overhead; Transloadit counts that
+overhead in addition to the ZIP envelope. Fix `3a05483` adds 4 KiB of bounded
+transport allowance without raising the 8 MiB input limit. All 240 unit tests,
+typecheck, lint and isolated cloud build passed. It is live in deploy
+`dep-dau835flot8c73a29k50` (1m37s). This failed upload's
+7.744-second request sampled 267,812,864-byte RSS and 226,021,376-byte cgroup
+usage under the 536,870,912-byte limit. This failed request alone is not an
+image/export stress test.
+
+The subsequent real 8-MiB upload passed managed scanning and private storage;
+the actual browser download and a separate S3 GET both matched the fixture's
+SHA256 exactly. One build/object and stored reservation exist, with zero drift
+or held reservations. A concurrent mutation was refused with HTTP 503 while
+the upload was active. The successful request took 51.655 seconds and sampled
+273,911,808-byte RSS / 254,312,448-byte cgroup usage. These measurements cover
+this build upload only. The hosted EICAR test could not reach the server:
+Windows antivirus refused reading its inert test ZIP. No reservation or scan
+charge was created for it; endpoint protection was not changed or bypassed.
+Hosted malware-rejection evidence remains incomplete (the earlier adapter's
+synthetic live rejection checks remain historical, not a substitute).
+
+### Latest hosted checkpoint: `2d7b1c4`
+
+Render deploy `dep-dau8ahid0e5s73em6320` succeeded in 1m36s. No paid upgrade,
+website DNS change, production-main database write or PC runtime was introduced.
+
+- An 8,388,608-pixel JPEG passed original/canonical scans but reached
+  475,385,856-byte RSS and 454,995,968-byte cgroup lifetime peak. Commit
+  `2d7b1c4` therefore tightens the cloud-only pixel ceiling to 4,194,304;
+  the 8 MiB file ceiling and local-image behavior are unchanged.
+- A 2048 x 2048, 16-bit RGBA PNG then passed both scans on the tightened
+  profile. Input 6,928,618 bytes; canonical WebP 6,489,170 bytes. The 37.021s
+  request sampled RSS 389,435,392 / cgroup 386,576,384 bytes under the
+  536,870,912-byte limit. This is one difficult boundary fixture, not proof
+  of every permitted format or sustained repeated-upload memory behavior.
+- A generated 92-byte diagnostic log passed scanning and the real owner's
+  authorized browser download with identical SHA256. Unrelated authenticated
+  user denial has not yet been rehearsed on this deployed account set.
+- Successful forms exposed a Next internal redirect bug behind Render TLS:
+  `ERR_SSL_WRONG_VERSION_NUMBER`. Commit `008638b` sets Next's private internal
+  origin to the validated HTTP loopback port before prepare, as its standard
+  launcher does. Public HTTPS, Origin/CSRF checks and cookies are unchanged.
+  Live edit/save now redirects normally, with no new redirect error observed.
+- The real release-package download contained nine entries. Its 8 MiB build
+  and new canonical image match their original hashes exactly. ZIP size was
+  19,065,538 bytes. Export took 8.968s, sampled RSS 289,701,888 and cgroup
+  299,491,328 bytes. This is an approximately 20 MiB input check, not the full
+  32 MiB export boundary.
+- Read-only pilot DB/S3 audit: four stored objects, 21,128,942 bytes; exact
+  ledger agreement, zero held reservations, missing objects or orphans.
+  Scan allowance retains 138 estimated MiB of charges (2934 remaining);
+  all five hourly upload attempts remain charged. No counters were reset.
+- The synthetic test listing was archived using Abandoned status, not deleted.
+  Its objects remain retained and count against storage. The owner account and
+  uploader approval remain intact.
+
+All 243 unit tests, typecheck, lint and isolated cloud build pass at this code
+revision. The earlier 43/43 guarded dev integration result was not rerun here.
+Remaining launch gates include hosted rejection/failure and permission cases,
+password-reset inbox round trip, repeated/cold-start/restart memory behavior,
+full export boundary and off-PC backup/restore. Do not call this Discord-ready.
+
+Backups are not configured. A proposed Free-only option is to lower total pilot
+storage to 100 MiB and retain two encrypted full snapshots in the private
+repository's GitHub Actions artifacts. That needs explicit approval for the
+lower capacity and new GitHub-held backup credentials: Supabase's S3 key is
+full-access within the dedicated project, not read-only. Verify account-wide
+artifact capacity, no-card/$0 enforcement and restore safety before enabling;
+the existing Windows/R2 backup scripts are not this target's backup system.
 
 ## Selected target
 
@@ -107,7 +184,7 @@ to recover from quota exhaustion. [Resend pricing](https://resend.com/pricing).
   unsafe/conflicting paths, special files, opaque extras and trailing payloads.
   This intentionally refuses some valid complex mod packages; it is not a
   general-purpose replacement for the earlier 250 MiB upload target.
-- Images: at most 8 MiB and 8,388,608 decoded pixels. Both the original image and
+- Images: at most 8 MiB and 4,194,304 decoded pixels. Both the original image and
   canonical image require their own clean scan; a successful decode is not a
   malware verdict. Cloud feedback attachments are strict ZIP or validated plain
   UTF-8 text/log/JSON/INI, at most 8 MiB; binary saves are deferred. Existing
@@ -190,8 +267,9 @@ reuse `.env.home` wholesale or repoint the local preview.
    separate approval gate, not permission to repoint `betamods.com`'s website.
    Set `AUTH_MAIL_MODE=resend`, `RESEND_API_KEY`, and `AUTH_MAIL_FROM` from that
    verified sender. The Free account and approved email-only DNS records are
-   ready, the sender is verified and a scoped sending key is prepared. Real
-   inbox testing remains pending.
+   ready, the sender is verified and a scoped sending key is prepared. The
+   owner's real signup-verification email was delivered and consumed; the
+   password-reset inbox round trip remains pending.
 5. Add the existing Transloadit key/secret with the matching
    `TRANSLOADIT_SIGNATURE_ALGORITHM`. The evaluated named key uses `sha256`;
    do not assume the `sha384` default for a different key. Keep Community/no
@@ -273,7 +351,7 @@ a scan request and **do not prove scanner, storage or email availability**.
   automatic overage option was introduced. Record the reviewed revision and
   evidence. Only then share the host URL privately; custom website DNS can wait.
 
-Deployment and the limited checks above are verified; account signup, full
-hosted upload/scan/download, memory boundaries and backup/restore gates are
-still pending. If a quota is hit, pause uploads or wait for reset;
+Deployment, real owner verification and the bounded clean-file checks above
+are verified; the remaining rejection, permission, recovery, memory and
+backup/restore gates are still pending. If a quota is hit, pause uploads or wait for reset;
 do not weaken scanning, increase cloud caps, add a card or switch to paid compute.

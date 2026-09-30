@@ -58,14 +58,16 @@ Free pilot branch, a dedicated Supabase Free private S3 bucket, Transloadit
 Community scanning and Resend Free HTTPS mail. See `DEPLOY-CLOUD.md` and
 `.env.cloud.example`. Provider accounts and the isolated pilot database are
 prepared; the Free Render service is live behind its private pilot gate and
-server credentials are private. Initial health/gate checks pass; account and
-full upload/memory/backup verification remain pending. See the
+server credentials are private. The verified owner has approved admin/uploader
+access. Real clean build, image, private-log and export checks pass, with
+measured bounded-host memory. Hosted rejection/recovery, remaining permission
+checks and backup/restore verification remain pending. See the
 deployment document's checkpoint: repository code is not proof of a deployed,
 tested or memory-safe host.
 
 The cloud profile deliberately reduces files to 8 MiB. ZIP builds have strict
 32 MiB expanded/256-entry checks; nested/encrypted/unsupported containers fail
-closed. Images have 8 MiB/8,388,608-pixel ceilings with original and canonical
+closed. Images have 8 MiB/4,194,304-pixel ceilings with original and canonical
 scans. Scan envelopes require explicit success and exact SHA256 binding.
 Storage is capped at 750 MiB total/128 MiB per account, five approved uploaders,
 and five attempts/hour. Cloud overrides can tighten but not raise these caps.
