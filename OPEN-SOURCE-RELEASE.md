@@ -71,3 +71,32 @@ Do not automate this import until its permissions and failure modes are reviewed
 Community governance can expand maintainer responsibility over time. Production
 credentials, user data and author's file permissions are separate from source
 contribution access and must remain so.
+
+## Preparation checkpoint September 30 2026
+
+The clean draft is in the sibling `Beta Mods Community` directory. It contains
+203 reviewed source files and no Git history. No community repository has been
+published, no repository visibility or branch protection has changed, and no
+deployment, credential, database or backup change was made.
+
+The targeted history audit covered `b01919c` and its 94 reachable commits,
+1,155 objects and 272 tracked files. Pattern matches were reviewed as synthetic
+fixtures or runtime references; there were no confirmed credential findings.
+The exact 203-file draft was also compared against current private credentials
+in memory and checked for live infrastructure identifiers and personal paths.
+No matches were found in that snapshot. This does not cover unreachable Git
+objects, compressed content, OCR or unknown credential formats and is not a
+security certification.
+
+The original illustration and favicon remain private because redistribution
+rights are not documented. The public draft uses the original SVG placeholders
+in `community/`. The live site's original assets were not changed.
+
+Private unit suite: 375 passed. Clean community unit suite under Node.js 22:
+273 passed, none skipped. A clean npm install, full lint, route type generation,
+typecheck and both default and cloud production builds passed with no private
+environment files or service credentials. Both builds compiled 30 routes; the
+cloud artifact retained the 9mb body limit and bounded memory configuration.
+Community CI is prepared but has not run on GitHub.
+License adoption, public repository creation and actual repository protection
+settings remain pending. Do not describe these as completed from local files.
