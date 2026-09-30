@@ -26,15 +26,15 @@
   What is deliberately NOT here: the app-data volume. Since R2 became final
   storage, that volume is quarantine scratch and is emptied as each upload
   finishes. It holds no user archives, so archiving it would protect nothing
-  while preserving unscanned user uploads (including anything malware-flaged)
+  while preserving unscanned user uploads (including anything malware-flagged)
   in a second place. Use -IncludeQuarantine only when you specifically want a
   forensic copy of whatever was in flight when something went wrong.
 
   Every dump is verified after it is written. An unverified backup is not a
   backup.
 
-  Nothing here is billed: Neon Free stays inside its free tier, backups go to a
-  local folder you own, and listing a bucket is free.
+  Backups are written locally. Database reads and R2 inventory requests still
+  consume provider resources; this script does not enforce a billing limit.
 
 .PARAMETER BackupDir
   Destination folder. Defaults to $env:BETAMODS_BACKUP_DIR, else

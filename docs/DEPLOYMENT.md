@@ -1,59 +1,85 @@
-# Deployment settings
+# Deployment profiles
 
-This guide explains local and cloud settings. It is not permission to change the live service. The owner reviews changes and decides when to deploy them.
+For development, start with [Contributing](../CONTRIBUTING.md). The live site
+uses the bounded cloud profile. The home and Oracle configurations are optional
+alternatives and are not part of the hosted service.
 
-Application source is public at [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub). Production data and credentials remain private. Nightly backups run in the private, owner-only `Beta-Mods/betamods-ops` repository; the restore rehearsal recovered all 19 tables. The app repository's old backup secrets and backup runs have been removed. See [Repository setup](../REPOSITORY-SETUP.md) for contribution and protection settings.
+| Profile | Runtime and storage | Guide |
+| --- | --- | --- |
+| Contributor development | Local Node, disposable PostgreSQL, local files, ClamAV | [Contributing](../CONTRIBUTING.md) |
+| Windows preview | Native Node and ClamAV, development database, capped R2 | [Local preview](../LOCAL-PREVIEW.md) |
+| Current cloud pilot | Render Node 22, Neon, private Supabase S3, Transloadit, Resend | [Cloud operations](../DEPLOY-CLOUD.md) |
+| Optional home hosting | Docker Desktop, R2, ClamAV, opt-in Cloudflare Tunnel | [Home deployment](../DEPLOY-HOME.md) |
+| Optional Oracle hosting | Linux Compose, local persistent storage, ClamAV, Caddy | [Oracle deployment](../DEPLOY.md) |
 
-Fork CI needs owner review and approval before execution and runs without service secrets or write tokens. Render preview deployments remain off. The merge policy requires a pull request, passing `Validate (default)` and `Validate (cloud)` checks, and owner code review. Only the owner merges and deploys; do not merge into `main` just to trigger tests. Public source does not change the site's access gate or deploy a new revision.
+Repository access does not grant access to hosted data or permission to deploy.
+Only the owner merges and deploys the official service. Automatic deploys and
+pull-request previews are disabled.
 
-## Local development profile
+## Local configuration
 
-Start with `env.example` and [Contributing](../CONTRIBUTING.md). Without a database URL, you can work on the UI and empty states. A full local setup needs PostgreSQL, local file storage, ClamAV, and the scan wrapper. It does not need Docker or provider accounts.
+Copy `env.example` to your private `.env.local`. Without a database URL, the
+app can render UI and empty states. A complete local workflow needs PostgreSQL,
+ClamAV, and the scan wrapper; provider accounts are not required.
 
-| Setting | Local purpose |
+| Setting | Purpose |
 | --- | --- |
-| `DATABASE_URL` | Your disposable PostgreSQL database, never the live service |
-| `APP_URL` | Loopback origin matching the local app |
-| `SESSION_SECRET` | A new local secret, separate from every deployed environment |
-| `STORAGE_DRIVER=local` | Private files under the gitignored `data` directory |
-| `SCAN_DRIVER=clamav` and `SCAN_ENDPOINT` | The loopback scan wrapper backed by `clamd` |
-| `MALWARE_SCAN_API_KEY` and `SCAN_API_KEY` | Matching app and wrapper keys |
-| `AUTH_MAIL_MODE=preview` | Development mail files outside the repository |
-| `ADMIN_USER_IDS` | Explicit UUIDs for your own development administrator accounts |
+| `DATABASE_URL` | Disposable development database, never the hosted service |
+| `APP_URL` | Loopback origin matching the local server |
+| `SESSION_SECRET` | A new local secret, not a deployed secret |
+| `STORAGE_DRIVER=local` | Files under the gitignored `data` directory |
+| `SCAN_DRIVER=clamav`, `SCAN_ENDPOINT` | Loopback wrapper backed by `clamd` |
+| `MALWARE_SCAN_API_KEY`, `SCAN_API_KEY` | Matching application and wrapper keys |
+| `AUTH_MAIL_MODE=preview` | Private local mail previews |
+| `ADMIN_USER_IDS` | Deliberately selected development account UUIDs |
 
-Keep `CLOUD_PILOT=off`, bind the app and wrapper to loopback, and never expose mail previews or development-only authentication settings publicly. The wrapper can load local settings with `node --env-file=.env.local scripts/scan-server.mjs`.
+Keep `CLOUD_PILOT=off` and bind the web server, wrapper, and ClamAV to loopback.
+Never expose development authentication exceptions or mail previews publicly.
+The wrapper can load settings with
+`node --env-file=.env.local scripts/scan-server.mjs`.
 
-## Bounded cloud profile
+## Cloud configuration
 
-`start:cloud` expects Node.js 22, a Neon pooled database URL, a dedicated private Supabase S3 bucket, Transloadit, and Resend. It will not accept an arbitrary replacement provider without code changes.
+Use `.env.cloud.example` for names and defaults. Real values belong in the
+host's private environment settings. `.env.cloud.local` is an optional ignored
+operator preparation file; the runtime does not load it automatically.
 
-Set these in the host's private environment settings:
-
-| Configuration group | Required settings |
+| Group | Required settings |
 | --- | --- |
-| Runtime | `NODE_ENV=production`, `CLOUD_PILOT=on`, `PILOT_MODE=on`, `STORAGE_DRIVER=s3`, `SCAN_DRIVER=transloadit`, `AUTH_MAIL_MODE=resend` |
-| Database and origin | `DATABASE_URL` using an isolated Neon pooled endpoint with `sslmode=require`; `APP_URL` as the deployed HTTPS origin |
-| Stable secrets | Independent `SESSION_SECRET` and `PILOT_ACCESS_KEY` of at least 32 characters; `ENCRYPTION_KEY` encoding exactly 32 random bytes in base64 |
-| Private object storage | `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY` |
-| Scanning | `TRANSLOADIT_KEY`, `TRANSLOADIT_SECRET`, and `TRANSLOADIT_SIGNATURE_ALGORITHM` matching that key's configuration |
-| Mail | `RESEND_API_KEY` and a verified `AUTH_MAIL_FROM` sender |
-| Administration | Known verified account UUIDs in `ADMIN_USER_IDS`, assigned deliberately after account creation |
+| Modes | `NODE_ENV=production`, `CLOUD_PILOT=on`, `PILOT_MODE=on`, `STORAGE_DRIVER=s3`, `SCAN_DRIVER=transloadit`, `AUTH_MAIL_MODE=resend` |
+| Database/origin | Isolated Neon pooled `DATABASE_URL` with `sslmode=require`; canonical HTTPS `APP_URL` |
+| Secrets | Independent `SESSION_SECRET` and `PILOT_ACCESS_KEY` of at least 32 characters; `ENCRYPTION_KEY` as 32 random bytes encoded in base64 |
+| Storage | `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY` |
+| Scanning | `TRANSLOADIT_KEY`, `TRANSLOADIT_SECRET`, matching `TRANSLOADIT_SIGNATURE_ALGORITHM` |
+| Mail | Sending-only `RESEND_API_KEY` and verified `AUTH_MAIL_FROM` |
+| Administration | Verified account UUIDs in `ADMIN_USER_IDS` |
 
-Set `CLOUD_PILOT=on` at build time as well as runtime. Build with `npm run build`, then start with `npm run start:cloud`; the launcher checks for the matching build. On Linux, `MALLOC_ARENA_MAX=2` must be present before Node starts. Remove `AUTH_ALLOW_UNVERIFIED_LOCAL` entirely and do not carry over mail-preview settings. The runtime receives settings from the host environment, not by automatically loading a private configuration file.
+Set `CLOUD_PILOT=on` at build and runtime. Build with `npm run build` and start
+with `MALLOC_ARENA_MAX=2 npm run start:cloud` on Linux. The launcher checks for
+the cloud build's 9 MiB form limit. It is not interchangeable with `next start`.
+Remove `AUTH_ALLOW_UNVERIFIED_LOCAL` and preview mail settings from this profile.
 
-The cloud profile limits files to 8 MiB, expanded ZIP contents to 32 MiB and 256 entries, images to 4,194,304 pixels, and release-package input to 32 MiB. Storage, uploaders, requests, and scan usage have separate limits. The launcher also limits request bodies and concurrent work. Review memory and cost requirements before proposing higher limits; do not raise them to get around a failed upload.
+Storage keys must stay server-side and must never use `NEXT_PUBLIC_` names.
+Use a dedicated private storage project because its S3 credentials have
+project-wide access. Do not enable Nexus integration merely by filling its
+environment variables; the implementation remains unvalidated.
 
-Storage keys stay on the server. Use a dedicated project and private bucket because these keys can access more than one bucket within a project. Never put them in browser code or `NEXT_PUBLIC_` variables.
+## Release checklist
 
-## Before exposing any deployment
+- Review schema changes and identify the exact target database. Back up existing
+  data and establish a rollback plan before any migration.
+- Configure HTTPS, stable secrets, verified mail delivery, and explicit admin
+  UUIDs. Check verification and recovery with a real test inbox.
+- Verify clean uploads, scanner failure handling, authorized downloads, and
+  cross-account denial of private attachments in an isolated environment.
+- Check memory, storage, request, and provider billing limits. Application
+  quotas and budget alerts are not provider-enforced spending caps.
+- Configure encrypted backups, retention, restore checks, logs, and an incident
+  contact. Keep backup credentials separate from contributor CI.
+- Record the deployed revision, checks performed, and unresolved cases. A green
+  unit suite does not prove live provider integration or disaster recovery.
 
-- Review and apply the schema to the intended database, with a backup and rollback plan for changes to existing data.
-- Configure HTTPS, verified email delivery, stable secrets, account verification, and least-privilege administrator access.
-- Confirm clean uploads, scanner failure handling, authorized downloads, and denial of private files to other accounts in an isolated test environment.
-- Check the host's actual memory, request, storage, and billing limits. Application caps and budget estimates are not a promise of zero provider charges.
-- Set up encrypted backups, retention, restore tests, logs, updates, and someone responsible for incidents. Keep backup access separate from contributor CI.
-- Record the deployed revision and any unverified cases. A successful build or unit suite is not evidence that provider integration or disaster recovery works.
-
-Use `DEPLOY-CLOUD.md` for the current hosted setup. `DEPLOY-HOME.md`, `compose.home.yml`, `DEPLOY.md`, and `compose.oracle.yml` cover older alternatives, not the live site. Do not switch targets or connect a development machine to production without permission. Integration, end-to-end, and production scripts run separately from contributor CI.
-
-Whoever runs an instance is responsible for its security, availability, costs, privacy, and permission to host its content. Repository access is not an open-source license or permission to deploy. Do not use the live pilot as a development test environment.
+Do not run integration, end-to-end, migration, or recovery scripts against the
+live site as ordinary contributor checks. Use a disposable database and bucket.
+Operators are responsible for costs, availability, privacy, and permission to
+host uploaded content.

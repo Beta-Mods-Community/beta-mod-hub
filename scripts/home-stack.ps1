@@ -14,8 +14,8 @@
     .\scripts\home-stack.ps1 status          what is running / healthy
     .\scripts\home-stack.ps1 logs -Service app
     .\scripts\home-stack.ps1 down            stop, keep volumes
-    .\scripts\home-stack.ps1 backup          volume tarball + Neon dump
-    .\scripts\home-stack.ps1 restore -Which app-data -Stamp 2026-09-28
+    .\scripts\home-stack.ps1 backup          R2 inventory + Neon dump
+    .\scripts\home-stack.ps1 restore -Which neon -Timestamp 2026-09-28
 
   The tunnel stays off until you create it -- see tunnel-up.
 

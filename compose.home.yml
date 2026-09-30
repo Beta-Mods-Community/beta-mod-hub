@@ -1,11 +1,7 @@
 name: betamods-home
 
-# Home-hosting production stack — betamods.com on a Windows PC (Docker Desktop).
-#
-# Replaces the Oracle VM target, which is abandoned: Ampere A1 capacity never
-# became available and the tenancy is now locked out of its lost MFA
-# enrollment. The Oracle files (compose.oracle.yml, deploy/oracle/,
-# DEPLOY.md) are deliberately kept intact as a fallback — see DEPLOY-HOME.md.
+# Optional home-hosting stack for a Docker-capable PC. Not used by the live
+# cloud pilot. See DEPLOY-HOME.md; the current target is in DEPLOY-CLOUD.md.
 #
 # ## Where the files are, and what it costs
 #
@@ -14,12 +10,10 @@ name: betamods-home
 # `app-data` volume is quarantine scratch that is emptied as each upload
 # finishes, so nobody's only copy of a mod is on a laptop disk.
 #
-# R2 Standard's free allowance is 10 GB-month, and this stack is deliberately
-# capped at 8 GB (PILOT_MAX_TOTAL_BYTES) to stay inside it. That cap is
-# enforced by the application, from a database ledger with atomic reservations
-# — NOT by Cloudflare budget alerts, which are notifications and arrive after
-# the fact. Downloads are presigned R2 URLs, so a 250 MiB archive never
-# travels through this home connection. See DEPLOY-HOME.md "Cost safety".
+# The default storage cap is 8 GiB, enforced by the database ledger with
+# atomic reservations. This is not a provider billing cap: request volume and
+# other account usage can still incur charges. Downloads use presigned R2
+# URLs instead of passing archive bytes through the home connection.
 #
 # The R2 credential in .env.home must be BUCKET-SCOPED, created with read and
 # write access to that one bucket only. The broad account-wide token used to
@@ -57,7 +51,7 @@ name: betamods-home
 #
 # cloudflared sits in the `tunnel` compose profile, so the whole stack boots
 # and can be verified locally before any tunnel exists. The day you create the
-# tunnel for betamods.com, add `--profile tunnel` (or set
+# tunnel for your own domain, add `--profile tunnel` (or set
 # COMPOSE_PROFILES=tunnel) — see DEPLOY-HOME.md.
 #
 # ## Bring-up

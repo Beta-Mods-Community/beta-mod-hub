@@ -1,10 +1,9 @@
 # Repository access
 
 [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub)
-is the public application repository. Anyone can view the source, open Issues,
-fork it, and submit pull requests. This is the same repository and history,
-not a mirror or second maintained app. Local development and the live Render
-site use separate settings and databases.
+is the public application repository. Anyone can view the source, open issues,
+fork it, and submit pull requests. Local development and the live Render site
+use separate settings and databases.
 
 ## Community contributions
 
@@ -43,16 +42,10 @@ Do not use `pull_request_target` to execute untrusted code, pass secrets to fork
 jobs, or run them on production or self-hosted runners. CI cannot approve or
 merge its own pull requests. Test before merging, not by merging into `main`.
 
-[Beta-Mods/betamods-ops](https://github.com/Beta-Mods/betamods-ops) is a separate
-private, owner-only repository for backup scripts and their tests. It does not
-contain another copy of the application. Nightly backups are enabled there,
-and two retained archives passed decryption, file-hash and disposable
-database restore checks.
-
-The application's old backup job is disabled. Its four backup secrets and four
-backup runs, including retained artifacts, have been removed. Both older
-encrypted archives were preserved outside Git before removal. Recovery keys
-remain private; never give them to source contributors.
+Backups run in a separate private, owner-only operations repository. Backup
+credentials, encrypted archives, and recovery keys do not belong in this
+application repository or its Actions runs. Source contributions do not need
+operations access. See [Deployment](docs/DEPLOYMENT.md) for the operator guides.
 
 ## Current status
 

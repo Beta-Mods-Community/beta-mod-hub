@@ -1,10 +1,10 @@
+<img src="public/images/beta-mods-mark.svg" alt="Beta Mods" width="80" height="80">
+
 # Beta Mods
 
 Beta Mods is a place to test game mods before release. Authors share builds, testers report bugs, and readiness votes show how each version is doing.
 
-The site is in a small private beta. Its source is public at [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub), including the app, artwork, tests, and deployment tools. This is the existing repository and history, not a separate community copy.
-
-Anyone can read the code, open an Issue, fork the repository, and submit a pull request. Only the owner merges changes and deploys the site. User data, storage, credentials, and backups remain private. Backups run in the owner-only `Beta-Mods/betamods-ops` repository, not another app copy. See [Repository setup](REPOSITORY-SETUP.md) for the access and review policy.
+The [hosted site](https://betamods.com) is in a small private beta. This repository contains the application, artwork, tests, and deployment tools. Anyone can read the source, open an issue, fork it, and submit a pull request. User data, uploads, credentials, and backups are not part of the public repository.
 
 ## What works today
 
@@ -20,7 +20,7 @@ Per-mod download codes, unlisted betas, and individual tester invitations are no
 
 ## Technology
 
-The app uses Next.js 16, React 19, TypeScript, Tailwind CSS 4, Drizzle ORM, and PostgreSQL. Development uses Node.js 22 and the committed npm lockfile.
+The app uses Next.js 16, React 19, TypeScript, Tailwind CSS 4, Drizzle ORM, and PostgreSQL. Development uses Node.js 22, pinned in `.nvmrc`, and the committed npm lockfile. If you use nvm, run `nvm use` before installing dependencies.
 
 The current hosted pilot uses Render for the app, Neon for PostgreSQL, a private Supabase S3 bucket for files, Transloadit for malware scanning, and Resend for account emails. Contributors do not need accounts with those services to work on the UI or run the default checks.
 
@@ -42,7 +42,7 @@ Open <http://127.0.0.1:3000>. Without `DATABASE_URL`, you can work on the layout
 
 On Windows PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`.
 
-Run the database-free checks in a fresh checkout with no private environment files:
+Run the checks in a fresh checkout with no private environment files or inherited service credentials:
 
 ```sh
 node node_modules/next/dist/bin/next typegen
@@ -56,18 +56,17 @@ See [Contributing](CONTRIBUTING.md) for database and scanner setup. Integration 
 
 ## Contributing
 
-Bug reports, design feedback, documentation, and testing all help. Discuss larger changes in an Issue or Discord before building them. Submit code through a fork, branch, and pull request. The owner reviews changes and approves fork CI before it runs, without production secrets or write tokens. Only the owner merges and deploys. See [Contributing](CONTRIBUTING.md) for the process and [Repository setup](REPOSITORY-SETUP.md) for protection settings.
+Bug reports, design feedback, documentation, and testing are welcome. Discuss larger changes in an issue or Discord before building them. Submit code through a fork, branch, and pull request. The owner reviews changes and approves contributor CI before it runs. Only the owner merges and deploys.
 
 - [Contributing](CONTRIBUTING.md): setup, checks, and pull requests.
 - [Governance](GOVERNANCE.md): how decisions and maintainer responsibilities work.
 - [Security](SECURITY.md): how to report a vulnerability privately.
 - [Architecture](docs/ARCHITECTURE.md): application structure and security boundaries.
 - [Deployment](docs/DEPLOYMENT.md): configuration profiles and operator responsibilities.
+- [Scripts](scripts/README.md): runtime entry points, local checks, and operator tools.
 - [Product spec](beta-mod-hub-spec.md): the original design, including work that is still planned.
 
 ## Security and file ownership
-
-User data, uploaded mods, and live credentials must remain private. Backup access is owner-only; source access must not grant access to the operations repository or production services.
 
 Files stay in quarantine until they pass scanning. Failed or missing scans must block publication. Changes must preserve that behavior, permission checks, private storage, and quota accounting.
 

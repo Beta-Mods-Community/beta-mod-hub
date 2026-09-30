@@ -1,152 +1,193 @@
-# Beta Mod Hub — Build Spec
+# Beta Mods product specification
 
-This specification describes the product, its requirements and its design constraints. "Explicit non-goals" and "Nexus Integration" define project boundaries; implementation details may evolve through review.
+Beta Mods helps authors test unreleased game mods, collect build-specific bug
+reports, and prepare a release package for Nexus Mods. It is not affiliated
+with Nexus Mods and does not publish files there on an author's behalf.
 
-## What this is
+This document describes the product rules. For the code layout, see
+[Architecture](docs/ARCHITECTURE.md). The SQL contract is [schema.sql](schema.sql),
+mirrored by the Drizzle modules in `db/`. Deployment-specific limits belong in
+[Deployment](docs/DEPLOYMENT.md).
 
-A companion site to Nexus Mods, scoped to one function: hosting mods during their beta/testing phase, before they ever go live on Nexus. It is not a general mod host and does not replace Nexus for finished releases — every mod here is pre-release, and once an author promotes a mod, its home becomes Nexus, not this site.
+## Current scope
 
-Why this shape: a mod's first Nexus release is effectively its only shot at the "New Releases" spotlight — a rough launch buries it long-term even if it's polished later. This site lets authors get real testing and bug reports on a WIP build without spending that shot, and without cluttering Nexus's main feeds with unstable releases.
+Implemented:
 
-## Users
+- Email/password accounts, verification, password recovery, and session revocation.
+- Mod listings, versioned scanned builds, media galleries, and requirements.
+- Build-specific bug reports, private attachments, author responses, and retests.
+- Readiness votes, tester profiles, and derived reputation scores.
+- Browse filters and pagination, follows, notifications, and moderation.
+- Downloadable release packages and author-confirmed links to released Nexus pages.
+- Pilot upload approval, quota reservations, and an upload pause switch.
 
-Most accounts are both roles at once — one account, two roles, not two account types.
-- **Author** — uploads a WIP mod, wants structured bug reports and a ready/not-ready signal, then wants to promote to Nexus with minimum friction.
-- **Tester** — browses active betas, downloads WIP builds, files bug reports, casts a ready/not-ready verdict for the build they tested.
+Not implemented or not ready for use:
 
-## Pages
+- Nexus sign-in and live API integration. The repository contains unvalidated
+  scaffolding, not a supported authentication path.
+- Requirement search against Nexus's catalog.
+- Per-mod download codes, unlisted listings, and individual mod invitations.
+- Durable background uploads for large files.
 
-**Profile** — same shape as a Nexus profile: avatar, bio, join date, linked Nexus account. "Beta Mods" instead of Nexus's "Files." "Testing History" instead of endorsements given (mods tested, bugs filed, votes cast) — this feeds `User.reputation_score` (see Data Model), the only signal an author has for whether to trust a given "ready" vote.
+The core testing workflow must continue to work without Nexus integration.
 
-**Beta Mod Page** — same tab layout as a Nexus mod page, repurposed:
-- Header: title, author, game, tags, screenshot carousel
-- Description tab: what it does, current state, known issues, what kind of testing is wanted
-- Files tab: build versions (0.1, 0.2, RC1...) with per-build changelogs
-- Bugs tab: structured reports only — severity, repro steps, log/save attachment. No general comment wall; that's the unproductive-comment clutter this project exists to avoid.
-- Sidebar: the latest build's ready/not-ready tally and tester count instead of endorsements. A new build starts a fresh release signal; earlier verdicts remain in tester history. No public download counter — Nexus zeroes this out at real launch anyway, so it means nothing here.
-- Requirements field, matching Nexus's structure.
+## Accounts and roles
 
-**Browse** — no Nexus equivalent; this is the page that gets people to actually show up. Live list of active betas, filterable by game, sortable by "needs testers" (low tester count / stale) and by recency. Status badge: Alpha / Beta / RC.
+An account can be both an author and a tester. These are activities, not
+separate account types.
 
-**Dashboard** — two tabs, since most users are both roles: *Building* (own beta mods, aggregated feedback, the Promote action) and *Testing* (tracked mods, own feedback history).
+- Authors maintain listings, upload builds, respond to reports, request retests,
+  and prepare releases.
+- Testers download builds, submit reports, and vote on the build they tested.
+- Administrators manage upload approval and moderation. Administrator access
+  uses explicit account UUIDs, never an email supplied during registration.
+
+The hosted pilot's site access code is separate from account login. Passing
+that gate does not grant upload, administrator, or private-attachment access.
+
+## Pages and workflows
+
+### Mod page
+
+Each listing includes its author, game, status, tags, description, requirements,
+scanned media, and build history. Status is `alpha`, `beta`, `rc`, `promoted`, or
+`abandoned`.
+
+Descriptions are stored as Markdown/plain text. BBCode is generated only for
+release exports. Requirements are author-supplied names and optional Nexus
+URLs; the app does not verify dependencies against Nexus.
+
+Reports include severity, description, reproduction steps, and the build
+tested. Attachments are optional, scanned, and private to the reporter and mod
+author. A report can be open, acknowledged, or fixed. The reporter can retest a
+specific build and reopen an issue that is still present.
+
+Readiness votes belong to a build, with one vote per tester/build pair. The
+latest build has its own tally. Earlier votes remain in testing history; they
+do not carry forward as approval of a newer build. A stale form must not submit
+a vote for a build the tester has not seen.
+
+### Browse and dashboard
+
+Browse lists active, visible betas, with search, game filters, pagination, and
+sorting. Promoted, abandoned, and moderated-hidden listings are excluded from
+the active catalog.
+
+The dashboard separates authored mods from testing activity. Profiles show a
+bio, avatar, join date, authored mods, testing history, and reputation.
+
+There is no general comment wall or public download-count competition. Reports
+and readiness signals are intended to help an author decide what needs work.
 
 ## Data model
 
-```
-User
-  id, nexus_user_id (nullable until SSO-linked), display_name,
-  avatar_url, bio, created_at, reputation_score (derived, not stored raw)
+The main relationships are:
 
-BetaMod
-  id, owner_id -> User, title, description (plain/markdown — NOT BBCode;
-  BBCode is generated only at promotion time), game, tags[],
-  status (alpha | beta | rc | promoted | abandoned), created_at, updated_at
+```text
+User -> BetaMod -> Build
+               -> Requirement
+               -> ModMedia
 
-Build
-  id, beta_mod_id -> BetaMod, version_label, file_url, changelog, uploaded_at
+User -> BugReport -> Build
+                 -> BugReportWorkflow
+                 -> BugAttachment
 
-BugReport
-  id, beta_mod_id, build_id, reporter_id -> User,
-  severity (minor | major | blocking), description, repro_steps,
-  attachment_url, status (open | acknowledged | fixed), created_at
-
-ReadySignal
-  id, beta_mod_id, build_id -> Build, tester_id -> User,
-  is_ready (bool), created_at
-  — one row per (build_id, tester_id); upsert on a repeat verdict for that
-  build. Mod pages and Browse count only the newest build; older rows stay as
-  testing/reputation history.
-
-Requirement
-  id, beta_mod_id, nexus_mod_name, nexus_mod_url
-  — self-reported by the author, not verified against Nexus; reconciled
-  manually at promotion time (see below)
-
-NexusLink
-  id, user_id -> User, nexus_api_key (encrypted at rest), linked_at
+User -> ReadySignal -> Build
+User -> NexusLink (reserved for future integration)
 ```
 
-`reputation_score` is derived from `ReadySignal` history (and `BugReport`s filed), computed at query time — not stored raw. The formula (implemented in `lib/reputation.ts`, unit-tested in `tests/reputation.test.ts`) deliberately discounts testers who only ever vote ready, so an author can tell a real "ready" from a rubber stamp:
+Additional tables hold account tokens, rate limits, follows, notifications,
+moderation state, pilot accounts, settings, and storage reservations. See
+`db/schema.ts`, `db/feedback-schema.ts`, and `db/community-schema.ts` for the
+complete typed model. Keep these definitions, `schema.sql`, and migrations in
+sync. Do not use this overview as a migration specification.
 
-```
-score =
-  2 × distinct mods tested            (volume of real testing)
-+ 1 × ready votes                     (positive, but cheap — worth less)
-+ 3 × not-ready votes                 (the critical, hard signal)
-+ severity-weighted bug reports:      (actionable, structured feedback)
-    minor 1, major 2, blocking 3
-```
+### Reputation
 
-An "always ready" tester — ≥3 mods judged and never one not-ready — gets ready votes counted at 0.25× each, so rubber-stamping caps out far below a genuinely critical tester even with similar volume. Scores keep one decimal place; `reputationTier()` maps them to friendly labels (New / Active / Experienced / Trusted Tester) for UI display.
+`lib/reputation.ts` calculates reputation from testing history at query time;
+the raw score is not stored. The current formula is:
 
-## The promotion package
-
-Nexus's Upload API can push a new file to a mod page that **already exists** on Nexus — it cannot create a new page from nothing. So promotion is not a single API call. On Promote, generate a downloadable zip built to make the manual Nexus upload as fast as possible:
-
-```
-promotion-package/
-├── description.bbcode.txt   paste into Nexus's Description field (BBCode)
-├── summary.txt               paste into the short description field
-│                             (stay under Nexus's character limit — validate
-│                             at generation time, not just at paste time)
-├── readme.txt                paste into Nexus's Docs step
-├── changelog.txt             paste into Nexus's Articles/changelog step
-├── requirements.txt          dependency names + Nexus URLs — a checklist,
-│                             not a paste target: Nexus's requirements field
-│                             is search-and-link, not free text
-├── files/                    the mod archive(s), ready to drag into Files
-└── media/                    pre-selected screenshots, numbered in order
+```text
+2 * distinct mods tested
++ ready votes
++ 3 * not-ready votes
++ minor reports + 2 * major reports + 3 * blocking reports
 ```
 
-**Promotion flow:**
-1. Author clicks Promote on a `BetaMod`.
-2. Site generates the package from the mod's stored description, latest `Build`, changelog, and `Requirement` list.
-3. Author downloads it, opens a new mod page on Nexus, works top to bottom pasting/dragging each piece in.
-4. Author confirms promotion is done (pastes the live Nexus URL back in, or — once Nexus's API supports it — this step calls the API directly).
-5. `BetaMod.status` → `promoted`. Drops off Browse; the beta page becomes read-only and links to the live Nexus page.
+For accounts with at least three mods judged and no not-ready votes, each
+ready vote contributes 0.25 instead of 1. Scores use one decimal place; tiers
+are New Tester, Active Tester, Experienced Tester, and Trusted Tester.
 
-Do not build browser automation against nexusmods.com to drive their upload form directly — fragile against their UI changes and outside the API's intended use. The package-download approach is the actual design, not a stopgap; keep it even if a future API version makes more automation possible, and just let the flow shed manual steps as that happens.
+This is a participation heuristic, not a guarantee of report quality or
+trustworthiness. Changes to its weights or incentives need discussion and
+tests in `tests/reputation.test.ts`.
 
-## Nexus integration
+## Release package
 
-- **Auth**: "Login with Nexus" — their API supports login via API key or SSO. Use it to link accounts instead of building separate passwords; it also captures the per-user API key needed for any future file-push step.
-- **Upload API**: open beta as of mid-2026, scoped to pushing a new file to a mod page that already has at least one file. Do not design around it creating pages — it doesn't. Keep the promotion flow able to drop the "paste this" steps one by one if Nexus's API scope grows, without needing a rebuild.
-- **Registration**: personal API keys are for testing/personal use only. Before real users touch this, register the app with Nexus (support@nexusmods.com) per their API Acceptable Use Policy. Any file-push should run under each user's own linked key, never a shared app-wide one.
-- **Rate limits**: assume the API is rate-limited; cache or batch read calls (game list, mod metadata) rather than hitting it per page load.
+The author downloads a ZIP generated from the latest scanned build, listing
+text, requirements, and scanned gallery images:
 
-## Explicit non-goals
+```text
+promotion-<mod>/
+  description.bbcode.txt
+  summary.txt
+  readme.txt
+  changelog.txt
+  requirements.txt
+  files/<build archive>
+  media/<numbered gallery images>
+  media/captions.txt
+```
 
-- Not a host for finished/released mods — that's Nexus's job. Promoted mods live there, not here.
-- Not a discussion platform — Bugs is structured reports only, by design, not a comment section.
-- Not a stats competitor to Nexus — no public download/endorsement-style counts pre-promotion.
-- No browser automation against Nexus's site. API only.
+The media files are included only when the listing has gallery images. The
+summary is limited to 250 characters by the current package generator. The
+requirements file is a checklist, not an automatic dependency import.
 
-## Suggested stack (a starting point, not a constraint)
+The author reviews the package, creates or updates their Nexus page manually,
+and confirms the live Nexus URL on Beta Mods. Confirmation marks the listing
+`promoted`, removes it from Browse, and makes its beta page read-only with a
+link to the release. Export alone does not mark a listing promoted.
 
-- Next.js (or similar full-stack React framework) for pages + API routes
-- Postgres — the data model above maps directly to relational tables
-- S3-compatible object storage + CDN for build files and screenshots
-- Nexus SSO as primary auth; store the linked API key encrypted
-- Malware scanning on every uploaded file — non-negotiable, this accepts archives from strangers
+Only final scanned storage may supply package files. Cloud exports enforce
+their own input and metadata limits. Missing or unreadable files must fail
+the export instead of producing an incomplete package silently.
 
-## Build order
+## Nexus integration boundaries
 
-1. **Core loop, no API** — accounts, BetaMod CRUD, Build uploads, unstructured feedback. Validates "post a beta, get feedback" before anything Nexus-specific exists.
+`lib/nexus.ts`, `lib/nexus-sso.ts`, and `lib/nexus-keys.ts` contain preparatory
+code. Keep Nexus authentication disabled until endpoint URLs, response fields,
+scopes, account-linking behavior, and the required registration process have
+been checked against the provider's current documentation and tested.
 
-   > Phase-1 deviation (2026-09): while this line was being implemented, the
-   > planned temporary comment wall was skipped in favor of going straight to the
-   > structured BugReport + ReadySignal tooling of phase 2. The "Bugs tab" page
-   > description explicitly rules out a general comment wall (pointlessly
-   > building one just to delete it), and phase 1's core loop now validates as:
-   > accounts → BetaMod CRUD → build uploads → structured feedback.
-2. **Real feedback tooling** — structured BugReport tracker, ReadySignal tally, Browse with filters/sort. This phase alone is close to the full value proposition, with zero Nexus integration.
-3. **Nexus integration** — SSO login, NexusLink, promotion package generation and download.
-4. **Polish** — reputation scoring, richer profiles, requirement auto-suggest (fuzzy-match against Nexus mod names via the API's read endpoints).
+Do not assume a particular API can create mod pages, upload files, or provide
+OAuth identity. Confirm each capability before implementing it. Any required
+user credentials must remain server-side and encrypted at rest. Never share
+one user's key with another user's requests.
 
-   > Phase-4 partial (2026-09): reputation scoring and richer profiles shipped.
-   > Requirement auto-suggest is deferred — it needs the Nexus read API's search
-   > endpoints, which we still don't touch until the SSO registration details
-   > (and a real API key for dev) exist. Until then requirements stay
-   > self-reported, as the data model already describes.
+Use the supported API, not browser automation against Nexus's site. Cache and
+pace read requests, handle rate limits, and keep the manual release-package
+workflow available independently of any later integration.
 
-Phase 2 is the point this becomes a coherent, shippable product. Nexus integration is additive on top of that, not load-bearing for the core loop.
+## Security and resource requirements
+
+- Every accepted file follows quarantine, validation, malware scanning, then
+  final storage. Development does not bypass scanning.
+- Quarantine and object buckets stay private. Download routes enforce the
+  relevant account, listing, and attachment permissions before serving bytes
+  or issuing a short-lived signed URL.
+- Missing credentials, uncertain scan results, or unavailable quota accounting
+  must refuse uploads, not fall back to an unchecked path.
+- Storage reservations are atomic. Uncertain remote writes retain their charge
+  until reconciliation confirms their outcome.
+- Moderation and promotion checks must be repeated when a write commits; a
+  long-running scan must not permit a stale authorization decision.
+- A clean scan is not proof that a mod is safe or compatible with a game save.
+- Provider-specific file, memory, and cost controls are deployment constraints,
+  not reasons to weaken these rules.
+
+## Contribution priorities
+
+Fixes to the existing testing workflow, accessibility, reliability, and clear
+documentation take priority over new provider integrations. Discuss changes to
+authentication, moderation, permissions, storage, or resource limits before
+implementation. See [Contributing](CONTRIBUTING.md).

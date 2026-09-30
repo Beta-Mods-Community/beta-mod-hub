@@ -1,26 +1,47 @@
-# Opening the site on this PC
+# Windows local preview
 
-Double-click **Launch Beta Mods.cmd** in the project folder. It starts the
-existing ClamAV, scan service and Next.js preview, checks their health, then
-opens http://127.0.0.1:3000. Use **Stop Beta Mods.cmd** to stop processes started
-by this launcher. It does not terminate unrelated processes or require Docker.
+For a new contributor setup, start with [Contributing](CONTRIBUTING.md).
+The Windows launcher is an optional workflow for an already configured native
+ClamAV installation, development database, and capped R2 bucket. It is not a
+production server and is not needed to use [the hosted site](https://betamods.com).
 
-The launcher refuses production database endpoints and binds the web and scan
-services to loopback. It uses the dev database in `.env.local` and the existing
-bucket-scoped R2 credentials from `.env.home`. These env files must still point
-at the same dev database. It does not create a tunnel, modify DNS or make the
-site public. The laptop must be on while using this preview.
+Double-click **Launch Beta Mods.cmd** to start the configured ClamAV daemon,
+scan wrapper, and Next.js preview. It checks health and opens
+`http://127.0.0.1:3000`. **Stop Beta Mods.cmd** stops only processes recorded
+by the launcher; unrelated processes are left alone. Docker is not required.
 
-Accepted files are still scanned and stored in the existing R2 bucket, not
-permanently hosted from this PC. Temporary quarantine files live under `data/`.
-Pilot account approval, storage caps and upload rate limits remain enabled.
-These app limits are not a billing cap on the Cloudflare account.
+## Prerequisites and environment
 
-Local account recovery writes private mail-preview files to
-`%USERPROFILE%\.betamods-dev-mail`. It does not send real email. Public writes
-from unverified accounts are explicitly allowed in this loopback development
-mode only; accounts are **not** silently marked verified. Production rejects
-this bypass and requires real email verification. See `ACCOUNT-SETUP.md`.
+The launcher expects Node on PATH and ClamAV under
+`%USERPROFILE%\ClamAV`, with `clamd.conf` and downloaded signatures. ClamAV
+must explicitly bind `TCPAddr` to `127.0.0.1` or `::1`.
+
+`scripts/local-service.mjs` reads `.env.local` and `.env.home`, merging
+home settings over local settings except for the database URL. If both files
+have a database URL, their normalized endpoints must agree. The database guard
+also compares against `.env.production`. These checks help prevent mistakes;
+you must still verify that credentials belong to a disposable development
+database and bucket.
+
+The launcher requires the R2 endpoint/bucket/access/secret values,
+`SESSION_SECRET`, and `SCAN_API_KEY`. It forces R2 storage, pilot mode,
+loopback endpoints, and local mail previews. It does not load
+`.env.cloud.local`, create a tunnel, change DNS, or modify the hosted service.
+
+Accepted files are scanned and stored in the configured R2 bucket; temporary
+quarantine is local. This preview can consume real provider quota. Application
+caps are not a Cloudflare billing limit. Ordinary contributors can avoid R2
+by following the local-storage setup in Contributing instead.
+
+## Account testing
+
+Verification and recovery messages are written privately under
+`%USERPROFILE%\.betamods-dev-mail`; no real mail is sent by this profile.
+The launcher allows unverified-account writes only in loopback development.
+It does not mark accounts verified. Never reuse that exception or mail-preview
+configuration in a public deployment.
+
+Set administrator UUIDs deliberately. See [Account setup](ACCOUNT-SETUP.md).
 
 ## Commands and diagnostics
 
@@ -30,35 +51,35 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 st
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 stop
 ```
 
-Logs and managed-process identities are stored in
-`%LOCALAPPDATA%\BetaMods\local-preview`. If another server already owns ports
-3000/3311, the launcher stops with an explanation rather than killing it.
-The launcher does not repair Docker Desktop or promise production uptime.
+Logs and process identities are under
+`%LOCALAPPDATA%\BetaMods\local-preview`. If an unrelated server occupies
+port 3000 or 3311, the launcher reports a conflict instead of killing it.
+Non-loopback listeners on the app/scanner ports also prevent startup.
 
-OneDrive can lock older Next build cache entries. For an isolated production
-compilation without touching a running preview:
+To compile separately from the running preview:
 
 ```powershell
-$env:BETAMODS_BUILD_CHECK='1'
-npm run build
-Remove-Item Env:BETAMODS_BUILD_CHECK
+$previousBuildCheck = $env:BETAMODS_BUILD_CHECK
+try {
+  $env:BETAMODS_BUILD_CHECK = '1'
+  npm.cmd run build
+} finally {
+  $env:BETAMODS_BUILD_CHECK = $previousBuildCheck
+}
 ```
 
-This uses `.next-check` instead of `.next`. Neither contains source data;
-both are gitignored. Normal container builds keep `.next`.
+This uses ignored `.next-check` rather than the preview's `.next` directory.
 
-## Upload-pipeline regression check
+## Upload regression check
 
-The native preview forces R2 storage and pilot mode on. The upload e2e script
-defaults to `.env.local`, which can describe a different configuration. For
-this preview, explicitly select the private `.env.home` configuration and R2:
+The launcher forces R2 and pilot mode. Select matching settings explicitly:
 
 ```powershell
 $previousE2eEnvFile = $env:E2E_ENV_FILE
 $previousE2eDriver = $env:E2E_STORAGE_DRIVER
 try {
-  $env:E2E_ENV_FILE='.env.home'
-  $env:E2E_STORAGE_DRIVER='r2'
+  $env:E2E_ENV_FILE = '.env.home'
+  $env:E2E_STORAGE_DRIVER = 'r2'
   npm.cmd run e2e
 } finally {
   $env:E2E_ENV_FILE = $previousE2eEnvFile
@@ -66,27 +87,20 @@ try {
 }
 ```
 
-The production-endpoint guard still runs before connecting. Do not point this
-test at production or run it concurrently with uploads, other mutation suites,
-or admin approval/switch changes: it temporarily toggles shared upload controls
-and uses the existing demo fixture. It restores the original switch row and
-approval metadata in `finally`, including an originally missing switch row.
+Run only against the isolated preview configuration. The suite temporarily
+changes upload controls and test approval metadata, writes files and rows,
+then attempts restoration in `finally`. Do not run it concurrently with
+uploads, other mutation suites, or administrator changes. Review failures and
+cleanup rather than rerunning blindly.
 
-A complete R2 + pilot-on run has **29 checks**. R2 + pilot-off has 23;
-local + pilot-on has 25; local + pilot-off has 19. The output prints the selected
-configuration, explicit skipped groups, and exact passed/total counts. Setting
-only `E2E_STORAGE_DRIVER=r2` does not turn on pilot coverage. Storage-cap race
-coverage is in the separate integration suite, not these HTTP checks.
+The report prints selected configuration, skipped groups, and passed/total
+checks. R2 alone does not imply pilot coverage; `PILOT_MODE` must also be on.
+Storage-cap concurrency tests belong to the integration suite.
 
-## Before a public pilot
+## Deployment is separate
 
-- Configure a real HTTPS `APP_URL` and SMTP delivery; test reset and verification
-  using an actual inbox. Do not expose this development server through a tunnel.
-- Set explicit `ADMIN_USER_IDS`; email address alone never grants administrator access.
-- Review/apply migrations `0004`–`0006` to production deliberately. The local
-  migration runner refuses the production endpoint, including pooled/direct aliases.
-- Rebuild and verify the production Docker target when Docker is working.
-- Rehearse database backup/restore in an isolated destination. R2 inventory is
-  an audit record, not an archive backup; losing an object requires a re-upload.
-- Configure deployment health monitoring, then enable the tunnel/DNS only after
-  explicit launch approval. Real Nexus OAuth remains a separate integration.
+Do not publish this development server through a tunnel. Real deployments need
+their own stable secrets, verified email, database/schema review, scanning,
+backup/restore checks, and HTTPS configuration. Use
+[Deployment profiles](docs/DEPLOYMENT.md); the current official service is the
+cloud profile, not this PC.

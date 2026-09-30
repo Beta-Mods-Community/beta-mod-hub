@@ -1,245 +1,135 @@
-# Oracle fallback deployment
+# Optional Oracle deployment
 
-This is a preserved alternative, not the current live service. The active
-cloud-only pilot is documented in [DEPLOY-CLOUD.md](DEPLOY-CLOUD.md).
-[DEPLOY-HOME.md](DEPLOY-HOME.md) describes another inactive alternative.
-Do not switch hosting, change DNS or create resources without owner approval.
+This retained Linux/Compose configuration is not the live Beta Mods service.
+The current hosted profile is in [Cloud operations](DEPLOY-CLOUD.md). These
+instructions are a starting point for an independently reviewed deployment,
+not a claim that Oracle capacity, pricing, or the complete stack is verified.
 
-The Oracle and home targets use separate Compose project names (`betamods`
-and `betamods-home`) and environment files (`.env.production` and `.env.home`).
-Their volumes are separate, but a shared database must not be used by both
-targets at once. Confirm the intended branch before any write.
-
-The instructions below describe the Oracle/Neon/Cloudflare fallback design.
-Capacity and free-tier conditions must be rechecked before a future deployment;
-the presence of this runbook is not a cost or availability guarantee.
+Do not create resources, change the official domain, or connect this target to
+the live database as part of contributor setup.
 
 ## Topology
 
 ```text
-Internet -> betamods.com -> Caddy (:80/:443)
-                               -> Next.js app (:3000)
-                                    -> scan wrapper (:3311, same container)
-                                         -> ClamAV (:3310, private network)
-                                    -> Neon Postgres
-                                    -> /app/data (persistent Docker volume)
+Caddy :80/:443 -> app :3000 -> PostgreSQL
+                          -> persistent app-data volume
+                          -> scan wrapper :3311 -> ClamAV :3310
 ```
 
-Uploads remain **quarantine -> scan -> serve**. Both quarantine and clean files
-live on the persistent `app-data` volume; nothing is promoted until ClamAV
-returns clean. If the scanner is unavailable, the app refuses to start first,
-and uploads return 503 if the scanner dies mid-run.
+The app waits for healthy ClamAV; Caddy waits for the app. Only Caddy's ports
+are published. Both quarantine and final scanned files use the persistent
+`betamods_app-data` volume. Scanner failure rejects uploads.
 
-## 1. Oracle Always Free VM
+The home profile has a different Compose project name and volume set, but
+neither target should share a writable database with another deployment.
 
-- Home region: US Midwest (Chicago)
-- Name: `betamods-prod`
-- Shape: `VM.Standard.A1.Flex` marked **Always Free-eligible**
-- Size: 1 OCPU / 4 GB RAM
-- Boot volume: default 50 GB (within the Always Free block-volume allowance)
-- Public subnet and public IPv4 address
-- Existing `id_ed25519_betamods.pub` public key
-- Ingress: TCP 22, 80, and 443 only
+## Host preparation
 
-Do not click **Upgrade**. A Free Tier tenancy cannot turn traffic growth into a
-compute bill; it reaches resource limits instead.
+The supplied install script targets Oracle Linux 9. The original sizing target
+was an Ampere A1 VM with 1 OCPU, 4 GiB RAM, and a 50 GB boot volume. Recheck shape
+availability, free-tier eligibility, image compatibility, disk, memory, and
+network limits in the provider console before provisioning. Do not assume an
+old runbook guarantees no charges.
 
-## 2. Deploy the app on the VM
+Save an SSH private key securely and supply only its public key to the VM.
+Restrict SSH ingress to trusted sources; HTTP/HTTPS need their intended public
+ports. Keep database and scanner ports private.
 
-### 2.1 Install Docker
-
-Copy the repository to the VM, then run:
+Review, then run the install script on the intended host:
 
 ```bash
 bash deploy/oracle/install-docker.sh
 ```
 
-The script installs Docker Engine and the Compose plugin from Docker's CentOS
-repository (compatible with Oracle Linux 9 on Ampere ARM), plus a 4 GiB
-swapfile to safely soak the Next.js production build on a 4 GB RAM VM.
+It installs Docker and Compose and configures a 4 GiB swapfile. Swap can help a
+build complete but is not a substitute for measuring runtime memory use.
 
-### 2.2 Production environment
+## Configuration
 
-Create `.env.production` on the VM from `.env.production.example` (both are
-gitignored; only the example is in the repo). Every variable is listed there;
-the full required set is:
+Copy `.env.production.example` to ignored `.env.production` on the host.
+Required deployment settings include:
 
-| Variable | Required | Notes |
-|---|---|---|
-| `DATABASE_URL` | yes | Neon **main** branch, **pooled** connection string (the app talks to pgbouncer). Live only in the VM's `.env.production`. Never print or commit it. |
-| `SESSION_SECRET` | yes | Long random value. The app refuses to sign sessions with anything else in production. |
-| `ENCRYPTION_KEY` | yes (once Nexus features run) | Base64 of exactly 32 random bytes; AES-256-GCM key for each user's encrypted Nexus credential (`nexus_links`). Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. |
-| `NEXUS_SSO_*` | no | Left blank until the app is registered with Nexus; unset = SSO disabled, email+password remains the login path. `NEXUS_SSO_REDIRECT_URI` is `https://betamods.com/nexus-sso/callback`. |
-| `SCAN_API_KEY` / `MALWARE_SCAN_API_KEY` | no | Optional shared secret between the app and the in-container scan wrapper. If you set one, set **both to the same value** — a mismatch turns every scan into a 401 and breaks uploads. Leave both blank and the scan wrapper enforces nothing. |
+| Setting | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Dedicated database, pooled connection for Neon |
+| `SESSION_SECRET` | Stable random session signing key |
+| `APP_URL` | This deployment's HTTPS origin |
+| `ADMIN_USER_IDS` | Deliberately selected verified account UUIDs |
+| Mail settings | Real verification/reset delivery; see [Account setup](ACCOUNT-SETUP.md) |
+| `SCAN_API_KEY`, `MALWARE_SCAN_API_KEY` | Matching wrapper/app keys when scan authentication is configured |
+| `ENCRYPTION_KEY` | Stable base64-encoded 32-byte key before credential-storage features run |
 
-`compose.oracle.yml` fixes the safe production values itself
-(`STORAGE_DRIVER=local`, `SCAN_ENDPOINT=http://127.0.0.1:3311`,
-`CLAMD_HOST=clamav`, `CLAMD_PORT=3310`, `PORT=3000`) — do not put those in
-`.env.production`.
+Compose selects local final storage and the internal scan endpoints. Keep
+`CLOUD_PILOT` off and Nexus SSO unconfigured. Do not copy R2 bootstrap tokens,
+home tunnel credentials, or development secrets to this target.
 
-Do not copy `CLOUDFLARE_API_TOKEN`, R2 credentials, development Nexus keys, or
-the local database backup URL to the VM.
+The supplied Caddyfile names the official domain. For another instance, review
+and replace it with a hostname you control before startup. Do not request
+certificates for or repoint `betamods.com` without owner approval.
 
-### 2.3 Validate and start
+## Build and verify
 
 ```bash
-# Compose must validate before anything is launched.
-sudo docker compose -f compose.oracle.yml config > /dev/null
-
+sudo docker compose -f compose.oracle.yml config --quiet
 sudo docker compose -f compose.oracle.yml up -d --build
 sudo docker compose -f compose.oracle.yml ps
 sudo docker compose -f compose.oracle.yml logs --tail=100 app clamav caddy
 ```
 
-Startup order is fail-closed: the app waits for ClamAV to be **healthy**
-(clamd answering, signatures loaded — first boot downloads them and can take
-several minutes), and Caddy waits for the app to be healthy before Caddy
-listens. If ClamAV never becomes healthy, the app never starts; it will not
-silently serve uploads unscanned.
-
-Verify the app locally on the VM before changing DNS:
+ClamAV's first signature download can take several minutes. Check the app
+from inside its container; port 3000 is not published on the host:
 
 ```bash
-curl --fail http://127.0.0.1:3000/
+sudo docker compose -f compose.oracle.yml exec -T app \
+  wget -qO- http://127.0.0.1:3000/api/health
 ```
 
-## 3. Smoke check
+Review logs without publishing secrets. A healthy container is not proof of
+email, upload, or backup behavior.
 
-`scripts/smoke-prod.mjs` (run on the VM, from the repo directory) verifies the
-production stack end-to-end. It reads `.env.production` directly and **never
-prints it or its secrets** — DB checks print only the host, and nothing is
-seeded into production.
+`scripts/smoke-prod.mjs` is an operator tool for this profile. It reads
+`.env.production`, checks containers/database/app, and sends scanner probes.
+Its defaults assume loopback access to app/scanner ports that this Compose
+file does not publish. Adapt the check's access path before using it; do not
+open those ports publicly to satisfy a test.
 
-```bash
-# Read-only checks (safe to run at any time):
-node scripts/smoke-prod.mjs
+The optional `--full` path also creates temporary builds/files under an
+existing owner account and attempts cleanup. Use an isolated test listing and
+explicitly selected environment. It is not read-only. Record any blocked
+fixture or incomplete cleanup; never disable endpoint protection to run it.
 
-# Full pipeline check — only after the owner has created their first Beta Mod:
-SMOKE_OWNER_EMAIL=owner@betamods.com node scripts/smoke-prod.mjs --full
-```
+## HTTPS cutover
 
-The read-only run verifies:
+After local checks pass, configure the intended hostname to reach the VM,
+allow ports 80/443, and verify Caddy's certificate and HTTPS routes. Update
+`APP_URL` to that same canonical origin. Check real account verification and
+recovery messages, authorized downloads, and private-file denial.
 
-1. Containers — `app`, `clamav`, `caddy` all running; `app` and `clamav`
-   healthy.
-2. App readiness — HTTP 200 on the app. Pre-DNS it probes
-   `http://127.0.0.1:3000`; after pointing DNS, run with
-   `SMOKE_BASE_URL=https://betamods.com` to also check the public HTTPS/TLS
-   path through Caddy (Set this env var in the same invocation).
-3. Database connectivity — `SELECT version()` against Neon; prints only the
-   masked host.
-4. Scan chain — POSTs benign bytes to the scan endpoint and requires a clean
-   verdict; POSTs the EICAR test signature and requires it to be flagged.
-   This exercises ClamAV through the scan wrapper exactly as uploads do.
+Changing the live service requires a separate migration plan covering database
+isolation, stored bytes, credentials, DNS, rollback, and user sessions. A working
+alternative stack is not permission to replace the official site.
 
-With `--full`, the script additionally drives the **real upload pipeline**
-through the public HTTP form (no browser automation): it signs in as
-`SMOKE_OWNER_EMAIL` with a session minted from the host's `SESSION_SECRET`,
-uploads a generated benign zip to an existing mod owned by that account,
-verifies the served bytes match what was stored, then uploads EICAR and
-verifies it is rejected. Both artifacts are cleaned up afterwards (the builds
-row is deleted and the file removed from the volume), so the check alters
-production only transiently and by necessity. If no mod exists for that owner,
-the full loop is skipped with a note rather than creating production data.
+## Backups and restore
 
-## 4. DNS and TLS
+The persistent volume survives container rebuilds, not VM deletion. Back up
+both the database and final files as one recoverable dataset. Pause writes or
+use another reviewed consistency method while capturing them.
 
-After the smoke check passes:
+- Use a PostgreSQL dump client compatible with the server version.
+- Use a direct database connection for dumps and keep its credentials out of
+  command history and Git.
+- Encrypt backups, retain recovery keys separately, and keep verified copies
+  outside the VM's failure boundary.
+- Rehearse restoration into an empty disposable database and volume before
+  relying on a backup. Check file hashes and application behavior.
+- Confirm exact restore targets before destructive operations. Do not restore
+  over the live database or volume during a rehearsal.
+- Review actual disk, object storage, egress, and retention costs. Local backup
+  copies consume the same volume allowance as the running service.
 
-1. Cloudflare DNS: `A @ -> <Oracle public IPv4>`, DNS-only initially.
-2. Add `CNAME www -> @`, DNS-only initially.
-3. Allow TCP 80 and 443 in the Oracle VCN security list and host firewall.
-4. Caddy obtains Let's Encrypt certificates automatically.
-5. Verify `https://betamods.com` (`SMOKE_BASE_URL=https://betamods.com node
-   scripts/smoke-prod.mjs`), then optionally enable Cloudflare proxying with
-   SSL/TLS mode **Full (strict)**.
+Never prune all Docker volumes as routine cleanup. Avoid automatic broad
+deletion commands; select and verify expired backup targets explicitly.
 
-## 5. Neon: one project, two branches
-
-Production and local development share one Neon project but must never point at
-the same branch after launch.
-
-**Creating the `dev` branch requires an authorized operator** (Neon console ->
-project -> Branches -> Create branch). Verify the project and branch before
-changing the database arrangement; repository access alone is not permission.
-
-- `main` branch = **production**. Its pooled connection string lives only in
-  the VM's `.env.production`. Never print or commit it.
-- `dev` branch = **local development**. Before launch: create the `dev`
-  branch, copy its **pooled** connection string into the local `.env.local`,
-  and remove any demo/test rows from `main`. After that, never let the local
-  `.env.local` point at the `main` branch again.
-
-The smoke script runs against the **production** environment only when
-executed on the VM (its `.env.production`); never run it with a local
-`.env.local` pointed at `main`.
-
-## 6. Backups
-
-### 6.1 Persistent app-data volume (`betamods_app-data`)
-
-The Docker volume survives container rebuilds but not accidental VM/volume
-deletion. It holds quarantined and clean uploaded files, so back it up with the
-database. From the repo directory (the compose project is `betamods`, hence the
-`betamods_app-data` volume name):
-
-```bash
-# Backup (weekly, or before any destructive maintenance):
-mkdir -p backups
-sudo docker run --rm \
-  -v betamods_app-data:/data -v "$PWD/backups:/backup" \
-  alpine sh -c 'tar czf /backup/app-data-$(date +%F).tgz -C /data .'
-
-# Restore (app must be stopped first):
-sudo docker compose -f compose.oracle.yml stop app
-sudo docker run --rm \
-  -v betamods_app-data:/data -v "$PWD/backups:/backup" \
-  alpine sh -c 'tar xzf /backup/app-data-YYYY-MM-DD.tgz -C /data'
-sudo docker compose -f compose.oracle.yml start app
-```
-
-### 6.2 Neon Postgres (production `main` branch)
-
-Install the client tools on the VM once: `sudo dnf -y install postgresql`.
-
-Use the **direct (non-pooled)** Neon connection string for `pg_dump` — the
-pooled URL is for the app and can break streaming backups. Do not put the URL
-on the command line where shell history can capture it; export it from a
-mode-600 file or use `PGPASSWORD`:
-
-```bash
-# Backup (daily; run as a cron job later):
-set -a && source .snapshot_env && set +a        # .snapshot_env: mode 600, Neon main DIRECT URL only
-pg_dump --no-owner --no-privileges --format=custom \
-  -f "$PWD/backups/betamods-$(date +%F).dump" "$NEON_DIRECT_URL"
-
-# Restore (replaces the target database contents):
-pg_restore --clean --if-exists --no-owner \
-  -d "$NEON_POOLED_URL" "$PWD/backups/betamods-YYYY-MM-DD.dump"
-```
-
-Verify a backup file is non-empty/restorable after creating it — a broken
-backup is no backup.
-
-### 6.3 Staying within Always Free limits
-
-- Oracle Always Free includes one Ampere VM and **200 GB total block storage**.
-  The boot volume is 50 GB, so keep `backups/` and any snapshots inside the
-  remaining ~150 GB. The dataset is tiny; retention of 7 daily DB dumps plus
-  one weekly volume tarball is plenty (prune with `find backups/ -name '*.dump'
-  -mtime +7 -delete` and the equivalent for `*.tgz`).
-- Neon Free throttles compute hours and branch count rather than billing. One
-  production branch, a `dev` branch, and a small daily dump stays far inside
-  the free envelope. Neon free computes auto-suspend after inactivity — the
-  first request after a lull is slightly slower, never billed.
-- Cloudflare Free: DNS + basic proxying, no charge.
-- The Oracle VM stops or thrashes at its memory limit instead of scaling up —
-  swap + `vm.swappiness=10` keep it usable during builds. Never add a paid
-  shape to escape a limit; trim retention or traffic first.
-
-## 7. Cleanup after launch
-
-- Leave the old Railway project in place until this deployment passes the full
-  smoke check (`--full`); delete it afterward to avoid confusion.
-- Revoke the R2 bootstrap token and any temporary keys once storage setup is
-  confirmed unused on the free stack.
+This profile does not use the official cloud pilot's backup credentials,
+operations jobs, or storage bucket. See [Deployment profiles](docs/DEPLOYMENT.md)
+for the supported separation between targets.

@@ -25,10 +25,10 @@ Development is on `main`; older snapshots and forks do not have a separate secur
 
 ## Maintainer handling
 
-Nightly backups run in the private, owner-only `Beta-Mods/betamods-ops` repository, and a restore rehearsal has succeeded. The app repository's old backup secrets and backup workflow runs have been removed. Public source access must never expose backup artifacts, recovery keys, uploaded files, or production credentials. See [Repository setup](REPOSITORY-SETUP.md).
+Keep backups and recovery keys in the private operations repository, separate from the application and contributor CI. Public source access must never expose backup artifacts, uploaded files, or production credentials. See [Repository setup](REPOSITORY-SETUP.md).
 
 Review fork changes before approving CI, especially dependency, script, and workflow changes. Run checks without service secrets, write tokens, self-hosted runners, or Render preview deployments. Do not use `pull_request_target` to execute untrusted contribution code. Do not merge into `main` to obtain a test result.
 
-Only the owner merges and deploys. The merge policy requires a pull request, passing `Validate (default)` and `Validate (cloud)` checks, and owner code review. Force pushes and deletion of `main` must be blocked. Verify those settings in GitHub rather than assuming the workflow or this document enforces them.
+Only the owner merges and deploys. Verify the protections in [Repository setup](REPOSITORY-SETUP.md) in GitHub; documentation and workflow files alone do not enforce them.
 
 Keep reports private. Check affected versions, user impact, and whether credentials need rotation. Add a fix and regression tests, deploy it, and agree on disclosure timing. Record anything still unresolved. Do not dismiss a report just because existing tests or scans passed.
