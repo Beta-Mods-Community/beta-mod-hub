@@ -2,9 +2,17 @@
 
 /* eslint-disable @next/next/no-img-element -- Private R2 delivery uses stable app routes. */
 import { useActionState, useRef, useState } from "react";
+import { unstable_rethrow } from "next/navigation";
 import { ArrowDown, ArrowUp, ImagePlus, LoaderCircle, Star, Trash2 } from "lucide-react";
-import { manageModMedia, uploadModMedia } from "@lib/mod-media";
+import { manageModMedia, uploadModMedia, type MediaFormState } from "@lib/mod-media";
 import { MAX_MOD_IMAGES, type GalleryImage } from "@lib/media-policy";
+import { recoverMediaUpload } from "@/lib/media-upload-recovery";
+
+// Client wrapper keeps a rejected upload response inside this form. It requires
+// hydration; the same Server Action still sends the original FormData once.
+async function uploadScreenshot(previous: MediaFormState | undefined, data: FormData) {
+  return recoverMediaUpload(uploadModMedia, previous, data, unstable_rethrow);
+}
 
 function MediaRow({ image, betaModId, first, last }: { image: GalleryImage; betaModId: string; first: boolean; last: boolean }) {
   const [state, action, pending] = useActionState(manageModMedia, undefined);
@@ -39,7 +47,7 @@ export default function ModMediaManager({ betaModId, media, uploadPermission, cl
   cloudPilot?: boolean;
   uploadPermission?: { allowed: true } | { allowed: false; message: string };
 }) {
-  const [state, action, pending] = useActionState(uploadModMedia, undefined);
+  const [state, action, pending] = useActionState(uploadScreenshot, undefined);
   const [selectedName, setSelectedName] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const images = [...media].sort((a, b) => a.position - b.position);

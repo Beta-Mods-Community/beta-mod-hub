@@ -859,3 +859,39 @@ rerun after this reproduction, so it is not presented as a current audit.
 Full upload readiness remains blocked pending identification/resolution of the
 403 and completion of the outstanding hosted checks above. Free plan, malware
 scanning, access controls, caps, website DNS and local preview are unchanged.
+
+### Sep 30 midday follow-up: recovery and obsolete Railway cleanup
+
+The support conversation still contained no human response about eight hours
+after escalation. A second independent code review found no justified app-side
+configuration correction for the observed 403. No blocked upload was retried.
+
+At 17:03:09 UTC a normal reload of the existing QA account page showed Render's
+service-waking interstitial. Instance `gd8xp` started at 17:03:42 and listened
+at 17:03:49, with RSS 131,919,872 and cgroup current/peak 92,225,536 bytes.
+By the next observation at 17:04:27 the account page was restored with the QA
+session intact. This confirms an actual idle cold start, with recovery observed
+within 78 seconds; it does not test a restart during an upload.
+
+A narrow client wrapper now maps unexpected screenshot-action rejection to an
+inline uncertainty message, keeping the page/gallery mounted. It preserves the
+original server action, state and FormData, makes one call, and rethrows Next
+navigation/control-flow errors using its documented guard. Normal server success
+and validation responses remain unchanged. It requires client hydration and does
+not promise to preserve the selected file after React resets a completed form.
+This is recovery behavior, not a fix for the provider-correlated 403. Four new
+focused tests pass; all 351 unit tests, typecheck, full lint and isolated cloud
+production build pass. Live failed-upload recovery has not been re-exercised.
+
+The owner's Railway crash emails exposed obsolete GitHub auto-deploy connections
+in project `adventurous-forgiveness` (`67b668c0-be5f-43ca-b0eb-d9635cdd5d85`).
+With explicit owner approval, auto-deploy was disabled for both `clamav` and
+`beta-mod-hub`, and their current deployments were stopped using Remove Deployment:
+`2f2e0b44-bb33-4fd7-a6d1-5a5ff7b2a57c` and
+`540e7842-a6ad-4aba-b3fe-55eac7926aeb`, respectively. Both show REMOVED; ClamAV
+is offline and the app canvas shows its last historical build failure, no longer
+Online. The project, service configuration, source references and any persistent
+volumes were not deleted or changed. No Railway deployment should be restarted.
+These old services are not part of Render/Transloadit's runtime and do not explain
+the current Render upload refusal. The dashboard showed 23 days / $4.74 trial
+allowance remaining; no payment-method or billing audit is claimed.
