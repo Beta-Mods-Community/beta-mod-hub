@@ -448,6 +448,14 @@ holding the cloud pilot's single mutation/export slot.
 
 ## Required before sharing a Discord link
 
+**Sep 30 blocker:** repeated permitted 4-megapixel image uploads exhausted the
+real Render Free 512 MiB instance. Two images stored successfully; the third
+caused an out-of-memory restart and remains charged as an unpublished held
+reservation. Private bucket/database inventory matches with no orphaned files.
+Do not invite testers, retry the failed upload, raise limits, or clear its
+charge until memory safety and storage outcome have been resolved. See the
+latest `COMPLETION-NOTES.md` evidence. Single-upload tests did not catch this.
+
 Password recovery is now verified: the owner completed the real email/reset
 flow, the prior signed-in browser is refused at `/account`, the cloud account
 has session version 1, and no reset token remains. The new password was entered

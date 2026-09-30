@@ -647,3 +647,48 @@ listing's 228-byte stored description and changelog `Synthetic capacity fixture`
 images match the verified offline hashes. Expected scan accounting is 183 MiB
 for nine scans, including envelope rounding. Hosted upload/export results are
 recorded separately, not inferred from these offline checks.
+
+### Repeated maximum-pixel uploads exposed live memory failure (Sep 30 CDT)
+
+The normal 8 MiB build upload passed (`aeb34f00-81a7-4fa0-86f1-0faa1a1141eb`),
+followed by two separately scanned 2048x2048 generated WebP originals. Stored
+canonical sizes are 6,781,706 and 6,781,932 bytes. The third image submission
+showed the application error boundary. Render Events explicitly confirmed
+`Ran out of memory (used over 512MB)` at 00:59 CDT, then automatic recovery.
+No test image was resubmitted and the fourth image was not uploaded.
+
+The first image's measured cgroup peak was 505,516,032 bytes. The second reached
+the exact 536,870,912-byte cgroup limit (process high-water RSS 583,581,696 bytes).
+The third has no completed exclusive-operation log; startup resumed at
+00:59:39 with RSS 141,606,912 and cgroup current 116,056,064 bytes. Prior individual
+image success does not establish repeated-upload safety. The 32 MiB hosted
+export test is unfinished; do not call the cloud pilot ready for invitations.
+
+Pinned read-only audit at 06:01:41 UTC found one build and two images on this
+listing. The third upload's 7,182,348-byte reservation remains held
+(`c74f5232-135b-495d-a97f-4a9d01a53a9e`, created 05:59:07.390 UTC), without a
+published media/build reference. Estimated scan usage is 270 MiB: the third
+original scan is charged but its canonical scan is not. This is consistent
+with interruption during decode/encode, before reservation resize, not proof
+of the exact allocator cause. All seven private-bucket objects match the seven
+database references (43,081,188 bytes); no missing or orphaned objects were found.
+The held charge was not released, caps were not changed, and no paid service,
+PC hosting, invitation or automatic repair was introduced.
+
+After automatic recovery, the owner's session and the one-build/two-image
+listing rendered normally. A separate harmless 537-byte ZIP with an excessive
+declared expanded size was refused with the correct 32 MiB expansion message.
+Its new reservation (`e7b2d35f-fb1d-411b-83b7-ebcfd66b9c22`, 06:06:10.635 UTC)
+is released; a read-only audit confirms stored files, the earlier held charge
+and 270 MiB scan allowance are unchanged. No failed image was retried. The next
+five attempt slots naturally expire at 06:55:39.760, 06:56:53.792, 06:57:49.020,
+06:59:07.390 and 07:06:10.635 UTC; they were not reset for testing.
+
+The first output-preserving memory fix explicitly destroys each constructed
+Sharp stream in `finally`, including failed metadata/policy/decode paths. Five
+new real-decoder lifecycle tests pass (four failed before the fix), and all
+three 4 MP fixtures retain their exact canonical sizes/hashes. A bounded Windows
+comparison observed a lower peak with explicit cleanup (293.6 MB vs 326.0 MB);
+this is not proof of Linux allocator behavior or whole-host memory safety.
+No encoding quality, pixel or file cap changed. Linux comparison and actual
+Render retesting remain required before claiming the memory failure fixed.
