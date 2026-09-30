@@ -6,6 +6,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import nodemailer from "nodemailer";
 import { isLoopbackUrl, type AccountTokenPurpose } from "./account-policy";
+import { sendResendMail } from "./account-mail-http";
 
 export const MAIL_UNAVAILABLE = "Email delivery is not configured. Contact the site owner to enable verification and password recovery.";
 
@@ -22,6 +23,11 @@ export function accountMailConfig() {
     if (process.env.NODE_ENV === "production" || !isLoopbackUrl(raw)) return null;
     return { mode: "preview" as const, origin: base.origin };
   }
+  if (process.env.AUTH_MAIL_MODE === "resend") {
+    if (!process.env.RESEND_API_KEY || !process.env.AUTH_MAIL_FROM || /[\r\n]/.test(process.env.AUTH_MAIL_FROM)) return null;
+    return { mode: "resend" as const, origin: base.origin };
+  }
+  if (process.env.AUTH_MAIL_MODE && process.env.AUTH_MAIL_MODE !== "smtp") return null;
   const port = Number(process.env.SMTP_PORT ?? 587);
   if (!process.env.SMTP_HOST || !process.env.SMTP_FROM || !Number.isInteger(port)
     || port < 1 || port > 65535) return null;
@@ -43,6 +49,10 @@ export async function sendAccountMail(to: string, purpose: AccountTokenPurpose, 
     await writeFile(path.join(directory, `${Date.now()}-${randomUUID()}.json`),
       JSON.stringify({ to, subject, text, createdAt: new Date().toISOString() }, null, 2),
       { encoding: "utf8", mode: 0o600, flag: "wx" });
+    return;
+  }
+  if (config.mode === "resend") {
+    await sendResendMail({ key: process.env.RESEND_API_KEY!, from: process.env.AUTH_MAIL_FROM!, to, subject, text });
     return;
   }
   const secure = process.env.SMTP_SECURE === "true" || config.port === 465;
