@@ -2,9 +2,9 @@
 
 Beta Mods is a place to test game mods before release. Authors share builds, testers report bugs, and readiness votes show how each version is doing.
 
-The site is in a small private beta. [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub) contains the app, artwork, tests, and deployment tools. It is private and is the only app codebase.
+The site is in a small private beta. Its source is public at [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub), including the app, artwork, tests, and deployment tools. This is the existing repository and history, not a separate community copy.
 
-Code contributions are invite-only. Backups run nightly in the owner-only `Beta-Mods/betamods-ops` repository, with a successful restore rehearsal. The app repository's old backup secrets and backup runs have been removed. Access settings have been checked and private forks are enabled. The owner can now invite approved contributors; nobody has been invited yet. See [Repository setup](REPOSITORY-SETUP.md). Testers can keep using Discord for feedback.
+Anyone can read the code, open an Issue, fork the repository, and submit a pull request. Only the owner merges changes and deploys the site. User data, storage, credentials, and backups remain private. Backups run in the owner-only `Beta-Mods/betamods-ops` repository, not another app copy. See [Repository setup](REPOSITORY-SETUP.md) for the access and review policy.
 
 ## What works today
 
@@ -28,10 +28,10 @@ Local development can use PostgreSQL, local file storage, and ClamAV without Doc
 
 ## Start contributing locally
 
-Once the owner has approved and configured your access:
+Fork the repository on GitHub, then clone your fork:
 
 ```sh
-git clone https://github.com/Beta-Mods-Community/beta-mod-hub.git betamods
+git clone <your-fork-url> betamods
 cd betamods
 git switch -c <your-change-branch>
 npm ci
@@ -56,7 +56,7 @@ See [Contributing](CONTRIBUTING.md) for database and scanner setup. Integration 
 
 ## Contributing
 
-Bug reports, design feedback, documentation, and testing all help. Discuss larger changes in Discord, or in an Issue once you have access. Code changes should go through a private fork, branch, and pull request for owner review. Do not push directly to `main`, run production tools, or deploy without permission. Private-fork pull requests do not run Actions automatically. The current Free plan also lacks private-repository branch protection, so the owner reviews and tests changes before merging. See [Contributing](CONTRIBUTING.md) for that process.
+Bug reports, design feedback, documentation, and testing all help. Discuss larger changes in an Issue or Discord before building them. Submit code through a fork, branch, and pull request. The owner reviews changes and approves fork CI before it runs, without production secrets or write tokens. Only the owner merges and deploys. See [Contributing](CONTRIBUTING.md) for the process and [Repository setup](REPOSITORY-SETUP.md) for protection settings.
 
 - [Contributing](CONTRIBUTING.md): setup, checks, and pull requests.
 - [Governance](GOVERNANCE.md): how decisions and maintainer responsibilities work.
@@ -75,4 +75,4 @@ Never attach real credentials, access codes, user exports, private mod archives,
 
 ## Source permissions
 
-No open-source license has been adopted. Ask the owner before sharing this private code or artwork, or adding third-party material. Uploaded mods and dependencies keep their own licenses and ownership.
+No open-source license has been selected. Viewing, opening Issues, forking, and submitting pull requests on GitHub are welcome. Public visibility is not a general open-source license; ask the owner about other uses until a license is chosen. Uploaded mods, artwork from third parties, and dependencies keep their existing rights and licenses.

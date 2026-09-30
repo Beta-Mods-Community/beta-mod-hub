@@ -1,6 +1,6 @@
 # Security reporting
 
-Email **admin.betamods@gmail.com** with the subject `Beta Mods security report`. If GitHub private vulnerability reporting is enabled for this repository, you can use that instead. Do not put sensitive evidence in a normal Issue or pull request; other repository members may be able to read it.
+Email **admin.betamods@gmail.com** with the subject `Beta Mods security report`. If GitHub private vulnerability reporting is enabled for this repository, you can use that instead. Normal Issues and pull requests are public. Do not put sensitive evidence in them.
 
 ## What to include
 
@@ -13,7 +13,7 @@ Leave out passwords, API keys, cookies, invitation codes, reset links, signed fi
 
 ## Safe investigation
 
-Use an authorized local copy and accounts you control. Source access is not permission to attack the hosted site. Do not test denial of service, exhaust quotas, upload malware, bypass security warnings, or access someone else's records. Ask before testing anything that could affect the live pilot, provider accounts, or other users.
+Use a local copy and accounts you control. Public source is not permission to attack the hosted site. Do not test denial of service, exhaust quotas, upload malware, bypass security warnings, or access someone else's records. Ask before testing anything that could affect the live pilot, provider accounts, or other users.
 
 If you encounter another user's private data, stop and report the minimum needed to locate the issue. Do not keep browsing, download more data, or post evidence publicly.
 
@@ -25,10 +25,10 @@ Development is on `main`; older snapshots and forks do not have a separate secur
 
 ## Maintainer handling
 
-Nightly backups run in the owner-only `Beta-Mods/betamods-ops` repository, and a restore rehearsal has succeeded. The app repository's four old backup secrets and four backup workflow runs have been removed. Access settings for [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub) have been checked. The owner can invite approved contributors; nobody has been invited yet. See [Repository setup](REPOSITORY-SETUP.md).
+Nightly backups run in the private, owner-only `Beta-Mods/betamods-ops` repository, and a restore rehearsal has succeeded. The app repository's old backup secrets and backup workflow runs have been removed. Public source access must never expose backup artifacts, recovery keys, uploaded files, or production credentials. See [Repository setup](REPOSITORY-SETUP.md).
 
-Private-fork pull requests cannot run Actions automatically. After reviewing the diff, the owner tests locally or manually dispatches checks on a reviewed owner-controlled branch, without production credentials. Do not merge into `main` to obtain a test result. Contributor CI uses no service secrets; the default Actions token is read-only and cannot create or approve pull requests.
+Review fork changes before approving CI, especially dependency, script, and workflow changes. Run checks without service secrets, write tokens, self-hosted runners, or Render preview deployments. Do not use `pull_request_target` to execute untrusted contribution code. Do not merge into `main` to obtain a test result.
 
-The current Free plan does not provide branch protection for this private repository, so the owner must review changes and test results before merging. Do not grant source contributors access to backup artifacts or production credentials.
+Only the owner merges and deploys. The merge policy requires a pull request, passing `Validate (default)` and `Validate (cloud)` checks, and owner code review. Force pushes and deletion of `main` must be blocked. Verify those settings in GitHub rather than assuming the workflow or this document enforces them.
 
 Keep reports private. Check affected versions, user impact, and whether credentials need rotation. Add a fix and regression tests, deploy it, and agree on disclosure timing. Record anything still unresolved. Do not dismiss a report just because existing tests or scans passed.

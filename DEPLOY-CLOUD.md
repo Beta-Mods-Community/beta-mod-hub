@@ -10,10 +10,15 @@ preview, older deployment configurations, scanning, permissions and resource
 caps unchanged. Share the pilot URL and access code privately with invitees;
 never place the code in a public channel, source control or screenshots.
 
-Application source remains in one repository. Hosted backups are operated in
-the separate owner-only operations repository described below. The old backup
-secrets and retained runs have been removed from the app repository. Invite
-contributors by their confirmed GitHub usernames with Read access only.
+Application source is public in the existing `Beta-Mods-Community/beta-mod-hub`
+repository, with the same history. Anyone can view, open Issues, fork, and submit
+pull requests; only the owner merges and deploys. Fork CI needs owner approval
+and receives no service secrets or write token. Render previews stay off.
+Hosted data, credentials, and backups remain private. Backups run in the
+owner-only operations repository described below; the old app backup secrets
+and retained runs have been removed. See `REPOSITORY-SETUP.md` for the required
+merge protections and their verification status. Opening source access does
+not open the live pilot to the public or change its upload limits.
 
 ## Selected target
 

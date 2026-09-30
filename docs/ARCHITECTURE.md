@@ -1,6 +1,6 @@
 # Beta Mods architecture
 
-The app, artwork, tests, and deployment tools live in [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub). The repository is private. Hosted user data and credentials are not part of the source code, and source access does not grant permission to operate the live site.
+The app, artwork, tests, and deployment tools live in the public [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub) repository. It is the existing app codebase and history, not a separate edition. Hosted user data and credentials stay private, and source access does not grant permission to operate the live site.
 
 ## Application structure
 
@@ -50,10 +50,10 @@ Authors can export the latest scanned build, description, requirements, and scan
 
 There is one app codebase. Hosted database contents, uploads, and secrets must not be committed.
 
-Backups run nightly in the owner-only `Beta-Mods/betamods-ops` repository, not a second app copy. Restore has been rehearsed, and old backup secrets and runs have been removed from the app repository. Access settings are verified and private forks are enabled. The owner can invite approved contributors; nobody has been invited yet. See [Repository setup](../REPOSITORY-SETUP.md).
+Backups run nightly in the private, owner-only `Beta-Mods/betamods-ops` repository, not a second app copy. Restore has been rehearsed, and old backup secrets and runs have been removed from the app repository. Anyone can read the source, open Issues, fork, and submit a pull request; only the owner merges and deploys. See [Repository setup](../REPOSITORY-SETUP.md).
 
-Private-fork pull requests do not run Actions automatically. The owner reviews changes, then tests locally or dispatches checks on an owner-controlled branch before merging. The current Free plan lacks private-repository branch protection, so review and merge decisions are manual. The default Actions token is read-only and cannot create or approve pull requests.
+Fork CI needs owner review and approval. It runs without production secrets, write tokens, or deployment previews. The merge policy requires `Validate (default)`, `Validate (cloud)`, and owner code review; GitHub protection settings must be verified separately. The default Actions token is read-only and cannot create or approve pull requests.
 
 Integration and provider tests can change data and run separately from contributor CI. A pull request is not permission to run production scripts, migrate a database, or deploy.
 
-See [Deployment](DEPLOYMENT.md) for settings and [Contributing](../CONTRIBUTING.md) for local setup and tests. No open-source license has been adopted; ask before republishing code or assets.
+See [Deployment](DEPLOYMENT.md) for settings and [Contributing](../CONTRIBUTING.md) for local setup and tests. No open-source license has been selected. GitHub forks and pull requests are welcome; other reuse needs license clarification.

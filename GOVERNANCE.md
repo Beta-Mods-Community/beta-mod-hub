@@ -2,11 +2,11 @@
 
 The goal is for authors and testers to help shape and run Beta Mods. For now, the owner makes the final decisions and is responsible for the site. There is no community council or formal voting system yet.
 
-The app has one private repository, [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub). Backups run separately in the owner-only `Beta-Mods/betamods-ops` repository. Access settings have been checked and private forks are enabled. The owner can invite approved contributors; nobody has been invited yet. See [Repository setup](REPOSITORY-SETUP.md).
+The app has one public repository, [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub). Anyone can read it, open Issues, fork it, and submit pull requests. Production access and backups remain private. Only the owner merges and deploys. See [Repository setup](REPOSITORY-SETUP.md).
 
 ## Decisions today
 
-Suggest changes in Discord, or through Issues and pull requests once access is approved. The owner handles merges, releases, moderation, costs, and hosting, and should explain why larger proposals are accepted, deferred, or declined.
+Suggest changes in Issues, pull requests, or Discord. The owner handles merges, releases, moderation, costs, and hosting, and should explain why larger proposals are accepted, deferred, or declined.
 
 Small fixes can go straight to a pull request. Discuss larger changes first, especially changes to privacy, costs, moderation, or how people use the site. Explain the problem and tradeoffs, ask the people affected, and record the decision. Revisit it if the result does not work.
 
@@ -24,17 +24,17 @@ You do not need to code to help. Keep disagreements about the work and leave pri
 
 ## Becoming a maintainer
 
-As people contribute regularly, the owner may invite them to maintain a part of the project. Agree on the work and access involved before granting permissions.
+People who contribute regularly can help review and maintain a part of the project. Agree on responsibilities before granting permissions. This does not grant merge or deployment access; those remain with the owner.
 
-Grant only the access needed and check what GitHub actually enforces. Read access can expose history and Actions artifacts, so branch protection alone does not protect backup data. Hosting, billing, storage, secrets, user data, and site administration need separate permission. Remove access when it is no longer needed.
+Public source includes repository history and public Actions output, not backup data or production credentials. Keep sensitive work in private systems. Hosting, billing, storage, secrets, user data, and site administration need separate permission. Remove access when it is no longer needed.
 
 With more maintainers, we can agree on shared decision-making. That agreement should say who decides what, how disputes are resolved, and who handles security and hosting. Until then, the owner remains responsible; an informal poll does not transfer that responsibility.
 
 ## Source code and hosted content
 
-No open-source license has been adopted. Repository access does not permit republication of the code, redistribution of mods, or disclosure of user data. Dependencies and uploaded mods keep their existing licenses and permissions. Submit only work you have the right to contribute for use in Beta Mods, and explain restrictions first. This guide does not transfer copyright or create a separate contributor license agreement.
+No open-source license has been selected. GitHub viewing, Issues, forks, and pull requests are welcome; wider reuse needs clarification until a license is chosen. This does not change the rights of uploaded mods or dependencies, or make user data public. Submit only work you have the right to contribute for use in Beta Mods, and explain restrictions first. This guide does not transfer copyright or create a separate contributor license agreement.
 
-Submit app changes from a private fork and branch through a pull request to this repository. The owner reviews and tests the work before merging or deploying. Private-fork Actions are disabled, so the owner tests reviewed changes locally or manually runs checks on an owner-controlled branch. Do not merge just to trigger tests. Branch protection is unavailable on the current Free plan, so review and merge decisions remain manual. Do not push directly to upstream `main` or run production commands without permission.
+Submit changes from a fork and branch through a pull request. Fork CI needs owner review and approval before it runs. The merge policy requires `Validate (default)`, `Validate (cloud)`, and owner code review, with no force pushes or branch deletion. Do not merge just to trigger tests. Only the owner merges into upstream `main` or deploys. [Repository setup](REPOSITORY-SETUP.md) records whether these protections have been verified in GitHub.
 
 ## Concerns and changes to this document
 

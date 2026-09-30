@@ -1,35 +1,47 @@
 # Repository access
 
 [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub)
-is the private application repository. Local development and the live Render
-site use this codebase with separate settings and databases.
+is the public application repository. Anyone can view the source, open Issues,
+fork it, and submit pull requests. This is the same repository and history,
+not a mirror or second maintained app. Local development and the live Render
+site use separate settings and databases.
 
 ## Community contributions
 
-The Beta-Mods account owns the organization. Contributors are invited to this
-repository as outside collaborators with **Read** access. They can create a
-private fork in their personal GitHub account and submit pull requests, but
-cannot push or merge into this repository. Private forking is enabled.
+The Beta-Mods account owns the organization. Contributors work in their own
+forks and submit pull requests; no invitation is needed. Only the owner merges
+into the upstream repository or deploys the site. Public access does not grant
+write access, production credentials, or access to user uploads.
 
-Only the owner or an explicitly appointed maintainer merges changes. GitHub
-Free does not provide branch protection for this private repository, so CI
-and CODEOWNERS help with review but do not enforce approval requirements.
+The required `main` policy is:
 
-No contributors have been invited yet. Ask interested community members for
-their GitHub usernames, confirm who should have access, and invite them with
-the Read role. The repository link returns 404 for people without access.
+- Changes go through a pull request with owner code review.
+- One approving review is required, including code-owner review; new changes
+  dismiss stale approvals.
+- `Validate (default)` and `Validate (cloud)` must pass before merging.
+- The branch must be up to date and review conversations resolved.
+- Force pushes and deletion of `main` are blocked.
 
-The source is not publicly licensed. See [GOVERNANCE.md](GOVERNANCE.md) for
-contribution and reuse terms. Access to source does not grant rights to
-uploaded mods or access to production data.
+The owner retains administrator access, including the default admin bypass.
+That is not contributor permission to bypass review. The owner remains
+responsible for checking the revision and results before using that access.
+
+No open-source license has been selected. GitHub viewing, Issues, forks, and
+pull requests are welcome. Other reuse needs clarification until a license is
+chosen. Uploaded mods and dependencies keep their existing rights. See
+[Governance](GOVERNANCE.md).
 
 ## Production and backups
 
 Render runs the existing `betamods-pilot` service. Automatic deployment and PR
-previews remain off. Deploy only a reviewed revision; contributor checks run
-without production credentials or database access. Fork pull-request workflows
-are disabled. The owner checks reviewed changes locally or runs the workflow
-on a reviewed branch before merging; a fork cannot start upstream jobs.
+previews remain off. Only the owner deploys a reviewed revision. Contributor
+checks have no production credentials, database access, or write token.
+
+All outside-contributor Actions runs require owner review and approval. Review
+the proposed code, dependencies, scripts, and workflow changes before approval.
+Do not use `pull_request_target` to execute untrusted code, pass secrets to fork
+jobs, or run them on production or self-hosted runners. CI cannot approve or
+merge its own pull requests. Test before merging, not by merging into `main`.
 
 [Beta-Mods/betamods-ops](https://github.com/Beta-Mods/betamods-ops) is a separate
 private, owner-only repository for backup scripts and their tests. It does not
@@ -44,11 +56,13 @@ remain private; never give them to source contributors.
 
 ## Current status
 
-As of September 30, 2026, the existing repository has been transferred without
-changing its history or making it public. There is no public mirror or second
-maintained application repository. The abandoned local community draft and
-internal investigation notes are outside the tracked source tree.
+As of September 30, 2026, the existing repository is public. Issues and pull
+requests are open to all GitHub users. The saved `main` protection rule was
+verified with owner review, both required checks, up-to-date branches, resolved
+conversations, and no force pushes or deletion. The default administrator
+bypass remains available to the owner. Actions requires approval for all
+external contributors; its default token is read-only and cannot approve PRs.
 
-The owner is the only person with repository access. Invite contributors only
-after confirming their GitHub usernames and intended Read access. Record the
-deployed revision in Render; a merge alone does not update the live site.
+Production and backups remain private. No contributor write or deployment
+access is granted by publication. Record the deployed revision in Render;
+a merge alone does not update the live site.

@@ -2,9 +2,9 @@
 
 This guide explains local and cloud settings. It is not permission to change the live service. The owner reviews changes and decides when to deploy them.
 
-The app repository is [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub). Nightly backups run in the owner-only `Beta-Mods/betamods-ops` repository; the restore rehearsal recovered all 19 tables. The app repository's old backup secrets and backup runs have been removed. Access settings have been checked and private forks are enabled. The owner can invite approved contributors; nobody has been invited yet. See [Repository setup](../REPOSITORY-SETUP.md).
+Application source is public at [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub). Production data and credentials remain private. Nightly backups run in the private, owner-only `Beta-Mods/betamods-ops` repository; the restore rehearsal recovered all 19 tables. The app repository's old backup secrets and backup runs have been removed. See [Repository setup](../REPOSITORY-SETUP.md) for contribution and protection settings.
 
-Private-fork Actions are disabled. The owner reviews changes before running local tests or manually dispatching checks on an owner-controlled branch. Do not merge into `main` just to run checks. The Free plan does not enforce private-repository branch protection, so the owner must check results before merging or deploying. Repository access changes do not by themselves deploy a new app revision.
+Fork CI needs owner review and approval before execution and runs without service secrets or write tokens. Render preview deployments remain off. The merge policy requires a pull request, passing `Validate (default)` and `Validate (cloud)` checks, and owner code review. Only the owner merges and deploys; do not merge into `main` just to trigger tests. Public source does not change the site's access gate or deploy a new revision.
 
 ## Local development profile
 

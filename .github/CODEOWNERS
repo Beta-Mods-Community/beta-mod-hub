@@ -1,2 +1,2 @@
-# Routes review requests to maintainer; does not enforce approval on GitHub Free private repos.
+# The owner reviews changes; main branch protection enforces review requirements.
 * @Beta-Mods

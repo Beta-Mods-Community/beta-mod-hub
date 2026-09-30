@@ -1,19 +1,19 @@
 # Contributing to Beta Mods
 
-You can help with bug reports, design, accessibility, documentation, testing, or code. Use Discord for feedback if you do not have repository access.
+You can help with bug reports, design, accessibility, documentation, testing, or code. Anyone can open an Issue, fork the repository, and submit a pull request.
 
-The private [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub) repository is the only app codebase. Backups run in the owner-only `Beta-Mods/betamods-ops` repository. Access settings have been checked and private forks are enabled. The owner can invite approved contributors, but nobody has been invited yet. See [Repository setup](REPOSITORY-SETUP.md).
+The public [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub) repository is the only app codebase. Production services and backups stay private. Only the owner merges changes or deploys the site. See [Repository setup](REPOSITORY-SETUP.md).
 
 ## Discuss and submit a change
 
 1. Discuss larger changes in Discord or an Issue before building them. Explain the problem you want to solve.
-2. Once invited, create a private fork of `Beta-Mods-Community/beta-mod-hub`, clone it, and branch from `main`. The upstream repository remains the app's source of truth. Do not make a public mirror or maintain an independent app copy.
+2. Fork `Beta-Mods-Community/beta-mod-hub`, clone your fork, and create a branch from `main` for your change.
 3. Keep the change focused, leave unrelated work alone, and add tests for changed behavior.
 4. Run the relevant checks below. Note anything that failed or could not run.
 5. Open a pull request with a short explanation, test results, and any database or deployment changes. For UI work, include before and after screenshots with test data.
 6. Respond to review. The owner decides when the change can be merged and deployed.
 
-Do not push directly to upstream `main`, run deployment or backup workflows, or change cloud settings without the owner's permission. Contributor CI uses no service credentials. The current Free plan does not provide branch protection for this private repository; the owner must review and test each change before merging. Source access does not include the operations repository or production services.
+Do not push directly to upstream `main`, run deployment or backup workflows, or change cloud settings. Those actions belong to the owner. Contributor checks use no service credentials or write tokens. Source access does not include the operations repository, uploaded files, or production services.
 
 ## Basic setup and checks
 
@@ -35,11 +35,11 @@ The first command generates Next.js route types. The CI workflow also builds the
 
 ## How pull requests are tested
 
-Actions for private-fork pull requests are intentionally disabled at the organization level. Opening a pull request will not automatically run its code, even though the workflow lists a pull-request trigger.
+Fork CI needs owner review and approval before execution. The owner reviews the diff first, including dependencies, scripts, and workflow changes. Checks must run without production secrets, write tokens, self-hosted runners, or access to live services. A pull request does not create a Render preview deployment.
 
-The owner first reviews the diff, including dependencies, scripts, and workflow changes. They can then fetch the reviewed branch into a clean local checkout and run the checks above without private environment files or service credentials. Alternatively, they can push the reviewed revision to an owner-controlled branch and manually dispatch the contributor-check workflow for that branch.
+The merge policy requires both `Validate (default)` and `Validate (cloud)` to pass, along with owner code review. The owner can also fetch the reviewed branch into a clean checkout and run the commands above without private environment files. Record the tested commit and results on the pull request. See [Repository setup](REPOSITORY-SETUP.md) for the current verification status of these protections.
 
-Record the tested commit and results on the pull request before merging. Do not merge into `main` just to trigger checks. The workflow also runs on pushes to `main`, but that is not a substitute for pre-merge testing. GitHub's default Actions token is read-only and cannot create or approve pull requests; the owner remains responsible for the merge decision.
+Do not merge into `main` just to trigger checks. Post-merge checks are not a substitute for testing the pull request. CI cannot approve or merge its own changes. Only the owner decides when a reviewed change is merged and deployed.
 
 ## Database backed development
 
@@ -123,4 +123,4 @@ Report which checks ran, the environment and storage driver, any failures or ski
 
 Keep criticism about the work, not the person. Do not harass contributors or share personal information. Send conduct concerns to `admin.betamods@gmail.com`; follow [Security](SECURITY.md) for vulnerabilities.
 
-No open-source license has been adopted. Submit only material you have the right to contribute for use in Beta Mods, and explain any restrictions before submitting it. This guide does not create a separate contributor license agreement, transfer copyright, or permit public redistribution of the repository. Uploaded mods and dependencies keep their own licenses and permissions.
+No open-source license has been selected. GitHub forks and pull requests are welcome. Submit only material you have the right to contribute for use in Beta Mods, and explain any restrictions before submitting it. This guide does not create a separate contributor license agreement, transfer copyright, or grant a general open-source license. Uploaded mods and dependencies keep their own licenses and permissions.
