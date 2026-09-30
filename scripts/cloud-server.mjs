@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import next from 'next';
 import sharp from 'sharp';
 import { validateCloudRuntime, cloudRequestPolicy, createWorkSlot } from './cloud-runtime-policy.mjs';
+import { createMemoryEvidence } from './cloud-memory.mjs';
 
 const errors = validateCloudRuntime(process.env);
 if (errors.length) { console.error('Cloud configuration refused:', errors.join('; ')); process.exit(1); }
@@ -21,6 +22,7 @@ const app = next({ dev: false, hostname, port });
 const handle = app.getRequestHandler();
 await app.prepare();
 const slot = createWorkSlot();
+const memoryEvidence = createMemoryEvidence();
 const server = createServer({ maxHeaderSize: 16384, requestTimeout: 60000, headersTimeout: 10000, keepAliveTimeout: 5000 }, async (req, res) => {
   const policy = cloudRequestPolicy(req.method ?? '', req.url ?? '/', req.headers);
   const release = policy.status === 200 && policy.exclusive ? slot.take() : undefined;
@@ -30,8 +32,10 @@ const server = createServer({ maxHeaderSize: 16384, requestTimeout: 60000, heade
     res.end(status === 503 ? 'Another upload or export is in progress. Retry shortly.' : 'Request refused by the small-pilot request limit.');
     return;
   }
+  const finishMemory = release ? memoryEvidence.beginExclusive() : undefined;
+  const releaseWork = () => { release?.(); finishMemory?.(); };
   let completed = false; let closed = false;
-  const finish = () => { closed = true; if (completed) release?.(); };
+  const finish = () => { closed = true; if (completed) releaseWork(); };
   res.once('finish', finish); res.once('close', finish);
   try { await handle(req, res); }
   catch {
@@ -41,11 +45,14 @@ const server = createServer({ maxHeaderSize: 16384, requestTimeout: 60000, heade
   } finally {
     completed = true;
     // Client disconnect alone does not release while a scan/action still runs.
-    if (closed || res.writableFinished || res.destroyed) release?.();
+    if (closed || res.writableFinished || res.destroyed) releaseWork();
   }
 });
 server.maxRequestsPerSocket = 100;
-server.listen(port, hostname, () => console.log(`Cloud pilot listening on port ${port}`));
+server.listen(port, hostname, () => {
+  console.log(`Cloud pilot listening on port ${port}`);
+  memoryEvidence.startup();
+});
 for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => {
   server.close(() => { void app.close().finally(() => process.exit(0)); });
   setTimeout(() => process.exit(1), 25000).unref();
