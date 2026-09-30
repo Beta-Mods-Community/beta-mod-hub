@@ -11,6 +11,7 @@ import postgres from "postgres";
 import { SignJWT } from "jose";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { readDevEnvironment } from "./dev-database.mjs";
+import { assertE2eStorageDriver } from "./e2e-upload-state.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const envFileName = process.env.E2E_ENV_FILE || ".env.local";
@@ -21,8 +22,9 @@ if (envFileName !== ".env.local") {
 }
 const env = readDevEnvironment(root);
 if (!env.SESSION_SECRET) throw new Error("Missing local session configuration.");
-const sql = postgres(env.DATABASE_URL, { max: 1, prepare: false });
 const driver = process.env.E2E_STORAGE_DRIVER || env.STORAGE_DRIVER || "local";
+assertE2eStorageDriver(driver);
+const sql = postgres(env.DATABASE_URL, { max: 1, prepare: false });
 const base = "http://127.0.0.1:3000";
 const ownerId = randomUUID(), testerId = randomUUID(), strangerId = randomUUID(), modId = randomUUID(), buildId = randomUUID(), nextBuildId = randomUUID();
 const url = `${base}/mods/${modId}`;

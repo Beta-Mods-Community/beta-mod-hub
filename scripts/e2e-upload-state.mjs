@@ -61,8 +61,13 @@ export async function restoreUploadTestState(sql, snapshot) {
   if (failures.length) throw new AggregateError(failures, failures.map(error => error.message).join("; "));
 }
 
+/** Only these drivers have verified cleanup support in the dev rehearsals. */
+export function assertE2eStorageDriver(storageDriver) {
+  if (!["local", "r2"].includes(storageDriver)) throw new Error("Expected storage driver local or r2");
+}
+
 /** Expected successful checks, not a count inflated by mutually exclusive paths. */
 export function expectedUploadCheckCount(storageDriver, pilotMode) {
-  if (!["local", "r2"].includes(storageDriver)) throw new Error("Expected storage driver local or r2");
+  assertE2eStorageDriver(storageDriver);
   return (storageDriver === "r2" ? 23 : 19) + (pilotMode ? 6 : 0);
 }
