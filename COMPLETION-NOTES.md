@@ -750,3 +750,35 @@ bounded/CRC-checked entries, real numbered media UUID paths, empty-caption hash
 and exact 32 MiB accounting. Historical text hashes from the pre-CRLF manifest
 are explicitly not claimed verified. Thirteen focused tests pass; actual
 hosted package downloads still await the remaining normal image uploads.
+
+Idle observation: no app requests were sent between 06:26:57 and 06:47:32 UTC.
+The subsequent private-access page returned 200 in 362 ms; Render logs show
+no new startup after 06:25:49. Thus the service did not demonstrably sleep,
+and this is recorded as an inconclusive cold-start check, not a pass or failure.
+
+### Hosted repeat-image verification (Sep 30, 02:09 CDT)
+
+On the unchanged Render instance `4bfnf` / revision `979df42`, three successive
+maximum-pixel originals completed their original and canonical scans and stored
+successfully at 06:56:35, 07:01:24 and 07:02:15 UTC. They were image 3 on the
+export-boundary listing and images 1/2 on the disposable `Cloud image memory
+check` listing (`74d10010-e807-4b14-b066-fdbb02433fa8`). There was no process
+restart between them. The largest actual cgroup peak was 437,596,160 bytes
+(about 417.3 MiB), below 536,870,912; all three canonical sizes and SHA256 hashes
+were independently verified by bounded read-only storage reads. This is real
+hosted repeated-upload evidence, not just the earlier decoder benchmark.
+
+The smaller fourth export-fixture image then returned a generic unexpected
+server response at 07:02:55 and on one controlled retry at 07:06:17 UTC. Neither
+attempt created a reservation, image row, object or scan charge, and Render
+reported no new restart. Do not call this a successful upload or assume it was
+another OOM. Exact-boundary hosted export remains untested until this request
+failure is understood and the fourth image is safely stored.
+
+The independent 2049x2048 harmless PNG correctly returned the 4-megapixel policy
+refusal. Its 60,443-byte reservation `fe9b5e22-7e4a-491e-bad6-9a1f2ea549b4`
+was created at 07:07:58.781 UTC and released at 07:08:02.380, with no media/build
+link. Exactly one original scan was charged (3 MiB), no canonical scan. The
+07:09:50 read-only audit confirms all 10 objects/reference rows/stored ledger
+entries match 63,426,540 bytes, zero drift and zero held reservations; total
+scan allowance used is 399 MiB. No attempt history or limit was reset.

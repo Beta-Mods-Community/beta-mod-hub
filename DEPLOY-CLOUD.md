@@ -462,13 +462,16 @@ holding the cloud pilot's single mutation/export slot.
 
 ## Required before sharing a Discord link
 
-**Sep 30 blocker:** repeated permitted 4-megapixel image uploads exhausted the
-real Render Free 512 MiB instance. Two images stored successfully; the third
-caused an out-of-memory restart and remains charged as an unpublished held
-reservation. Private bucket/database inventory matches with no orphaned files.
-Do not invite testers, retry the failed upload, raise limits, or clear its
-charge until memory safety and storage outcome have been resolved. See the
-latest `COMPLETION-NOTES.md` evidence. Single-upload tests did not catch this.
+**Sep 30 checkpoint:** the repeated-image OOM was reproduced and addressed with
+explicit Sharp cleanup plus `MALLOC_ARENA_MAX=2` before Linux Node startup.
+Three successive maximum-pixel hosted uploads now pass on the same process,
+with canonical hashes verified and peak cgroup memory 437,596,160 / 536,870,912
+bytes. The old interrupted reservation was individually reconciled without
+resetting its attempt history or scan charges. A smaller fourth fixture image
+still fails before reservation; its exact-boundary export check remains
+blocked. Over-pixel refusal passes, and the latest full inventory has zero
+drift/held rows. No invitation is authorized yet. See `COMPLETION-NOTES.md` for
+the precise completed and unresolved checks; do not raise caps or bypass scans.
 
 Password recovery is now verified: the owner completed the real email/reset
 flow, the prior signed-in browser is refused at `/account`, the cloud account

@@ -4,12 +4,13 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { PassThrough, Writable } from "node:stream";
 import { it } from "node:test";
 import { createCloudRequestHandler, refuseCloudRequest, REJECTION_DRAIN_BYTES,
-  REJECTION_DRAIN_MS, MAX_REJECTION_DRAINS, REQUEST_REFUSAL, BUSY_REFUSAL } from "../scripts/cloud-http-handler.mjs";
+  REJECTION_DRAIN_MS, MAX_REJECTION_DRAINS, REQUEST_REFUSAL, BUSY_REFUSAL,
+  createAdmissionLogger, MAX_ADMISSION_LOGS, ADMISSION_LOG_WINDOW_MS } from "../scripts/cloud-http-handler.mjs";
 import { MAX_BODY_BYTES } from "../scripts/cloud-runtime-policy.mjs";
 
 async function withServer(handle: (req: IncomingMessage, res: ServerResponse) => Promise<void>,
-  check: (origin: string) => Promise<void>) {
-  const server = createServer(createCloudRequestHandler(handle));
+  check: (origin: string) => Promise<void>, onAdmission = () => {}) {
+  const server = createServer(createCloudRequestHandler(handle, { onAdmission }));
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address();
@@ -44,6 +45,7 @@ it("valid requests still dispatch and overlapping mutation gets a complete 503 w
   const blocked = new Promise<void>(resolve => { unblock = resolve; });
   const started = new Promise<void>(resolve => { entered = resolve; });
   const dispatches: string[] = [];
+  const logs: string[] = [];
   await withServer(async (req, res) => {
     dispatches.push(req.url ?? "");
     for await (const chunk of req) assert.ok(Buffer.isBuffer(chunk));
@@ -70,7 +72,13 @@ it("valid requests still dispatch and overlapping mutation gets a complete 503 w
     assert.equal(next.status, 200);
     assert.equal(await next.text(), "ok");
     assert.deepEqual(dispatches, ["/hold", "/read", "/next"]);
-  });
+  }, createAdmissionLogger({ writeLine: (line: string) => logs.push(line) }));
+  assert.deepEqual(logs.map(line => JSON.parse(line)), [
+    { event: "cloud-exclusive-start", status: 200, method: "POST", declaredBytes: 5 },
+    { event: "cloud-admission-refused", status: 503, method: "POST", declaredBytes: 1024 * 1024 },
+    { event: "cloud-admission-refused", status: 503, method: "POST", declaredBytes: 1 },
+    { event: "cloud-exclusive-start", status: 200, method: "POST", declaredBytes: 1 },
+  ]);
 });
 
 class Reply extends Writable {
@@ -115,7 +123,7 @@ it("a sender that never finishes receives its response immediately and drain end
 
 it("rejection grace concurrency is capped and rejected requests never reach the application", async () => {
   let dispatched = 0;
-  const handler = createCloudRequestHandler(async () => { dispatched++; });
+  const handler = createCloudRequestHandler(async () => { dispatched++; }, { onAdmission: () => {} });
   const requests = Array.from({ length: MAX_REJECTION_DRAINS + 1 }, () => Object.assign(new PassThrough(), {
     method: "POST", url: "/mods/new", headers: { "content-length": String(MAX_BODY_BYTES + 1) },
   }));
@@ -128,4 +136,50 @@ it("rejection grace concurrency is capped and rejected requests never reach the 
   for (const req of requests) req.end();
   await Promise.all(pending);
   for (const req of requests) req.destroy();
+});
+
+it("actual admission path logs only status, normalized method and numeric length before parser dispatch", async () => {
+  const logs: string[] = []; let dispatched = 0;
+  const logger = createAdmissionLogger({ writeLine: (line: string) => logs.push(line) });
+  const handler = createCloudRequestHandler(async () => { dispatched++; }, { onAdmission: logger });
+  for (const [method, length, status] of [
+    ["POST", "not-a-number-secret", 400], ["PUT", "0", 405],
+    ["POST", undefined, 411], ["POST", String(MAX_BODY_BYTES + 1), 413],
+    ["CUSTOM-secret-method", "0", 405],
+  ] as const) {
+    const req = Object.assign(new PassThrough(), { method, url: "/private-secret-path?token=secret",
+      headers: { "content-length": length, authorization: "Bearer secret", cookie: "secret" } });
+    const res = new Reply(); const pending = handler(req, res); req.end(); await pending;
+    assert.equal(res.status, status); req.destroy();
+  }
+  assert.equal(dispatched, 0);
+  assert.deepEqual(logs.map(line => JSON.parse(line)), [
+    { event: "cloud-admission-refused", status: 400, method: "POST", declaredBytes: null },
+    { event: "cloud-admission-refused", status: 405, method: "PUT", declaredBytes: 0 },
+    { event: "cloud-admission-refused", status: 411, method: "POST", declaredBytes: null },
+    { event: "cloud-admission-refused", status: 413, method: "POST", declaredBytes: MAX_BODY_BYTES + 1 },
+    { event: "cloud-admission-refused", status: 405, method: "OTHER", declaredBytes: 0 },
+  ]);
+  assert.ok(logs.every(line => !/secret|authorization|cookie|private/.test(line)));
+});
+
+it("admission diagnostics are bounded per minute and mark suppression without changing refusals", () => {
+  let time = 0; const logs: string[] = [];
+  const logger = createAdmissionLogger({ now: () => time, writeLine: (line: string) => logs.push(line) });
+  const req = { method: "POST", headers: { "content-length": "1" } };
+  for (let index = 0; index < 100; index++) logger(req, 411);
+  assert.equal(logs.length, MAX_ADMISSION_LOGS + 1);
+  assert.deepEqual(JSON.parse(logs.at(-1)!), { event: "cloud-admission-logging-limited", windowMs: ADMISSION_LOG_WINDOW_MS, maxEvents: MAX_ADMISSION_LOGS });
+  time = ADMISSION_LOG_WINDOW_MS; logger(req, 411);
+  assert.equal(logs.length, MAX_ADMISSION_LOGS + 2);
+  assert.equal(JSON.parse(logs.at(-1)!).event, "cloud-admission-refused");
+});
+
+it("a failed diagnostic sink cannot prevent the existing refusal response", async () => {
+  const handler = createCloudRequestHandler(async () => { assert.fail("rejected body reached app"); }, {
+    onAdmission: createAdmissionLogger({ writeLine: () => { throw new Error("synthetic logging failure"); } }),
+  });
+  const req = Object.assign(new PassThrough(), { method: "POST", url: "/", headers: {} });
+  const res = new Reply(); const pending = handler(req, res); req.end(); await pending;
+  assert.equal(res.status, 411); assert.equal(res.body, REQUEST_REFUSAL); req.destroy();
 });

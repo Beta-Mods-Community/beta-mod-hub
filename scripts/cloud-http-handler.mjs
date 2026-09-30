@@ -7,6 +7,30 @@ export const REJECTION_DRAIN_MS = 2000;
 export const MAX_REJECTION_DRAINS = 4;
 export const REQUEST_REFUSAL = 'Request refused by the small-pilot request limit.';
 export const BUSY_REFUSAL = 'Another upload or export is in progress. Retry shortly.';
+export const ADMISSION_LOG_WINDOW_MS = 60000;
+export const MAX_ADMISSION_LOGS = 12;
+
+/** Fixed-schema, rate-bounded admission evidence; never retain request data. */
+export function createAdmissionLogger({ writeLine = line => console.warn(line), now = () => performance.now() } = {}) {
+  let windowStart = now(); let emitted = 0;
+  return (req, status) => {
+    const time = now();
+    if (time - windowStart >= ADMISSION_LOG_WINDOW_MS) { windowStart = time; emitted = 0; }
+    if (emitted > MAX_ADMISSION_LOGS) return;
+    try {
+      if (emitted === MAX_ADMISSION_LOGS) {
+        emitted++;
+        writeLine(JSON.stringify({ event: 'cloud-admission-logging-limited', windowMs: ADMISSION_LOG_WINDOW_MS, maxEvents: MAX_ADMISSION_LOGS }));
+        return;
+      }
+      emitted++;
+      const length = req.headers['content-length'];
+      const declaredBytes = typeof length === 'string' && /^\d+$/.test(length) && Number.isSafeInteger(Number(length)) ? Number(length) : null;
+      const method = ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE', 'CONNECT', 'TRACE'].includes(req.method) ? req.method : 'OTHER';
+      writeLine(JSON.stringify({ event: status === 200 ? 'cloud-exclusive-start' : 'cloud-admission-refused', status, method, declaredBytes }));
+    } catch { /* Diagnostic failure must not alter admission or response handling. */ }
+  };
+}
 
 /**
  * A final response followed immediately by Connection:close can reset a client
@@ -66,7 +90,7 @@ export function refuseCloudRequest(req, res, status, allowDrain = true) {
 }
 
 /** Shared runtime admission path; tests supply a harmless handler, not Next. */
-export function createCloudRequestHandler(handle, { beginExclusive, onError } = {}) {
+export function createCloudRequestHandler(handle, { beginExclusive, onError, onAdmission = createAdmissionLogger() } = {}) {
   const slot = createWorkSlot();
   let rejectionDrains = 0;
   return async (req, res) => {
@@ -74,6 +98,9 @@ export function createCloudRequestHandler(handle, { beginExclusive, onError } = 
     const release = policy.status === 200 && policy.exclusive ? slot.take() : undefined;
     const status = policy.status !== 200 ? policy.status : release === null ? 503 : 200;
     if (status !== 200) {
+      // Runs before bounded discard, including saturation. No URL, cookies,
+      // headers, body, account identifier or file name enters the log.
+      try { onAdmission(req, status); } catch { /* Keep refusal fail-closed. */ }
       // Do not let unauthenticated refusals create an unlimited pool of grace
       // drains. Saturation remains fail-closed with best-effort immediate reply.
       if (rejectionDrains === MAX_REJECTION_DRAINS) return refuseCloudRequest(req, res, status, false);
@@ -81,6 +108,9 @@ export function createCloudRequestHandler(handle, { beginExclusive, onError } = 
       try { return await refuseCloudRequest(req, res, status); }
       finally { rejectionDrains--; }
     }
+    // A start record separates parser/action failures from pre-Next refusals.
+    // Ordinary GET/HEAD requests are not logged; there is no request-data cache.
+    if (release) { try { onAdmission(req, 200); } catch { /* Diagnostics only. */ } }
     const finishMemory = release ? beginExclusive?.() : undefined;
     const releaseWork = () => { release?.(); finishMemory?.(); };
     let completed = false; let closed = false;
