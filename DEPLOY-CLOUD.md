@@ -448,6 +448,12 @@ holding the cloud pilot's single mutation/export slot.
 
 ## Required before sharing a Discord link
 
+Password recovery is now verified: the owner completed the real email/reset
+flow, the prior signed-in browser is refused at `/account`, the cloud account
+has session version 1, and no reset token remains. The new password was entered
+only by the owner. Other-user permissions and remaining hosted rejection and
+resource-boundary checks below remain separate, unfinished gates.
+
 - Account/permission gates above completed without cards, paid plans or broad
   unrelated-repository access; no production DB mutation.
 - Correct isolated schema verified; pilot owner can sign up, receive/consume
@@ -475,6 +481,6 @@ holding the cloud pilot's single mutation/export slot.
 
 Deployment, real owner verification and the bounded clean-file checks above
 are verified, as are the initial encrypted backup/restore rehearsals. The
-remaining hosted rejection, permission, password recovery and memory gates
+remaining hosted rejection, other-user permission and memory gates
 are still pending. If a quota is hit, pause uploads or wait for reset;
 do not weaken scanning, increase cloud caps, add a card or switch to paid compute.

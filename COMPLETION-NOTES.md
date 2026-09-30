@@ -472,3 +472,15 @@ read the private bucket through the new S3 deadline path (four objects, 20 MiB,
 100 MiB cap, zero held). This is not a fresh upload/export or interruption test.
 Remaining hosted checks are still pending and the pilot stays private. No new
 credentials, migration, plan, custom DNS or local-preview change was made.
+
+### Hosted password recovery verified
+
+The owner approved a reset email to the existing project account, completed
+the email link and chose the replacement password privately. The hosted UI
+shows `login?password=reset` with the successful reset/sign-out message; the
+previously authenticated tab's `/account` request now lands on sign-in.
+A read-only check of the exact isolated cloud branch confirms the owner is
+active and verified, `session_version=1`, and zero reset-password tokens remain.
+No password/hash/cookie/token was read, printed, minted or changed by the agent.
+This closes the real email/reset/sign-out gate, not the separate second-tester
+attachment denial, hosted rejection/restart or full export boundary checks.
