@@ -47,11 +47,21 @@ Both preserved Compose targets run that same scan wrapper against the `deploy/cl
 
 ## Hosting decision
 
-### Current direction (2026-09-29): bounded cloud-only pilot, gated deployment
+### Current direction (2026-09-30): authorized small private cloud beta
 
 The owner has explicitly rejected using their PC as a production dependency.
 Do not deploy a home tunnel, configure always-on Windows hosting, or present
 the local preview as a shareable public site. Keep the working preview intact.
+
+The owner explicitly authorizes a private beta for **3–5 trusted Discord
+testers** on the existing Render pilot. Finish that bounded handoff; do not
+restart a platform migration or require another exhaustive round of synthetic
+tests before this limited beta. This is not a broad public launch or a claim
+that every hosted edge case has passed. Share the host URL and pilot access
+code privately with invitees, never post the code in a public channel, Git,
+screenshots or handoff documentation. Record the actual deployed revision and
+completed preparation work; this scope decision does not itself mean the latest
+UI changes, fixture cleanup or StartNG preparation have finished.
 
 The selected small-pilot target is Render Free native Node 22, an isolated Neon
 Free pilot branch, a dedicated Supabase Free private S3 bucket, Transloadit
@@ -60,9 +70,13 @@ Community scanning and Resend Free HTTPS mail. See `DEPLOY-CLOUD.md` and
 prepared; the Free Render service is live behind its private pilot gate and
 server credentials are private. The verified owner has approved admin/uploader
 access. Real clean build, image, private-log and export checks pass, with
-measured bounded-host memory. Hosted rejection/recovery, remaining permission
-checks remain pending. Initial encrypted backup/download/restore rehearsals
-have passed on GitHub-hosted runners, and nightly backups are enabled. See the
+measured bounded-host memory. The specific synthetic-image 403 remains
+unresolved; its issuer/cause is unconfirmed and support investigation is open.
+Hosted EICAR rejection, exact export boundaries and interruption/recovery cases
+remain unverified follow-ups, not passed checks. Do not retry the blocked file
+or bypass any security control to complete them. Initial encrypted backup,
+download and restore rehearsals have passed on GitHub-hosted runners, and
+nightly backups are enabled. See the
 deployment document's checkpoint: repository code is not proof of a deployed,
 tested or memory-safe host.
 
@@ -72,6 +86,10 @@ closed. Images have 8 MiB/4,194,304-pixel ceilings with original and canonical
 scans. Scan envelopes require explicit success and exact SHA256 binding.
 Storage is capped at 100 MiB total/128 MiB per-account ceiling, five approved uploaders,
 and five attempts/hour. Cloud overrides can tighten but not raise these caps.
+The owner counts toward those five uploader slots. Approval is required for
+file uploads (builds, screenshots and report attachments), not for downloading
+accessible builds, voting or submitting text-only reports. Normal account,
+verification, mod visibility and author/reporter permissions still apply.
 The 100 MiB total cap also bounds full encrypted off-PC backup egress/storage.
 The approved backup target is the private repository's GitHub Actions artifacts;
 see `DEPLOY-CLOUD.md`. Never run the old Windows/R2 backup scripts for this target.
@@ -97,9 +115,10 @@ the preserved target; its byte cap is not a provider-enforced $0 billing cap.
 This bounded synchronous pilot is not the large-file migration described in
 the earlier audit. Restoring 250 MiB uploads still requires durable jobs,
 direct private uploads, authenticated completion/reconciliation and explicit
-memory/cost review. Never raise the pilot caps as a substitute. No production
-DB writes, website DNS changes, home tunnel, paid upgrade or unverified Discord
-launch is authorized by these docs. Preserve the working local preview.
+memory/cost review. Never raise the pilot caps as a substitute. The limited
+private invitation above does not authorize production-main DB writes, website
+DNS changes, a home tunnel, paid upgrades or a broad public launch. Preserve
+the working local preview and fail-closed quarantine → scan → serve pipeline.
 
 ### Previous home target (preserved, not the current production decision)
 

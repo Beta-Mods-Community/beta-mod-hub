@@ -1,8 +1,22 @@
 # Bounded cloud-only tester pilot
 
-Status: **deployed behind the private gate; not ready to share with testers**. Updated
-2026-09-29. This is a small, private testing target with no PC dependency, not an
-unlimited public mod host. The preserved home and Oracle targets are unchanged.
+Status: **owner-authorized private beta for 3–5 trusted Discord testers;
+final handoff preparation in progress**. Updated 2026-09-30. Keep the existing
+gated Render Free pilot, with no PC dependency; this is not an unlimited public
+mod host. The preserved home and Oracle targets are unchanged.
+
+The owner chose this limited beta instead of another platform migration or an
+exhaustive synthetic-test campaign. The unresolved image-upload 403 and remaining
+hosted boundary/recovery checks below are disclosed follow-ups, not passed tests
+or a claim of full production readiness. This authorization does not assert that
+the current UI patch, synthetic-listing cleanup, StartNG preparation or latest
+deployment has finished. Record those outcomes only after they are verified.
+Share the host URL and pilot code privately with invitees; never publish the code
+in Discord channels, Git, screenshots or this document. Keep file scanning,
+permissions, caps and provider Free/no-card settings unchanged.
+
+The account/deployment entries below are historical evidence. The current
+scope and outstanding follow-ups are summarized in the final checkpoint section.
 
 Account checkpoint: Render account/email verification and Supabase GitHub
 sign-in are complete for Beta-Mods. Render's existing GitHub App installation
@@ -91,7 +105,7 @@ charge was created for it; endpoint protection was not changed or bypassed.
 Hosted malware-rejection evidence remains incomplete (the earlier adapter's
 synthetic live rejection checks remain historical, not a substitute).
 
-### Latest hosted checkpoint: `2d7b1c4`
+### Historical hosted checkpoint: `2d7b1c4`
 
 Render deploy `dep-dau8ahid0e5s73em6320` succeeded in 1m36s. No paid upgrade,
 website DNS change, production-main database write or PC runtime was introduced.
@@ -128,9 +142,10 @@ website DNS change, production-main database write or PC runtime was introduced.
 
 All 243 unit tests, typecheck, lint and isolated cloud build pass at this code
 revision. The earlier 43/43 guarded dev integration result was not rerun here.
-Remaining launch gates include hosted rejection/failure and permission cases,
-password-reset inbox round trip, repeated/cold-start/restart memory behavior,
-full export boundary and off-PC backup/restore. Do not call this Discord-ready.
+At that revision, outstanding checks included hosted rejection/failure and
+permission cases, password-reset inbox round trip, repeated/cold-start/restart
+memory behavior, full export boundary and off-PC backup/restore. Later evidence
+below supersedes that checkpoint; it is not the current private-beta scope.
 
 The owner approved lowering total pilot storage to 100 MiB and storing two
 encrypted full snapshots in the private repository's GitHub Actions artifacts.
@@ -215,8 +230,18 @@ The private pilot access code (`PILOT_ACCESS_KEY`, at least 32 random characters
 issues a signed 24-hour gate cookie. It is separate from normal account login,
 email verification, owner permissions, administrator UUIDs and uploader
 approval. It grants none of those roles. Rotate it to invalidate gate cookies.
-Share the eventual URL/code only with the few invited testers, not a public
-Discord channel. Static assets and the minimal health endpoint are not secrets.
+Share the URL/code only with the invited 3–5 trusted testers through private
+messages or a genuinely private invitation, not a public Discord channel.
+Never commit or publish the access code. Static assets and the minimal health
+endpoint are not secrets.
+
+File-upload approval is separate from joining the beta. The five approved
+uploader slots include the owner (so at most four additional accounts can hold
+approval while the owner retains it). Builds, screenshots and report attachments
+require approval; downloading accessible builds, voting and text-only reports
+do not. Ordinary login/verification, mod visibility and author/reporter access
+rules still apply. Do not grant administrator rights or raise the uploader cap
+just to let a tester participate.
 
 ### App scan budget is an estimate
 
@@ -269,8 +294,8 @@ reuse `.env.home` wholesale or repoint the local preview.
    Set `AUTH_MAIL_MODE=resend`, `RESEND_API_KEY`, and `AUTH_MAIL_FROM` from that
    verified sender. The Free account and approved email-only DNS records are
    ready, the sender is verified and a scoped sending key is prepared. The
-   owner's real signup-verification email was delivered and consumed; the
-   password-reset inbox round trip remains pending.
+   owner's real signup-verification and password-reset inbox round trips have
+   passed, as recorded in the checkpoint below.
 5. Add the existing Transloadit key/secret with the matching
    `TRANSLOADIT_SIGNATURE_ALGORITHM`. The evaluated named key uses `sha256`;
    do not assume the `sha384` default for a different key. Keep Community/no
@@ -304,16 +329,18 @@ this avoids guessing a hostname during first creation. If a custom domain is
 later approved, set its exact `APP_URL` and use `MALLOC_ARENA_MAX=2 npm run start:cloud`.
 [Render default environment variables](https://render.com/docs/environment-variables).
 
-The allocator setting above is a **prepared follow-up, not a deployment or
-memory-safety claim**: review the bounded Linux comparison before rollout, and
-set the Render start command before deploying the corresponding startup guard.
+The allocator setting above is deployed with the startup guard; the hosted
+repeat-image evidence is recorded below. It is **not a general memory-safety
+guarantee**. Preserve the Render start command when deploying that guard.
 On the Linux cloud target the launcher refuses to start unless
 `MALLOC_ARENA_MAX=2` is already present. Export it through the start command or
 host environment **before Node starts**, never through application JavaScript
 or a later-loaded `.env` file. The check validates configuration, not glibc's
 internal allocator state. Limiting allocator arenas may reduce retained native
 memory at a concurrency/performance cost; it is not a memory limit or proof
-that uploads fit 512 MiB. Actual repeated hosted uploads still need validation.
+that every possible upload fits 512 MiB. Three successive maximum-pixel hosted
+uploads passed; exact export boundaries and interrupted uploads remain separate
+unverified follow-ups.
 The package command remains cross-platform; local preview, Oracle, build
 commands, image quality and upload/pixel caps are unchanged. The synthetic
 runtime rehearsal passes the value in the spawned child's initial environment.
@@ -460,7 +487,16 @@ exports fail closed. The non-cloud storage targets keep their previous timeout
 behavior. These bounds prevent an indefinitely stalled provider request from
 holding the cloud pilot's single mutation/export slot.
 
-## Required before sharing a Discord link
+## Current private-beta scope and outstanding follow-ups
+
+**Owner decision, Sep 30:** prepare the existing gated Render pilot for 3–5
+trusted Discord testers. Do not restart hosting selection or turn the entire
+remaining synthetic checklist into a new prerequisite for this small beta.
+Keep unresolved results visible, retain every scan/permission/quota control,
+and distinguish a private experimental beta from a generally released service.
+This checkpoint does not claim the latest UI deployment, cleanup or StartNG
+listing/build preparation has completed; record their verified outcomes in the
+handoff before announcing what testers can use.
 
 **Sep 30 checkpoint:** the repeated-image OOM was reproduced and addressed with
 explicit Sharp cleanup plus `MALLOC_ARENA_MAX=2` before Linux Node startup.
@@ -469,16 +505,20 @@ with canonical hashes verified and peak cgroup memory 437,596,160 / 536,870,912
 bytes. The old interrupted reservation was individually reconciled without
 resetting its attempt history or scan charges. A smaller fourth fixture image
 receives 403/text-html before reservation (captured 07:26:50.196 UTC); its
-exact-boundary export check remains blocked pending provider investigation,
-not a security-control bypass. Over-pixel refusal passes, and the inventory has zero
-drift/held rows. No invitation is authorized yet. See `COMPLETION-NOTES.md` for
-the precise completed and unresolved checks; do not raise caps or bypass scans.
+exact-boundary export check remains unverified. The later unchanged reproduction
+at 09:08:49.008 UTC has a CF-Ray correlation identifier and no matching app
+admission log; support investigation is open, but the issuer/rule and root cause
+are still unconfirmed. Do not retry the blocked file or route around a security
+control. Over-pixel refusal passes; the recorded inventory audit had zero
+drift/held rows, not a guarantee about later state. See `COMPLETION-NOTES.md`
+for precise completed and unresolved checks; do not raise caps or bypass scans.
 
 Password recovery is now verified: the owner completed the real email/reset
 flow, the prior signed-in browser is refused at `/account`, the cloud account
 has session version 1, and no reset token remains. The new password was entered
-only by the owner. Other-user permissions and remaining hosted rejection and
-resource-boundary checks below remain separate, unfinished gates.
+only by the owner. The specific other-user permission checks below passed;
+remaining hosted rejection and resource-boundary cases remain unverified
+follow-ups rather than presumed passes.
 
 Subsequent hosted checks passed for ordinary-account admin and owner-edit
 denial, plus five harmless invalid-ZIP cases: malformed metadata, encryption
@@ -511,7 +551,12 @@ in the same in-app browser confirmed `admin.betamods+qa@gmail.com`. Read-only
 cloud data checks confirm QA is neither the reporter nor the mod owner and the
 report/mod association is consistent. No browser protections were bypassed,
 sessions extracted, roles changed or alternative download transports used.
-This closes that specific permission check, not the other hosted launch gates.
+This closes that specific permission check, not the other hosted follow-ups.
+
+Later cold-start evidence supersedes the earlier inconclusive idle observation:
+at 17:03:09 UTC the existing QA account showed Render's service-waking screen,
+and by 17:04:27 the page was restored with its session intact. That is a real
+idle wake-up within the observed 78-second window, not a mid-scan restart test.
 
 - Account/permission gates above completed without cards, paid plans or broad
   unrelated-repository access; no production DB mutation.
@@ -523,12 +568,15 @@ This closes that specific permission check, not the other hosted launch gates.
 - Actual cloud benign ZIP upload, scan, private storage, presigned download and
   exact-byte comparison pass. Anonymous bucket read/write fail. Signatures
   expire. Gallery original/canonical paths and private attachments pass too.
-- Cloud EICAR, malformed/encrypted/nested ZIP, CRC/path/decompression violations,
-  oversized body/image and scanner/DB/quota failure fixtures are rejected with
-  no served object, leaked quarantine or uncharged object.
-- Measure actual Render memory through worst permitted upload/image/export,
-  concurrent request refusal, cold start and mid-scan restart. Pass on the real
-  512 MB instance before claiming it fits.
+- **Unverified follow-ups:** hosted EICAR rejection, remaining decompression/body
+  boundaries and scanner/DB/quota-failure cases. The five invalid-ZIP and
+  over-pixel refusals above passed; they do not prove these other cases. Local
+  antivirus blocked the EICAR fixture, and must not be disabled or bypassed.
+- **Partial memory/recovery evidence:** clean build/image/export, three repeated
+  maximum-pixel images, concurrent mutation refusal and a real idle cold start
+  passed as described above. Exact 32 MiB/one-byte-over hosted exports and a
+  restart during scanning remain unverified. Do not claim universal 512 MiB
+  safety or completed interrupted-upload recovery from the narrower results.
 - Backup/restore and orphan reconciliation rehearsed for this target: the two
   initial encrypted artifact download/restores passed as detailed above. Real
   disaster cutover to replacement cloud services remains a separately approved
@@ -536,10 +584,12 @@ This closes that specific permission check, not the other hosted launch gates.
   guarantee is being made.
 - Inspect provider dashboards and app budgets; verify no payment method or
   automatic overage option was introduced. Record the reviewed revision and
-  evidence. Only then share the host URL privately; custom website DNS can wait.
+  evidence in the small-beta handoff. Share only with the authorized private
+  group, never publish the access code; custom website DNS can wait.
 
 Deployment, real owner verification and the bounded clean-file checks above
 are verified, as are the initial encrypted backup/restore rehearsals. The
-remaining hosted rejection, other-user permission and memory gates
-are still pending. If a quota is hit, pause uploads or wait for reset;
+unresolved 403, remaining hosted rejection, boundary and interruption/recovery
+checks stay documented as follow-ups during the authorized small private beta,
+not silently marked passed. If a quota is hit, pause uploads or wait for reset;
 do not weaken scanning, increase cloud caps, add a card or switch to paid compute.

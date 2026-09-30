@@ -911,3 +911,56 @@ The latest reservation is still 07:07:58.781 UTC, confirming no reservation was
 created by the later refused request. No uploads-enabled override row exists
 (the documented default is enabled). This was a database check, not a fresh
 object-storage reconciliation. No database changes or quota resets were made.
+
+### Sep 30 private-beta preparation and approved fixture cleanup
+
+The owner revised the release scope to a small invited Discord beta on the
+existing Render Free pilot, accepting ordinary beta issues rather than another
+provider migration or exhaustive synthetic test campaign. The unresolved image
+403 and unverified hosted rejection/boundary/interruption cases remain recorded
+follow-ups, not passed tests. Scanning, permissions, budgets and caps are intact.
+
+A 17:36:29 UTC read-only DB/S3 reconciliation found 12 stored objects totaling
+71,890,262 bytes, no drift or held rows, one approved uploader, and 432 estimated
+MiB charged for monthly scans. The owner's recent successful 8 MiB build and
+75,114-byte image uploads settled in approximately 51 and 8 seconds respectively.
+
+Changes `d50a516` and `15b4539` add an honest elapsed upload indicator (no fake
+percent or invented scan stage), retain form text after unconfirmed responses,
+clarify file-uploader approval, use provider-neutral malware-scan labels, and
+permit the owner to delete an archived mod without reopening it for edits.
+Render deployment `dep-daukoabtqb8s73bongc0` of `15b4539` is confirmed Live.
+Successful requirement writes now invalidate their mod page (`a3f6b53`) after a
+real add saved but the same-page redirect displayed stale data. This last fix
+has passed tests/build but is not yet claimed deployed in this checkpoint.
+All 368 unit tests, full lint, typecheck and isolated cloud build pass.
+
+After explicit confirmation, exactly these five fake cloud listings were deleted:
+
+- `dcd70c2f-04cc-4d5a-baa6-2f778e5887cd`: Cloud validation — temporary test
+- `1357385f-8a34-4aa4-ae01-8a153d3bd449`: Cloud rejection checks — temporary system test
+- `60d7d4ed-ce05-4db4-b99e-631e667bd1eb`: Cloud export boundary fixture
+- `74d10010-e807-4b14-b066-fdbb02433fa8`: Cloud image memory check
+- `bc352eb2-b9fb-4594-8227-1bba0cfc2fc3`: .... (Synthetic QA)
+
+Native Chrome confirmation controls stalled browser automation. A reviewed,
+one-off operator cleanup therefore performed a dry run, then an explicit execute
+against hard-pinned isolated pilot targets. It checked exact UUID/title/game/owner,
+foreign references and complete DB/S3 reconciliation, locked the targeted mod
+rows, reused the bounded S3 removal driver, then followed the app's FK/attachment
+reservation cleanup order. It removed 3 builds, 8 images, 1 private attachment,
+and 1 test report: 12 objects / 71,890,262 bytes. After commit, stored and held
+reservations were zero with zero drift. Both accounts, all 9 released attempt
+rows, uploader approvals/settings, and the only untargeted mod were unchanged.
+The temporary cleanup script was removed. No local files were deleted. These
+live deletions have no in-app undo; retained backups are a separate recovery path.
+
+The real Start NG page is now `8efa77b6-15b1-424f-8c09-9ebc8c9faefc`, owned by
+the existing Beta Mods account, with its existing beta description and four
+requirements. Browse visibly shows only this listing. Its original local ZIP
+is unchanged (3,217,451 bytes; 3,837,522 expanded bytes in five entries). The
+existing cover is 1920x1080 and fits the image cap. Neither is claimed uploaded:
+Chrome's native file-picker controls stalled, and the last read-only check found
+zero Start NG builds and zero pending reservations. The owner was asked only to
+cancel a stuck file-selection window so normal authenticated uploading can resume.
+No session was minted, upload path bypassed, antivirus disabled or scan skipped.
