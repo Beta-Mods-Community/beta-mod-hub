@@ -468,8 +468,9 @@ Three successive maximum-pixel hosted uploads now pass on the same process,
 with canonical hashes verified and peak cgroup memory 437,596,160 / 536,870,912
 bytes. The old interrupted reservation was individually reconciled without
 resetting its attempt history or scan charges. A smaller fourth fixture image
-still fails before reservation; its exact-boundary export check remains
-blocked. Over-pixel refusal passes, and the latest full inventory has zero
+receives 403/text-html before reservation (captured 07:26:50.196 UTC); its
+exact-boundary export check remains blocked pending provider investigation,
+not a security-control bypass. Over-pixel refusal passes, and the inventory has zero
 drift/held rows. No invitation is authorized yet. See `COMPLETION-NOTES.md` for
 the precise completed and unresolved checks; do not raise caps or bypass scans.
 

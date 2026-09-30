@@ -796,3 +796,36 @@ not establish an HTTP status or root cause. No fourth-image retry is counted
 as a successful test. The two-image memory-check listing is now archived;
 its files were not deleted. A browser response-metadata diagnostic is being
 prepared to distinguish an upstream refusal from an application response.
+
+### Concrete remaining upload blocker (Sep 30, 02:26 CDT)
+
+Revision `76b9cc5` deployed as `dep-daubi1tg1s2s73c9c8rg`, live at 07:25:34 UTC,
+instance `xrln7`. Its cloud-only client observer preserves the exact original
+fetch arguments, promise and response; it never reads/clones response bodies,
+retries, changes transport or logs credentials. Six regression tests, lint,
+typecheck and an isolated cloud build (`.next-check`) pass. Normal local preview
+was not stopped or rebuilt in place.
+
+The unchanged image-4 upload returned a measured **403 / text/html** at
+**2026-09-30T07:26:50.196Z**. This is not the application's structured image
+policy refusal. Earlier app admission/completion controls work while these
+requests have no corresponding admission record. An upstream security or proxy
+refusal is therefore the leading hypothesis; its exact issuer/rule remains
+unproven. Stop resubmitting this file or routing around the refusal. No IP,
+domain, encoding, credential, client or security-control workaround was used.
+
+Render documents its automatic Cloudflare-backed protection and lists
+`support@render.com` for questions: https://render.com/docs/ddos-protection .
+The next legitimate step is provider investigation using the service ID, exact
+UTC time, POST path, 5,090,772-byte synthetic WebP size and 403/text-html result,
+without secrets, cookies or the image itself. No provider message has been sent.
+The exact-32-MiB hosted export and one-byte-over check remain blocked, not passed.
+Hosted malware rejection remains unverified because the earlier local antivirus
+block must not be bypassed; idle cold-start remains inconclusive. No Discord
+invitation, paid upgrade, DNS/tunnel change or PC hosting was introduced.
+
+Final read-only audit at 07:28:51.515 UTC: still 10 matching objects/stored
+reservations, 63,426,540 bytes, zero drift and zero held rows; scan usage remains
+399 MiB. No reservation exists after the over-pixel attempt at 07:07:58.781.
+The export fixture remains alpha with one build/three images for the unresolved
+check; the repeated-image fixture is abandoned with its two clean images intact.
