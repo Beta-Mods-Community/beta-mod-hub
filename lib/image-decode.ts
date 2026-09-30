@@ -14,8 +14,9 @@ export async function decodeMediaImage(data: Uint8Array) {
   if (!data.byteLength || data.byteLength > maxBytes) {
     throw new MediaError(`Choose an image no larger than ${maxBytes / 1024 / 1024} MiB.`);
   }
+  let image: ReturnType<typeof sharp> | undefined;
   try {
-    const image = sharp(data, {
+    image = sharp(data, {
       failOn: "warning",
       limitInputPixels: cloud ? CLOUD_IMAGE_PIXELS : MAX_MEDIA_DIMENSION * MAX_MEDIA_DIMENSION,
       animated: true,
@@ -36,5 +37,8 @@ export async function decodeMediaImage(data: Uint8Array) {
     return { data: encoded.data, width: encoded.info.width, height: encoded.info.height, mime: "image/webp" as const };
   } catch {
     throw new MediaError(`Use a valid, still PNG, JPEG or WebP image between 160 and 4096 pixels on each side, up to ${maxBytes / 1024 / 1024} MiB${cloud ? " and 4 megapixels" : ""}.`);
+  } finally {
+    // Close each per-upload stream on both successful and refused decodes.
+    image?.destroy();
   }
 }
