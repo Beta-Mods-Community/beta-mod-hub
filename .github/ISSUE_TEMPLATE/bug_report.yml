@@ -1,0 +1,51 @@
+name: Website bug
+description: Report a reproducible problem with the Beta Mods website.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report bugs in a hosted mod on that mod's page, not here.
+        For security problems, email admin.betamods@gmail.com privately. Never include credentials, access codes, signed download URLs, private files, or personal data in this public report.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Use a local reproduction or explain the normal UI steps. Do not repeat an action that affects other users or exhausts service limits.
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. See ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or environment
+      description: Commit or branch for a local copy, or say hosted pilot. Do not paste environment files.
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: Firefox on Windows, Chrome on Android, or another browser and device
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted screenshots or logs
+      description: Optional. Use synthetic data and check for secrets and private details before attaching anything.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked for an existing report and removed secrets and private information from this issue.
+          required: true

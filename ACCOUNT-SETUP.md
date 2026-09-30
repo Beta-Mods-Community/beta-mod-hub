@@ -7,8 +7,11 @@ of the same kind, and a successful password reset/change invalidates every
 existing session. Verification links require an explicit confirmation button;
 email link scanners cannot consume them by fetching a URL.
 
-Apply `0004_account_security.sql` before running this version. Existing email
-addresses remain unverified. A case-insensitive unique index prevents duplicate
+For a new empty development database, `schema.sql` includes the account
+tables and constraints. When upgrading an older database, review and apply
+`db/migrations/0004_account_security.sql` and any other applicable migrations
+after backing it up. Existing email addresses remain unverified. A
+case-insensitive unique index prevents duplicate
 identities; if historical duplicates exist, migration stops instead of merging
 people. Every authenticated request checks the account's current session version
 and suspension state in the database. Existing signed cookies work until a
@@ -16,11 +19,19 @@ password change/reset; deleted or suspended accounts cannot retain access.
 
 ## Email delivery
 
-Set `APP_URL` to the public HTTPS origin and configure `SMTP_HOST`, `SMTP_PORT`,
+Set `APP_URL` to the application's public HTTPS origin. Choose a mail transport
+and keep its credentials in private server configuration.
+
+For Resend HTTPS delivery, use `AUTH_MAIL_MODE=resend`, `RESEND_API_KEY`, and
+`AUTH_MAIL_FROM` with a sender verified for your own provider account. This is
+the transport required by the bounded cloud launcher.
+
+For SMTP, use `AUTH_MAIL_MODE=smtp` and configure `SMTP_HOST`, `SMTP_PORT`,
 `SMTP_FROM`, `SMTP_USER`, and `SMTP_PASSWORD`. Use `SMTP_SECURE=true` for port 465;
 port 587 requires STARTTLS. The app does not disable certificate validation.
 These are ordinary SMTP credentials from an email provider, not a Gmail sign-in
-password. Do not enter secrets in tracked files.
+password. Do not enter secrets in tracked files. Do not configure both
+transports expecting automatic failover; the selected mode determines delivery.
 
 Without mail configuration, verification/recovery pages explain that delivery
 is unavailable. Account creation and sign-in still work, but public posting
@@ -31,7 +42,7 @@ For a local development rehearsal only, set:
 ```dotenv
 APP_URL=http://127.0.0.1:3000
 AUTH_MAIL_MODE=preview
-AUTH_ALLOW_UNVERIFIED_LOCAL=true
+AUTH_ALLOW_UNVERIFIED_LOCAL=false
 ```
 
 Preview messages are private JSON files in the current OS user's
@@ -39,6 +50,11 @@ Preview messages are private JSON files in the current OS user's
 Open the newest file locally and use the link in `text`. Never commit, share,
 or expose that folder via HTTP. Test scripts may read their own message locally
 but must not print tokens. Remove used preview files after testing.
+
+Use the preview link to exercise normal verification. If a specific local
+rehearsal requires the unverified-account exception, explicitly set
+`AUTH_ALLOW_UNVERIFIED_LOCAL=true` for that rehearsal only. It is not required
+to use mail preview and must not become the default way to test verification.
 
 Both preview mail and the explicit unverified-account development exception
 are refused when `NODE_ENV=production` or `APP_URL` is not a loopback address.
@@ -58,8 +74,10 @@ node scripts/bootstrap-admin.mjs <known-account-uuid> --env-file .env.local --ap
 
 The first command verifies the target and previews the change. The second adds
 that UUID to the private environment file. Restart the app afterward. This
-script never changes database records or marks emails verified. Repeat with
-`.env.home` when configuring the home stack against the intended database.
+script never changes database records or marks emails verified. These commands
+are for your own local database. Hosted operators set reviewed account UUIDs
+in their host's private environment settings; contributors do not need access
+to those settings.
 
 Login, account creation, verification/reset requests, password changes, and
 token redemption are throttled in Postgres with atomic expiring counters.

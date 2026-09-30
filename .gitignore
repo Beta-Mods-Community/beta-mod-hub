@@ -32,12 +32,16 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env
-.env.local
-.env.production
-.env.home
-.env.*.local
+.env*
 !.env.example
+!.env.*.example
+
+# Private keys, encrypted snapshots and local release audit output
+*.key
+*.p12
+*.pfx
+*.bmbak
+/.release-audit/
 
 # backup output, if a backup dir is ever pointed inside the repo
 # (the documented default lives outside it — see DEPLOY-HOME.md)

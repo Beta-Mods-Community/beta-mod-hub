@@ -1,0 +1,56 @@
+name: Contributor checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Contributions run without deployment credentials, database access or backups.
+# Never change this to pull_request_target or a self-hosted runner.
+permissions:
+  contents: read
+
+concurrency:
+  group: contributor-checks-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate (${{ matrix.profile }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [default, cloud]
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      BETAMODS_BUILD_CHECK: '1'
+    steps:
+      # Official action release commits, also used by the private operations CI.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Unit tests (no live services)
+        if: matrix.profile == 'default'
+        run: npm test
+      - name: Lint
+        if: matrix.profile == 'default'
+        run: npm run lint
+      - name: Generate route types for a fresh checkout
+        env:
+          CLOUD_PILOT: ${{ matrix.profile == 'cloud' && 'on' || 'off' }}
+        run: node node_modules/next/dist/bin/next typegen
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build without provider credentials
+        env:
+          CLOUD_PILOT: ${{ matrix.profile == 'cloud' && 'on' || 'off' }}
+        run: npm run build

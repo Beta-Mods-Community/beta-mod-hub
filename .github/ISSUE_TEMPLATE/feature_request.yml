@@ -1,0 +1,33 @@
+name: Improvement proposal
+description: Suggest a feature, design change, documentation improvement, or community process.
+title: "[Idea] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas from authors, testers, and contributors are welcome. A proposal starts a discussion; it is not a commitment to build or deploy the change.
+        Keep secrets, personal data, and private mod files out of this public issue.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve
+      description: Who runs into this, and what is difficult today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested improvement
+      description: Describe the experience you want. You do not need a technical design.
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Alternatives or tradeoffs
+      description: Optional. Consider privacy, accessibility, moderation, cost, and how to tell whether the change helps.
+  - type: textarea
+    id: help
+    attributes:
+      label: How you would like to help
+      description: Optional. Examples include testing, design, documentation, code, or feedback only.

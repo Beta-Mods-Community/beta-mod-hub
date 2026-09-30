@@ -53,8 +53,9 @@ The owner has explicitly rejected using their PC as a production dependency.
 Do not deploy a home tunnel, configure always-on Windows hosting, or present
 the local preview as a shareable public site. Keep the working preview intact.
 
-The owner explicitly authorizes a private beta for **3–5 trusted Discord
-testers** on the existing Render pilot. Finish that bounded handoff; do not
+The owner explicitly authorizes a private beta for the **approximately 15 trusted
+members of their Discord group** on the existing Render pilot. The five-uploader
+limit is separate from the number of ordinary testers. Finish that bounded handoff; do not
 restart a platform migration or require another exhaustive round of synthetic
 tests before this limited beta. This is not a broad public launch or a claim
 that every hosted edge case has passed. Share the host URL and pilot access
@@ -93,6 +94,10 @@ verification, mod visibility and author/reporter permissions still apply.
 The 100 MiB total cap also bounds full encrypted off-PC backup egress/storage.
 The approved backup target is the private repository's GitHub Actions artifacts;
 see `DEPLOY-CLOUD.md`. Never run the old Windows/R2 backup scripts for this target.
+Do not toggle this deployment repository public: its retained backup artifacts
+must remain private, and its backup workflow requires a private repository.
+Community source preparation uses a separate reviewed snapshot, excluding
+private operational records and credentials. See `OPEN-SOURCE-RELEASE.md`.
 Promotion input is capped at 32 MiB. `start:cloud` uses the native bounded
 launcher, 9mb form parsing and one mutation/export at a time, not Compose.
 
