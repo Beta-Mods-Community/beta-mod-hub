@@ -18,6 +18,10 @@ const port = Number(process.env.PORT || 10000);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT');
 const hostname = process.env.BIND_HOST || '0.0.0.0';
 if (!['0.0.0.0', '127.0.0.1'].includes(hostname)) throw new Error('Invalid BIND_HOST');
+// Match Next 16's standard start-server: action redirects fetch the actual
+// listener, not HTTPS inferred from Render's TLS-terminating proxy headers.
+// This server-only origin never changes APP_URL, request headers or cookies.
+process.env.__NEXT_PRIVATE_ORIGIN = `http://127.0.0.1:${port}`;
 const app = next({ dev: false, hostname, port });
 const handle = app.getRequestHandler();
 await app.prepare();
