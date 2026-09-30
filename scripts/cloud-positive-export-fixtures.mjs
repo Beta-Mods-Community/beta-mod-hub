@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, stat, rm, writeFile, mkdir } from 'node:fs/promises';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -26,7 +26,8 @@ export const LISTING = Object.freeze({
   versionLabel: 'boundary-1', changelog: 'Synthetic capacity fixture.',
 });
 const buildName = 'boundary-build.zip';
-const root = 'promotion-cloud-export-boundary-fixture';
+export const POSITIVE_PACKAGE_ROOT = 'promotion-cloud-export-boundary-fixture';
+const root = POSITIVE_PACKAGE_ROOT;
 const mediaNames = [1, 2, 3, 4].map(index => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}.webp`);
 const hash = data => createHash('sha256').update(data).digest('hex');
 
@@ -104,31 +105,70 @@ function storedTextZip(crc32) {
   return Buffer.concat([local, name, bytes, central, name, end]);
 }
 
-async function inspectPackage(filename) {
-  const data = await readFile(filename);
+export function allowedPositivePackageEntry(name) {
+  if (typeof name !== 'string' || !name.startsWith(`${root}/`)) return false;
+  const relative = name.slice(root.length + 1);
+  return ['description.bbcode.txt', 'summary.txt', 'readme.txt', 'changelog.txt', 'requirements.txt', 'media/captions.txt', `files/${buildName}`].includes(relative) ||
+    /^media\/0[1-4]-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/.test(relative);
+}
+
+/** Bounded read/hash only: never extracts, writes, downloads or executes ZIP data. */
+function inspectOpenedPackage(zip, crc32) {
   return new Promise((resolve, reject) => {
-    yauzl.fromBuffer(data, { lazyEntries: true, validateEntrySizes: true }, (error, zip) => {
-      if (error) return reject(error);
-      const entries = []; let total = 0;
-      const fail = err => { zip.close(); reject(err); };
-      zip.once('error', fail); zip.once('end', () => resolve(entries));
-      zip.on('entry', entry => {
-        if (entries.length >= 11 || entry.uncompressedSize > POSITIVE_LIMITS.file || entry.fileName.endsWith('/')) return fail(new Error('Unexpected fixture package entry'));
-        zip.openReadStream(entry, (streamError, stream) => {
-          if (streamError) return fail(streamError);
-          const digest = createHash('sha256'); let bytes = 0;
-          stream.once('error', fail);
-          stream.on('data', chunk => {
-            bytes += chunk.length; total += chunk.length;
-            if (bytes > POSITIVE_LIMITS.file || total > POSITIVE_LIMITS.input) { stream.destroy(); fail(new Error('Fixture package exceeded bounds')); return; }
-            digest.update(chunk);
-          });
-          stream.once('end', () => { entries.push({ name: entry.fileName, bytes, sha256: digest.digest('hex') }); zip.readEntry(); });
+    const entries = []; const names = new Set(); let total = 0; let active; let done = false;
+    const finish = error => {
+      if (done) return;
+      done = true; clearTimeout(timer); active?.destroy(); zip.close();
+      if (error) reject(error); else resolve(entries);
+    };
+    const timer = setTimeout(() => finish(new Error('Package inspection exceeded its time bound')), 10000);
+    timer.unref();
+    zip.once('error', finish); zip.once('end', () => finish());
+    if (zip.fileSize > POSITIVE_LIMITS.input || zip.entryCount < 1 || zip.entryCount > 11) return finish(new Error('Package size or entry count exceeded bounds'));
+    zip.on('entry', entry => {
+      if (done) return;
+      const kind = (entry.externalFileAttributes >>> 16) & 0xf000;
+      if (entries.length >= 11 || !allowedPositivePackageEntry(entry.fileName) || names.has(entry.fileName) || ![0, 0x8000].includes(kind) ||
+          entry.uncompressedSize > POSITIVE_LIMITS.file || ![0, 8].includes(entry.compressionMethod) || (entry.generalPurposeBitFlag & 0x41)) {
+        return finish(new Error('Unexpected, duplicate or oversized package entry'));
+      }
+      names.add(entry.fileName);
+      zip.openReadStream(entry, (streamError, stream) => {
+        if (done) { stream?.destroy(); return; }
+        if (streamError) return finish(streamError);
+        active = stream;
+        const digest = createHash('sha256'); let bytes = 0; let checksum = 0;
+        stream.once('error', finish);
+        stream.on('data', chunk => {
+          bytes += chunk.length; total += chunk.length;
+          if (bytes > POSITIVE_LIMITS.file || total > POSITIVE_LIMITS.input) return finish(new Error('Package payload exceeded bounds'));
+          digest.update(chunk); checksum = crc32(chunk, checksum);
+        });
+        stream.once('end', () => {
+          if (done) return;
+          if (bytes !== entry.uncompressedSize || checksum !== entry.crc32) return finish(new Error('Package payload size or CRC mismatch'));
+          entries.push({ name: entry.fileName, bytes, sha256: digest.digest('hex') }); active = undefined; zip.readEntry();
         });
       });
-      zip.readEntry();
     });
+    zip.readEntry();
   });
+}
+
+export async function inspectPackage(filename) {
+  const info = await stat(filename);
+  assert.ok(info.isFile() && info.size > 0 && info.size <= POSITIVE_LIMITS.input, 'Package file exceeds bounds');
+  const { crc32 } = await import('../lib/cloud-zip.ts');
+  const zip = await new Promise((resolve, reject) => yauzl.open(filename, { lazyEntries: true, validateEntrySizes: true, strictFileNames: true }, (error, archive) => error ? reject(error) : resolve(archive)));
+  return inspectOpenedPackage(zip, crc32);
+}
+
+/** The same inspector accepts in-memory tiny ZIPs for read-only unit tests. */
+export async function inspectPackageBytes(data) {
+  assert.ok(Buffer.isBuffer(data) && data.length > 0 && data.length <= POSITIVE_LIMITS.input, 'Package buffer exceeds bounds');
+  const { crc32 } = await import('../lib/cloud-zip.ts');
+  const zip = await new Promise((resolve, reject) => yauzl.fromBuffer(data, { lazyEntries: true, validateEntrySizes: true, strictFileNames: true }, (error, archive) => error ? reject(error) : resolve(archive)));
+  return inspectOpenedPackage(zip, crc32);
 }
 
 async function childMain(writeTemp) {

@@ -711,3 +711,42 @@ for full hosted uploads/scans/exports. The Render start command was saved as
 `MALLOC_ARENA_MAX=2 APP_URL="$RENDER_EXTERNAL_URL" npm run start:cloud`; no plan,
 caps, DNS, credentials or PC hosting changed. Deployment and hosted retesting
 are the next step; no invitations are authorized yet.
+
+### Allocator deployment and real HTTP refusal recheck
+
+Render deployment `dep-dauam6ek1f9s73b2if6g` of `979df42` became live at
+01:25:52 CDT. The startup log records the prefixed allocator command; the
+new Linux configuration guard passed, and cgroup memory at startup was
+93,278,208 bytes (512 MiB maximum). The deployed revision includes stream
+cleanup and the bounded HTTP-refusal fix. A real unauthenticated POST containing
+9,437,185 bytes, sent as a whole body with `Connection: close`, now returns
+413 plus the expected refusal body and `Cache-Control: no-store` in 658 ms,
+instead of the old 502. Subsequent `/api/health` returned 200 / `ok:true` at
+06:26:57 UTC. The synthetic runtime rehearsal remains 17/17, zero outbound
+connections, separate port 3999 stopped afterward. Repeated actual image
+uploads remain pending until the existing hourly allowance naturally frees;
+the cloud is deliberately left idle in that interval for a cold-start check.
+
+The known interrupted-image reservation was then reconciled under the existing
+advisory lock and a row lock, with fresh complete S3 inventory and all clean
+DB references checked inside the transaction. All seven objects still match
+43,081,188 stored bytes; no canonical scan had been charged and the old process
+was replaced. Only that row's state and settled_at changed to released. Its
+ID, owner, 7,182,348-byte value and exact creation timestamp (including
+microseconds) remain intact, as do all 15 owner attempt-history rows and the
+270 MiB scan charge. No file, quota counter or limit was removed/changed.
+There are zero held rows and the backup reference reconciliation now passes.
+Two earlier conditional attempts rolled back with zero matching UPDATE rows:
+the driver coerced a timestamptz parameter through millisecond-precision Date.
+The successful guarded comparison used the exact captured timestamp text.
+The one-off helper was removed afterward; no repair endpoint was added.
+
+A fresh run of the existing encrypted-backup workflow (`36679045358`, revision
+`979df42`) then completed successfully in 1m23s, with one encrypted artifact.
+This confirms the reconciled state no longer blocks the backup workflow.
+The offline download verifier uses only an explicitly supplied browser-download
+path and the existing fixture manifest: five original payload hashes, eleven
+bounded/CRC-checked entries, real numbered media UUID paths, empty-caption hash
+and exact 32 MiB accounting. Historical text hashes from the pre-CRLF manifest
+are explicitly not claimed verified. Thirteen focused tests pass; actual
+hosted package downloads still await the remaining normal image uploads.
