@@ -16,7 +16,8 @@ test("cloud action observer forwards exact arguments/receiver and returns origin
   const result = target.fetch("/mods/private-id?secret=query", action);
   assert.equal(result, pending); assert.equal(await result, response); assert.equal(response.bodyUsed, false);
   assert.equal(calls.length, 1); assert.equal(calls[0][1], action); assert.equal(receivers[0], target);
-  assert.deepEqual(logs.map(line => JSON.parse(line)), [{ event: "cloud-action-response", status: 403, contentType: "text/html" }]);
+  assert.deepEqual(logs.map(line => JSON.parse(line)), [{ event: "cloud-action-response", status: 403, contentType: "text/html",
+    redirected: false, responseType: "default", finalSameOrigin: null, cfRay: null }]);
   assert.ok(logs.every(line => !/secret|private|cookie|actionId|url/i.test(line)));
 });
 
@@ -75,4 +76,77 @@ test("supported instrumentation hook is gated by server cloud boolean without pu
   assert.match(hook, /enabled: document\.documentElement\.dataset\.cloudPilot === "on"/);
   assert.match(layout, /data-cloud-pilot=\{isCloudPilot\(\) \? "on" : undefined\}/);
   assert.doesNotMatch(hook, /process\.env|PILOT_ACCESS_KEY|SESSION_SECRET/);
+});
+
+test("failed responses expose only a bounded correlation ID and redirect categories, never URL or other headers", async () => {
+  const logs: string[] = []; const queried: string[] = [];
+  const response = new Response("private-response-body", { status: 403 });
+  Object.defineProperties(response, {
+    redirected: { value: true }, type: { value: "cors" },
+    url: { value: "https://other.example/private-path?secret=private-query" },
+    headers: { value: { get(name: string) {
+      queried.push(name);
+      if (name === "content-type") return " TEXT/HTML ; charset=UTF-8";
+      if (name === "cf-ray") return "230b030023ae2822-SJC";
+      throw new Error("must not read other response headers");
+    } } },
+  });
+  const target = { fetch: (async () => response) as typeof fetch };
+  installCloudActionDiagnostics(target, { enabled: true, origin, writeLine: line => logs.push(line) });
+  assert.equal(await target.fetch("/mods/private-id", action), response);
+  assert.deepEqual(JSON.parse(logs[0]), { event: "cloud-action-response", status: 403, contentType: "text/html",
+    redirected: true, responseType: "cors", finalSameOrigin: false, cfRay: "230b030023ae2822-SJC" });
+  assert.deepEqual(queried, ["content-type", "cf-ray"]);
+  assert.equal(response.bodyUsed, false);
+  assert.doesNotMatch(logs.join(""), /private|secret|other\.example|https:/);
+});
+
+test("same-origin failure URLs become booleans while successful responses keep their original diagnostic shape", async () => {
+  const logs: string[] = []; let status = 403;
+  const target = { fetch: (async () => {
+    const response = new Response(null, { status, headers: { "content-type": "text/x-component", "cf-ray": "230b030023ae2822-SJC" } });
+    Object.defineProperty(response, "url", { value: `${origin}/private?token=secret` });
+    return response;
+  }) as typeof fetch };
+  installCloudActionDiagnostics(target, { enabled: true, origin, writeLine: line => logs.push(line) });
+  await target.fetch("/", action); status = 200; await target.fetch("/", action);
+  assert.equal(JSON.parse(logs[0]).finalSameOrigin, true);
+  assert.deepEqual(JSON.parse(logs[1]), { event: "cloud-action-response", status: 200, contentType: "text/x-component" });
+  assert.doesNotMatch(logs.join(""), /private|secret|token|pilot\.example/);
+});
+
+test("malformed or unbounded correlation IDs and MIME headers cannot leak through failure diagnostics", async () => {
+  const logs: string[] = [];
+  const invalidIds = [null, "", "private-cookie-value", "230b030023ae2822-SJC\n", "230b030023ae2822-SJC?secret=query", "a".repeat(20000)];
+  let ray: string | null = null;
+  const target = { fetch: (async () => {
+    const response = new Response(null, { status: 403 });
+    Object.defineProperties(response, {
+      type: { value: "private-type" }, url: { value: "invalid secret url" },
+      headers: { value: { get: (name: string) => name === "cf-ray" ? ray : "secret/".repeat(1000) } },
+    });
+    return response;
+  }) as typeof fetch };
+  installCloudActionDiagnostics(target, { enabled: true, origin, writeLine: line => logs.push(line) });
+  for (const value of invalidIds) { ray = value; await target.fetch("/", action); }
+  for (const line of logs) {
+    assert.deepEqual(JSON.parse(line), { event: "cloud-action-response", status: 403, contentType: "other",
+      redirected: false, responseType: "other", finalSameOrigin: null, cfRay: null });
+    assert.doesNotMatch(line, /private|secret|cookie|query|invalid/);
+  }
+});
+
+test("throwing metadata getters cannot swallow the base failure event or alter the original promise", async () => {
+  const logs: string[] = []; const response = new Response(null, { status: 403 });
+  const fail = () => { throw new Error("private metadata error"); };
+  Object.defineProperties(response, {
+    headers: { get: fail }, redirected: { get: fail }, type: { get: fail }, url: { get: fail },
+  });
+  const pending = Promise.resolve(response); const target = { fetch: (() => pending) as typeof fetch };
+  installCloudActionDiagnostics(target, { enabled: true, origin, writeLine: line => logs.push(line) });
+  const actual = target.fetch("/", action);
+  assert.equal(actual, pending); assert.equal(await actual, response);
+  assert.deepEqual(JSON.parse(logs[0]), { event: "cloud-action-response", status: 403, contentType: "unavailable",
+    redirected: null, responseType: "unavailable", finalSameOrigin: null, cfRay: null });
+  assert.doesNotMatch(logs.join(""), /private|metadata error/);
 });
