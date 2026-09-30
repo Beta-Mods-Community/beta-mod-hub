@@ -1,0 +1,76 @@
+name: Cloud image allocator comparison (offline)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: betamods-offline-image-memory
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    if: >-
+      github.repository == 'Beta-Mods/beta-mod-hub' &&
+      github.event.repository.private == true &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install locked dependencies outside the measured containers
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Generate the exact three hosted originals without credentials
+        run: >-
+          env -i PATH="$PATH" CLOUD_PILOT=on
+          node --conditions=react-server --import tsx
+          scripts/cloud-image-memory-rehearsal.mjs
+          --prepare "$RUNNER_TEMP/betamods-image-fixtures"
+      - name: Fetch and record the Node22 glibc image before disabling network
+        run: |
+          docker pull node:22-bookworm-slim
+          docker image inspect node:22-bookworm-slim --format '{{json .RepoDigests}}'
+      - name: Compare current decoder with default allocator and arena2
+        run: |
+          set -euo pipefail
+          candidate_failed=0
+          for variant in default arena2; do
+            container="betamods-image-${variant}"
+            allocator=()
+            if [[ "$variant" == arena2 ]]; then allocator=(--env MALLOC_ARENA_MAX=2); fi
+            set +e
+            timeout --signal=TERM --kill-after=5s 180s docker run --name "$container" \
+              --network none --read-only --memory 512m --memory-swap 512m \
+              --cpus 1 --pids-limit 64 --tmpfs /tmp:rw,size=16m \
+              --mount "type=bind,source=$GITHUB_WORKSPACE,target=/work,readonly" \
+              --mount "type=bind,source=$RUNNER_TEMP/betamods-image-fixtures,target=/fixtures,readonly" \
+              --workdir /work --env CLOUD_PILOT=on --env NODE_ENV=production \
+              "${allocator[@]}" node:22-bookworm-slim \
+              node --max-old-space-size=256 --conditions=react-server --import tsx \
+              scripts/cloud-image-memory-rehearsal.mjs --measure /fixtures
+            code=$?
+            set -e
+            echo "Variant $variant command exit: $code"
+            docker inspect "$container" --format 'Container exit={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}}'
+            oom="$(docker inspect "$container" --format '{{.State.OOMKilled}}')"
+            docker rm --force "$container" >/dev/null
+            if [[ "$variant" == arena2 && ( "$code" != 0 || "$oom" != false ) ]]; then candidate_failed=1; fi
+          done
+          echo 'This compares decoder allocation only; it does not validate hosted uploads or authorize launch.'
+          exit "$candidate_failed"
+      - name: Remove only the two disposable benchmark containers
+        if: always()
+        run: |
+          docker rm --force betamods-image-default betamods-image-arena2 2>/dev/null || true
