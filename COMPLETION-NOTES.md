@@ -1,5 +1,232 @@
 # Local product-completion checkpoint — 2026-09-28
 
+## Bounded cloud-only implementation checkpoint — 2026-09-29
+
+**Not deployed. No hosted end-to-end or 512 MB memory validation is claimed.**
+
+### Verified checkpoint after implementation
+
+- Final unit suite: **229/229**; guarded dev integration suite: **43/43**.
+  Typecheck, ESLint, isolated `CLOUD_PILOT=on` production build and diff check
+  passed. `npm audit --omit=dev`: zero vulnerabilities.
+- Actual managed adapter, synthetic live fixtures: **5/5**. Benign text,
+  generated PNG and canonical WebP accepted with matching envelope hashes;
+  plain and ZIP EICAR rejected. No real mod or user attachment was sent.
+- Local production runtime rehearsal: **17/17**, plus three gate regressions.
+  Synthetic env only, real env reads/outbound sockets blocked, own loopback
+  child stopped. Observed roughly 113-133 MiB RSS for startup/page reads;
+  this is not hosted upload/load evidence. Port 3000 was not restarted.
+- Review fixes: canonical cloud-flag parsing; static paths bypass the gate only
+  for GET/HEAD; all mutation paths still gated; trusted APP_URL redirects preserve
+  email/reset destinations; invalid-code traffic cannot lock out valid codes.
+  Non-ZIP cloud feedback must be plain UTF-8 text/JSON/INI, not binary saves.
+- Render account created and email verified. GitHub app scoped to only
+  `Beta-Mods/beta-mod-hub` is prepared but **not installed**: owner approval
+  pending. Supabase and Resend signup screens are prepared; account creation
+  and terms approval pending. No paid plan/card selected.
+- No new pilot database, storage project/bucket, mail domain, web service,
+  public URL, DNS change, production migration, commit or push in this pass.
+  Application changes remain in the working tree. Continue account setup and
+  hosted end-to-end validation before sharing any Discord link.
+
+This checkpoint supersedes the implementation status in the historical provider
+evaluation below, while preserving those actual test observations. The owner
+requires a few invited testers with no PC dependency and no paid escalation.
+
+The selected target is Render Free native Node 22, a separately verified Neon
+pilot branch, dedicated Supabase Free private object storage, Transloadit
+Community scanning, and Resend Free HTTPS email. `DEPLOY-CLOUD.md` is the current
+runbook; `.env.cloud.example` lists exact variable names without secrets. Real
+preparation values must go in `.env.cloud.local` or the host's secret settings.
+The old home/Oracle targets and local preview remain preserved, not deployed.
+
+### Repository implementation added
+
+- Bounded cloud profile: 8 MiB files, 128 MiB/account, 750 MiB global storage,
+  five approved uploaders and five attempts/hour, with non-raisable ceilings.
+  Fixed all-time stored-byte accounting previously filtered by the recent
+  rate-limit window; added an old-stored-file regression.
+- Supabase S3-compatible private storage with explicit endpoint/region,
+  path-style requests, server credentials, presigned GETs and counted bounded
+  object reads. Dashboard bucket privacy and actual cloud byte preservation
+  still need verification; S3 credentials bypass project-wide RLS.
+- Managed scanner adapter sends exact-byte ZIP envelopes, validates explicit
+  scanner completion/result identity/full SHA256, rejects unknown errors and
+  warnings, and bounds provider response size, polling and timeouts. Original
+  and canonical images both require scans; raw Community image processing is
+  not used as an identity-preserving scan transport.
+- Strict build ZIP policy: 8 MiB compressed and per-member, 32 MiB expanded,
+  256 entries, structural/path/CRC checks and refusal of nested, encrypted,
+  opaque or malformed containers. This is intentionally narrower than the
+  previous upload format/size target; archive validation is not an AV verdict.
+- Durable app scan budget in `auth_rate_limits`: maximum 3072 estimated MiB per
+  UTC calendar month, charging `3 * ceil((bytes + 1024) / 1048576)` before each
+  scan with no refund on unknown/failure. This is conservative bookkeeping,
+  **not proof of provider processing charges**. Community stays at its 5 GB
+  no-overage hard stop; no card/upgrade is part of the design.
+- Separate private access-code gate with signed 24-hour cookies, existing
+  verified-account/owner/admin checks, and a Resend HTTPS mail adapter. Exact
+  mode strings are required; `CLOUD_PILOT=on` must be set at build and runtime.
+- Native cloud launcher checks configuration and built 9mb body limit, refuses
+  unbounded/oversized bodies before parsing, and admits one mutation/export at
+  a time. Image pixels are capped at 8,388,608; Sharp fan-out/cache are bounded.
+- Promotion exports count actual build/media/text bytes plus entry overhead
+  against a 32 MiB input cap and check source metadata at 1 MiB. Errors clean up
+  temporary output. Existing non-cloud behavior is preserved.
+
+These controls allow an explicitly **small synchronous pilot** to be tested.
+They do not complete or replace the durable direct-upload/job architecture
+needed for future 250 MiB files. Do not increase caps to make a refused mod fit.
+
+### Remaining external and release gates
+
+- Render account login/GitHub App permission for the single project repository;
+  Free native Node service configured and built from a reviewed revision.
+- Supabase Free account/project/private bucket/S3 setup, no anonymous reads or
+  writes, and upload/read/delete/presign byte-identity checks.
+- Resend Free account and sender-domain verification, with real verification
+  and reset emails consumed from a tester inbox. Free pricing is 100/day and
+  3,000/month; do not enable paid transactional overages.
+  [Resend pricing](https://resend.com/pricing).
+- Explicit isolated Neon pilot target/schema review. No production migration
+  or automatic build-time database mutation; dev preview env stays unchanged.
+- Real cloud upload/gallery/private-attachment/scan/reject/download flow,
+  permission and quota failure tests, memory peaks on the actual 512 MB host,
+  interrupted upload/cold start behavior, backup restore and orphan accounting.
+- Provider-plan/no-card checks, upload privacy disclosure, and a private-only
+  invitation handoff after the gate passes. No website DNS/tunnel change or
+  Discord-share readiness is implied by this checkpoint.
+
+Repository unit tests and local build checks cannot substitute for these
+external gates. This progress record intentionally does not assert a final
+combined test total while implementation and integration review continue.
+
+Targeted dev-database recheck: the new aggregate initially bound a JavaScript
+`Date` directly in raw SQL, bypassing Drizzle's timestamp encoder and making
+reservations fail closed. It now binds an ISO string with an explicit
+`timestamptz` cast. After that repair, the storage-ledger integration suite
+passed 12/12 (including old stored bytes and both concurrent cap races), followed
+by media-management 7/7 (including reservation resizing). Both completed their
+fixture cleanup. These are dev-only integration results, not a full-suite rerun,
+production migration or hosted cloud validation.
+
+## Cloud-only pilot evaluation — 2026-09-29
+
+Historical provider evaluation before the bounded implementation above:
+
+This section supersedes the old home-hosting decision, not the historical test
+results below. The owner requires **no PC dependency** and no automatic paid
+upgrade. Nothing in this evaluation is a public deployment.
+
+Candidate: free cloud web hosting + Neon Free + private object storage + managed
+Transloadit scanning. Preserve the existing preview, Oracle/home configuration,
+uploads and database while evaluating this alternative.
+
+### Provider gate, before integration
+
+- Use only generated benign fixtures and standard EICAR test fixtures. Do not
+  submit users' unpublished mods, account data, R2 keys or database credentials.
+- Keep evaluation keys in gitignored `.env.transloadit.local`; the template is
+  `.env.transloadit.example`. No credentials or Assembly/file URLs in logs.
+- Require successful completion, the expected scanner output bound to its exact
+  input, no skipped/ignored errors, and byte identity. Completion by itself is
+  not a clean verdict. Never accept a missing scan result as a clean file.
+- Live provider tests must cover benign text/ZIP/image, EICAR plain/ZIP/nested
+  ZIP, invalid/encrypted archives, scan-size/depth limits, quota exhaustion,
+  service errors and unchanged bytes. Small-fixture success does not validate
+  the app's 250 MiB archive ceiling or all supported archive formats.
+- Community's recurring 5 GB is **processing usage**, not necessarily 5 GB of
+  original uploads. Multiple processing steps, minimum charges and retries
+  consume allowance. Scan-only image watermark behavior needs verification.
+- Transloadit temporarily retains files for approximately 24 hours; update the
+  upload disclosure/privacy page before sending tester files to this provider.
+
+### Live synthetic evaluation results (2026-09-29)
+
+The Transloadit workspace is on Community with no credit card. After the initial
+tests the billing page showed 10 MB of 5 GB used and a $0.00 total fee (usage can
+lag; two further tiny synthetic envelope tests followed). Existing credentials
+were saved privately to the gitignored evaluation file. No key was created or
+plan upgraded by this evaluation. Match the dashboard's signature algorithm;
+the existing named key uses SHA256, not the new-key default SHA384.
+
+`scripts/transloadit-probe.mjs` defaults to an offline dry run. `--live` runs
+only nine generated fixtures, with no app/database/storage env fallback or
+arbitrary file/URL inputs. It has bounded transport, one POST per fixture, no
+POST retry, and redacted output. Tests cover errors, quota/timeouts, missing or
+ambiguous results and exact input identity. It is not a production scan adapter.
+
+Actual provider observations:
+
+| Synthetic input | Result |
+|---|---|
+| Plain text and benign ZIP | Scanner completed; result identity and provider full SHA256 matched the input. |
+| EICAR plain, ZIP and nested ZIP | All explicitly rejected by the virus scanner. |
+| Malformed five-byte ZIP | Provider completed rather than rejecting the invalid archive; the probe correctly reports unexpected acceptance. |
+| Raw PNG (91 bytes) | Community processing changed the upload and both outputs to 625 bytes; original identity/hash validation failed. Do not use this path for original images. |
+| ZIP carrying the exact PNG | Scan and provider full SHA256 matched the complete 218-byte envelope. |
+| ZIP carrying EICAR named pixel.png | Explicitly rejected by the virus scanner. |
+
+The API includes an informational Community watermark notice even for text and
+ZIP inputs. The probe recognizes only that exact notice and still requires all
+completion, scan, identity and hash checks. Unknown warnings/errors remain
+non-clean. This is not permission to ignore warnings in a future production
+adapter. The complete nine-fixture run is expected to remain non-green while
+the deliberately malformed ZIP and raw PNG expose these limitations.
+
+Image envelopes are a promising scan transport, not implemented app behavior:
+the server must bind an envelope to the exact immutable original/canonical
+image, enforce size/concurrency limits, and never trust a client-supplied
+manifest. Independently downloaded byte preservation remains untested. Archive
+validation is separate from malware detection; malformed/encrypted formats,
+250 MiB coverage, decompression size/depth limits and free-host memory remain
+launch gates. Do not weaken these checks just to make the probe green.
+
+No real mods or R2 credentials were uploaded. No application uploads, production
+database, DNS, tunnel, public hosting or running preview were changed. Nothing
+was committed or pushed during this evaluation.
+
+Repository verification after the probe additions: 150/150 unit tests (including
+20 probe tests), typecheck, lint and isolated `.next-check` production build
+passed. No DB-mutating integration or E2E suites were run in this evaluation.
+
+### Code/deployment gates found during the audit
+
+1. `uploadBuild`, local quarantine, `scanUpload` and R2 promotion buffer whole
+   files. Do not put the current 250 MiB multipart flow on a 512 MB free runtime.
+   Use metadata-only initiation, direct private uploads and durable upload jobs.
+2. Reserve capacity before issuing an upload capability. Verify actual size and
+   immutable content identity, authenticate and independently verify completion,
+   then recheck owner/account/mod permissions before idempotent publication.
+   Pending files must never have a public download route.
+3. Keep pending and failed-cleanup bytes charged until their deletion is
+   confirmed; current expiration of local-scratch reservations cannot be reused
+   unchanged for durable cloud quarantine. Reconcile lost callbacks after
+   restarts without relying on in-process background promises.
+4. Existing `reserveStorage()` per-user totals are incorrectly filtered by the
+   recent rate-limit window. Fix all-time active-byte accounting separately
+   from recent upload attempts and add an old-upload regression before launch.
+5. Migrate builds, private feedback attachments and both image scan stages.
+   Preserve canonical image handling, private attachment authorization and all
+   lost-commit/cleanup protection. Stream or bound promotion ZIP generation too.
+6. Render Free blocks SMTP ports 25/465/587; current account mail needs an HTTPS
+   delivery adapter and real verification/reset inbox tests. Never expose local
+   preview mail or the development-only unverified-account bypass.
+7. Replace ClamAV-specific runtime startup/readiness only once managed scanning
+   is validated. Do not spend a scanner request on every health probe. Confirm
+   free-runtime memory, cold starts, backup/restore, isolated pilot DB migrations
+   and whole-site invite restrictions before any Discord link is shared.
+8. R2 is metered beyond its free allowance. Do not promise zero billing solely
+   from its 8 GiB app cap: requests and other account usage also matter. A strict
+   no-overage storage choice must be decided and tested before public deployment.
+
+Sources checked 2026-09-29:
+[Community plan](https://transloadit.com/pricing/),
+[scan Robot](https://transloadit.com/docs/robots/file-virusscan/),
+[Robot usage accounting](https://transloadit.com/docs/robots/pricing/),
+[privacy](https://transloadit.com/legal/privacy/),
+[Render Free restrictions](https://render.com/docs/free).
+
 ## Implemented
 
 - Account verification/recovery/change-password; hashed expiring single-use
@@ -59,3 +286,26 @@ weakens a production check.
 - Nexus OAuth still requires registered credentials and live reconciliation.
 - R2 inventory is not an archive backup or a billing cap. Existing pilot caps
   remain in force; this work does not promise unlimited free hosting.
+
+## 2026-09-29 cloud account checkpoint (not deployed)
+
+- Resend Free created for the project account; no card or overages. The owner
+  approved three email-only DNS records under `mail.betamods.com`; all three
+  are saved and verified. Website DNS and incoming mail were not changed.
+- Dedicated Supabase Free project and private `betamods-pilot` bucket created;
+  exact 8,388,608-byte object limit, zero anonymous-access policies. The owner
+  completed the private password step. Project-wide S3 access is confined to
+  this dedicated project, not the other site.
+- Neon schema-only `cloud-pilot` branch is isolated, non-expiring and empty.
+  Read-only comparison: 19 tables, 128 columns, 167 constraints and 40 indexes
+  match dev. No production database mutation or migration was performed.
+- Owner-approved storage and sending-only email keys are saved in ignored
+  `.env.cloud.local` and imported into the prepared Render Free form, with
+  independent app secrets and the dedicated Transloadit credentials. Actual
+  Render deployment and hosted checks remain pending.
+- Render's start command derives the initial application origin from its
+  documented `RENDER_EXTERNAL_URL`; no service hostname is guessed.
+- Fresh local checks: 229/229 unit tests, typecheck and lint pass. Private
+  cloud/Transloadit secret-value scan found no matches in commit candidates.
+- Cloud implementation preserved in local commits `25f1230`, `fc83a87`, and
+  `29a897c`. The working local preview and earlier hosting targets are intact.

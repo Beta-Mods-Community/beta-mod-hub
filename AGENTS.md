@@ -27,7 +27,7 @@ Tests run with `node --conditions=react-server` (see the `test` script) because 
 
 Migrations: `db/migrations/*.sql` are hand-written and **idempotent** (IF NOT EXISTS everywhere), and `node scripts/apply-migrations.mjs` applies them. It refuses to run if `.env.local`'s `DATABASE_URL` is the same as `.env.production`'s, so the dev branch is the only thing it can touch. **Never point it at the production Neon branch.**
 
-Uploads always run **quarantine → scan → serve** — nothing is stored or served without a clean scan, and there's no dev exception. If `SCAN_ENDPOINT` isn't set, uploads refuse outright. Local dev: the app expects `SCAN_ENDPOINT` to point at `scripts/scan-server.mjs`, which talks to a local `clamd` over TCP (see the script's header for env vars). On this dev machine (ClamAV 1.5.4 extracted to `C:\Users\chast\ClamAV`):
+Uploads always run **quarantine → scan → serve** — nothing is stored or served without a clean scan, and there's no dev exception. The ClamAV driver refuses uploads without `SCAN_ENDPOINT`; the bounded cloud pilot instead uses the fail-closed Transloadit driver described below. Local dev: the app expects `SCAN_ENDPOINT` to point at `scripts/scan-server.mjs`, which talks to a local `clamd` over TCP (see the script's header for env vars). On this dev machine (ClamAV 1.5.4 extracted to `C:\Users\chast\ClamAV`):
 
 - Configs: `C:\Users\chast\ClamAV\clamd.conf` + `freshclam.conf` (quarantine limits raised to the app's 512 MB cap).
 - One-time: run `freshclam.exe --config-file=...\freshclam.conf` to download the virus DB into `database\`.
@@ -35,7 +35,7 @@ Uploads always run **quarantine → scan → serve** — nothing is stored or se
 - Then `node scripts/scan-server.mjs` (listens on :3311) and set `SCAN_ENDPOINT=http://127.0.0.1:3311` in `.env.local`.
 - Full loop check: `npm run e2e` (`scripts/e2e-upload.mjs`) — signs in as the demo owner with a minted session cookie, uploads a benign build then an EICAR build over the real no-JS form protocol, and asserts both the sanitize/serve path and the block path.
 
-Both deployment targets run that same scan wrapper against the `deploy/clamav/` ClamAV container as `SCAN_ENDPOINT`. Home hosting runs the wrapper as its own Compose service (`deploy/home/scan-server/`) so it can be health-gated; the Oracle fallback starts it inside the app container.
+Both preserved Compose targets run that same scan wrapper against the `deploy/clamav/` ClamAV container as `SCAN_ENDPOINT`. Home hosting runs the wrapper as its own Compose service (`deploy/home/scan-server/`) so it can be health-gated; the Oracle fallback starts it inside the app container. The new cloud target does not run local ClamAV.
 
 ## Working style
 
@@ -47,7 +47,55 @@ Both deployment targets run that same scan wrapper against the `deploy/clamav/` 
 
 ## Hosting decision
 
-Production is a **small closed pilot, self-hosted on the owner's Windows PC**
+### Current direction (2026-09-29): bounded cloud-only pilot, not deployed
+
+The owner has explicitly rejected using their PC as a production dependency.
+Do not deploy a home tunnel, configure always-on Windows hosting, or present
+the local preview as a shareable public site. Keep the working preview intact.
+
+The selected small-pilot target is Render Free native Node 22, an isolated Neon
+Free pilot branch, a dedicated Supabase Free private S3 bucket, Transloadit
+Community scanning and Resend Free HTTPS mail. See `DEPLOY-CLOUD.md` and
+`.env.cloud.example`. Provider accounts and the isolated pilot database are
+prepared; server credentials are privately staged and hosted verification remains pending. See the
+deployment document's checkpoint: repository code is not proof of a deployed,
+tested or memory-safe host.
+
+The cloud profile deliberately reduces files to 8 MiB. ZIP builds have strict
+32 MiB expanded/256-entry checks; nested/encrypted/unsupported containers fail
+closed. Images have 8 MiB/8,388,608-pixel ceilings with original and canonical
+scans. Scan envelopes require explicit success and exact SHA256 binding.
+Storage is capped at 750 MiB total/128 MiB per account, five approved uploaders,
+and five attempts/hour. Cloud overrides can tighten but not raise these caps.
+Promotion input is capped at 32 MiB. `start:cloud` uses the native bounded
+launcher, 9mb form parsing and one mutation/export at a time, not Compose.
+
+Use literal `CLOUD_PILOT=on` at build and runtime, with `PILOT_MODE=on`,
+`STORAGE_DRIVER=s3`, `SCAN_DRIVER=transloadit`, `AUTH_MAIL_MODE=resend` and
+`NODE_ENV=production`. A separate 32+ character pilot access code issues a
+signed 24-hour gate cookie; ordinary account/owner/admin checks still apply.
+Remove local mail preview and unverified-account bypass settings. Real local
+preparation secrets belong only in gitignored `.env.cloud.local`, never
+`.env.cloud` or the example file.
+
+The app reserves an estimated monthly scan allowance (3072 MiB maximum,
+conservative 3x MiB-rounded accounting) before each provider call. It is not a
+provider billing calculation; Community's unchanged 5 GB hard stop is the final
+no-overage control. Keep providers on Free/no card, with no automatic paid
+upgrade. Supabase S3 credentials bypass RLS across its project: dedicated
+project, private bucket and server-only keys are mandatory. R2 remains only in
+the preserved target; its byte cap is not a provider-enforced $0 billing cap.
+
+This bounded synchronous pilot is not the large-file migration described in
+the earlier audit. Restoring 250 MiB uploads still requires durable jobs,
+direct private uploads, authenticated completion/reconciliation and explicit
+memory/cost review. Never raise the pilot caps as a substitute. No production
+DB writes, website DNS changes, home tunnel, paid upgrade or unverified Discord
+launch is authorized by these docs. Preserve the working local preview.
+
+### Previous home target (preserved, not the current production decision)
+
+The previous target was a **small closed pilot, self-hosted on the owner's Windows PC**
 behind a **Cloudflare Tunnel**, with **Neon Free** Postgres and **Cloudflare R2
 Standard** holding the mod archives. See `DEPLOY-HOME.md` and
 `compose.home.yml`.
