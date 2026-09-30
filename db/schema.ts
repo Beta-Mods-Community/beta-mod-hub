@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  check,
   index,
   integer,
   pgEnum,
@@ -57,6 +58,7 @@ export const accountTokens = pgTable("account_tokens", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
+  check("account_tokens_purpose_check", sql`${table.purpose} IN ('verify-email', 'reset-password')`),
   unique("account_tokens_user_purpose_unique").on(table.userId, table.purpose),
   index("account_tokens_expiry_idx").on(table.expiresAt),
 ]);
@@ -159,10 +161,10 @@ export const modMedia = pgTable(
     objectKey: text("object_key").notNull(),
     mimeType: text("mime_type").notNull(),
     sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
-    width: bigint("width", { mode: "number" }).notNull(),
-    height: bigint("height", { mode: "number" }).notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
     // Gallery order, ascending. New uploads get max(position)+1; moves swap.
-    position: bigint("position", { mode: "number" }).notNull().default(0),
+    position: integer("position").notNull().default(0),
     caption: text("caption"),
     // At most one per mod (partial unique index in the SQL contract). The hero
     // is what Browse cards show and the gallery starts on.
@@ -173,6 +175,10 @@ export const modMedia = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    check("mod_media_size_bytes_check", sql`${table.sizeBytes} > 0`),
+    check("mod_media_width_check", sql`${table.width} > 0`),
+    check("mod_media_height_check", sql`${table.height} > 0`),
+    check("mod_media_caption_check", sql`${table.caption} IS NULL OR char_length(${table.caption}) <= 200`),
     index("mod_media_beta_mod_id_idx").on(table.betaModId),
     unique("mod_media_position_unique").on(table.betaModId, table.position),
     uniqueIndex("mod_media_one_hero_per_mod")
@@ -224,6 +230,7 @@ export const storageReservations = pgTable(
     settledAt: timestamp("settled_at", { withTimezone: true }),
   },
   (table) => [
+    check("storage_reservations_bytes_check", sql`${table.bytes} > 0`),
     index("storage_reservations_user_id_idx").on(table.userId),
     index("storage_reservations_state_idx").on(table.state),
     index("storage_reservations_media_id_idx").on(table.mediaId),

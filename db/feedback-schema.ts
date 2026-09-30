@@ -1,4 +1,5 @@
-import { bigint, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { bigint, check, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { betaMods, bugReports, builds, storageReservations, users } from "./schema";
 
 export const bugReportWorkflow = pgTable("bug_report_workflow", {
@@ -9,7 +10,9 @@ export const bugReportWorkflow = pgTable("bug_report_workflow", {
   retestBuildId: uuid("retest_build_id").references(() => builds.id, { onDelete: "set null" }),
   retestNotes: text("retest_notes"),
   retestedAt: timestamp("retested_at", { withTimezone: true }),
-});
+}, (table) => [
+  check("bug_report_workflow_retest_status_check", sql`${table.retestStatus} IN ('not-requested', 'requested', 'resolved', 'still-present')`),
+]);
 
 export const bugAttachments = pgTable("bug_attachments", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -22,4 +25,8 @@ export const bugAttachments = pgTable("bug_attachments", {
   sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
   scanState: text("scan_state").notNull().default("clean"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [index("bug_attachments_mod_idx").on(table.betaModId)]);
+}, (table) => [
+  check("bug_attachments_size_bytes_check", sql`${table.sizeBytes} > 0 AND ${table.sizeBytes} <= 20971520`),
+  check("bug_attachments_scan_state_check", sql`${table.scanState} = 'clean'`),
+  index("bug_attachments_mod_idx").on(table.betaModId),
+]);
