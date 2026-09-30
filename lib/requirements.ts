@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 
 import { db } from "./db";
@@ -41,6 +42,7 @@ export async function addRequirement(formData: FormData) {
     });
   } catch (error) { errorMessage = mutationMessage(error); }
 
+  if (!errorMessage) revalidatePath(`/mods/${betaModId}`);
   redirect(`/mods/${betaModId}${errorMessage ? `?feedback=${encodeURIComponent(errorMessage)}` : ""}#requirements`);
 }
 
@@ -65,5 +67,6 @@ export async function removeRequirement(requirementId: string) {
       });
     } catch (error) { errorMessage = mutationMessage(error); }
   }
+  if (!errorMessage) revalidatePath(`/mods/${row.betaModId}`);
   redirect(`/mods/${row.betaModId}${errorMessage ? `?feedback=${encodeURIComponent(errorMessage)}` : ""}#requirements`);
 }
