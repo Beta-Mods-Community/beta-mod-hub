@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { AuthorResponseSchema, canReadAttachment, MAX_ATTACHMENT_BYTES, RetestSchema, validateAttachment, validateAttachmentContents, validateVoteBuild } from "../lib/feedback-policy";
-import { assertEditableMod, ModMutationError } from "../lib/mod-lifecycle";
+import { assertDeletableMod, assertEditableMod, ModMutationError } from "../lib/mod-lifecycle";
 import { validateBuildArchive } from "../lib/build-upload-policy";
 
 const firstBuild = "ea350b18-d729-4d81-a264-e936a258984c";
@@ -52,6 +52,28 @@ describe("private scanned attachment policy", () => {
 });
 
 describe("server-side mod lifecycle policy", () => {
+  it("allows owners to delete active or archived mods without making archived mods editable", () => {
+    for (const status of ["alpha", "beta", "rc", "abandoned"]) {
+      assert.doesNotThrow(() => assertDeletableMod({ ownerId: "owner", status }, "owner"));
+    }
+    assert.throws(() => assertEditableMod({ ownerId: "owner", status: "abandoned" }, "owner"), /archived and is read-only/);
+  });
+  it("denies deletion by nonowners even when the mod is archived", () => {
+    for (const status of ["beta", "abandoned"]) {
+      assert.throws(() => assertDeletableMod({ ownerId: "owner", status }, "tester"), /Only the mod author/);
+    }
+  });
+  it("still denies owner deletion of published or moderation-hidden mods", () => {
+    assert.throws(() => assertDeletableMod({ ownerId: "owner", status: "promoted" }, "owner"), /published on Nexus and is read-only/);
+    for (const status of ["beta", "abandoned"]) {
+      assert.throws(() => assertDeletableMod({ ownerId: "owner", status, hiddenAt: new Date() }, "owner"), /under review/);
+    }
+  });
+  it("denies deletion when the mod no longer exists", () => {
+    for (const mod of [null, undefined]) {
+      assert.throws(() => assertDeletableMod(mod, "owner"), /no longer available/);
+    }
+  });
   it("allows active owned mutations but rejects wrong owner, published, archived, missing or hidden mods", () => {
     assert.doesNotThrow(() => assertEditableMod({ ownerId: "owner", status: "beta" }, "owner"));
     assert.throws(() => assertEditableMod({ ownerId: "owner", status: "beta" }, "tester"), ModMutationError);

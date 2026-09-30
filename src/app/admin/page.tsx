@@ -42,8 +42,9 @@ export default async function AdminPage() {
           Pilot control
         </h1>
         <p className="mt-2 text-sm leading-6 text-muted">
-          Signed in as {viewer.email ?? viewer.userId}. These caps are enforced
-          by the app itself — Cloudflare budget alerts are warnings, not limits.
+          Signed in as {viewer.email ?? viewer.userId}. Manage upload access and
+          the pilot&apos;s storage limits here. An upload approval does not grant
+          administrator access.
         </p>
       </div>
 
@@ -61,7 +62,7 @@ export default async function AdminPage() {
           }`}
         >
           {uploadsEnabled
-            ? "Open — approved uploaders can add builds."
+            ? "Open — approved uploaders can add builds, screenshots and report attachments."
             : "Disabled — every new upload is refused right now."}
         </p>
         <p className="mt-1 text-sm leading-6 text-muted">
@@ -152,8 +153,8 @@ export default async function AdminPage() {
 
         <p className="mt-5 border-t border-line pt-4 text-xs leading-5 text-muted">
           {storedBytes === null
-            ? "Bucket listing unavailable — the R2 driver is not active here, or the listing failed."
-            : `The bucket holds ${formatBytes(storedBytes)} across ${storedObjects?.length ?? 0} object(s). The ${formatBytes(limits.maxTotalBytes)} application cap is the only thing keeping this inside the free allowance.`}
+            ? "The storage inventory is unavailable. Check the storage service before approving more uploads."
+            : `The private store holds ${formatBytes(storedBytes)} across ${storedObjects?.length ?? 0} object(s). The application cap is ${formatBytes(limits.maxTotalBytes)}; provider storage, transfer and scanning limits also apply.`}
         </p>
       </section>
 
@@ -165,9 +166,15 @@ export default async function AdminPage() {
         </h2>
         <p className="text-sm leading-6 text-muted">
           {limits.mode === "on"
-            ? `Pilot mode is ON — only the ${approved.length} approved account(s) below can upload, out of ${limits.maxApprovedUploaders} allowed. Everyone else is refused.`
+            ? `${approved.length} of ${limits.maxApprovedUploaders} upload approvals are in use, including any approved owner account. Approval is required for builds, screenshots and report attachments.`
             : "Pilot mode is OFF — the allowlist is not consulted, and every mod owner can upload."}
         </p>
+        {limits.mode === "on" && <p className="mt-2 text-sm leading-6 text-muted">
+          Ask each invited tester to sign up and verify their email first, then
+          approve that account below. Accounts without upload approval can still
+          browse, download, submit text-only bug reports and vote on builds.
+          Share the pilot access code privately; it does not replace account signup.
+        </p>}
 
         {approved.length > 0 ? (
           <ul className="mt-4 divide-y divide-line">

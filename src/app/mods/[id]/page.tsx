@@ -224,7 +224,7 @@ export default async function BetaModPage({
                 </Link>
                 <p className="mt-3 flex items-center gap-1.5 text-xs text-emerald-300">
                   <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                  ClamAV scan passed
+                  Malware scan passed
                 </p>
                 <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
                   The archive was scanned before storage. Compatibility still needs testing.
@@ -348,7 +348,7 @@ export default async function BetaModPage({
                       )}
                       <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300">
                         <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                        ClamAV scan passed
+                        Malware scan passed
                       </p>
                     </div>
                     <Link href={`/files/${build.id}`} className="button-secondary shrink-0">

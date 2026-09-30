@@ -9,7 +9,7 @@ import { betaMods, builds, modMedia, storageReservations } from "../db/schema";
 import { bugAttachments } from "../db/feedback-schema";
 import { deleteStored } from "./storage";
 import { BetaModFormSchema, type BetaModFormState } from "./definitions";
-import { assertEditableMod, lockModForMutation, mutationMessage } from "./mod-lifecycle";
+import { assertDeletableMod, assertEditableMod, lockModForMutation, mutationMessage } from "./mod-lifecycle";
 import { getAccountWriteError } from "./access";
 
 function parseTags(raw: string): string[] {
@@ -137,7 +137,7 @@ export async function deleteBetaMod(modId: string) {
   if (!errorMessage) {
     try {
       await db.transaction(async tx => {
-        assertEditableMod(await lockModForMutation(tx, modId), owned.userId);
+        assertDeletableMod(await lockModForMutation(tx, modId), owned.userId);
         const archives = await tx.select({ key: builds.fileUrl }).from(builds).where(eq(builds.betaModId, modId));
         const media = await tx.select({ key: modMedia.objectKey }).from(modMedia).where(eq(modMedia.betaModId, modId));
         const attachments = await tx.select({ key: bugAttachments.objectKey, reservationId: bugAttachments.reservationId })
