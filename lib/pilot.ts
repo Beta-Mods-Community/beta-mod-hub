@@ -23,7 +23,8 @@ export const GiB = 1024 * 1024 * 1024;
 export const CLOUD_PILOT_CEILINGS = Object.freeze({
   maxArchiveBytes: 8 * MiB,
   maxBytesPerTester: 128 * MiB,
-  maxTotalBytes: 750 * MiB,
+  // Full encrypted cloud backups must also fit within the free artifact budget.
+  maxTotalBytes: 100 * MiB,
   maxApprovedUploaders: 5,
   uploadsPerWindow: 5,
   minimumWindowMinutes: 60,

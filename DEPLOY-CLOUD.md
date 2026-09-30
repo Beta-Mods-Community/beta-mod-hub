@@ -132,13 +132,13 @@ Remaining launch gates include hosted rejection/failure and permission cases,
 password-reset inbox round trip, repeated/cold-start/restart memory behavior,
 full export boundary and off-PC backup/restore. Do not call this Discord-ready.
 
-Backups are not configured. A proposed Free-only option is to lower total pilot
-storage to 100 MiB and retain two encrypted full snapshots in the private
-repository's GitHub Actions artifacts. That needs explicit approval for the
-lower capacity and new GitHub-held backup credentials: Supabase's S3 key is
-full-access within the dedicated project, not read-only. Verify account-wide
-artifact capacity, no-card/$0 enforcement and restore safety before enabling;
-the existing Windows/R2 backup scripts are not this target's backup system.
+The owner approved lowering total pilot storage to 100 MiB and storing two
+encrypted full snapshots in the private repository's GitHub Actions artifacts.
+Dedicated read-only Neon and project-wide Supabase backup credentials are
+approved for GitHub Actions; Supabase's S3 key is full-access within the
+dedicated project, not read-only. Setup and the first actual restore rehearsal
+are in progress; do not confuse approval with a completed backup. The existing
+Windows/R2 backup scripts are not this target's backup system.
 
 ## Selected target
 
@@ -162,7 +162,7 @@ suspend a service. This is a limited pilot, not an uptime commitment.
 [Render Free restrictions](https://render.com/docs/free).
 
 Supabase Free includes 1 GB storage and is not charged for exceeding Free
-limits; service restrictions can apply. The app's 750 MiB ceiling leaves space,
+limits; service restrictions can apply. The app's 100 MiB ceiling leaves space,
 but does not account for unrelated objects or guarantee unlimited downloads.
 Keep the project dedicated, inspect usage, and do not upgrade the organization.
 [Storage usage](https://supabase.com/docs/guides/platform/manage-your-usage/storage-size),
@@ -197,7 +197,7 @@ to recover from quota exhaustion. [Resend pricing](https://resend.com/pricing).
   use short-lived authenticated S3 GET signatures; no public bucket URL or
   anonymous write policy is required. Quarantine is private ephemeral scratch,
   removed on completion, not a durable background-job queue.
-- Storage ledger: 128 MiB/account, 750 MiB total, five approved uploaders and
+- Storage ledger: 128 MiB/account ceiling, 100 MiB total, five approved uploaders and
   five upload attempts per account per hour. Config may tighten, not raise,
   these cloud ceilings. Old stored bytes remain charged independently of the
   recent attempt window. Failed-cleanup objects keep their storage charge.
@@ -325,6 +325,73 @@ startup/gate evidence only, not the required upload/image/export boundary test.
 
 Health checks query the database and validate configuration. They do not spend
 a scan request and **do not prove scanner, storage or email availability**.
+
+## Encrypted off-PC backups
+
+The approved backup workflow is `.github/workflows/cloud-backup.yml`, running
+on standard GitHub-hosted Ubuntu, never the owner's PC. Manual dispatch is for
+the first rehearsal; the nightly 07:23 UTC schedule also requires repository
+variable `CLOUD_BACKUPS_ENABLED=true`. Do not enable it before a downloaded
+artifact passes the actual restore rehearsal. A 10-minute job timeout, no
+dependency cache and one non-cancelling workflow concurrency group bound usage.
+
+Four private repository secrets are required: `BACKUP_DATABASE_URL`,
+`BACKUP_STORAGE_ACCESS_KEY`, `BACKUP_STORAGE_SECRET_KEY`, and
+`BACKUP_ENCRYPTION_KEY`. Their prepared values are in gitignored
+`.env.backup.local`; do not print or commit that file. Fixed endpoint, region
+and bucket are the dedicated pilot's, not an arbitrary destination. No app
+administrator database credential is installed in GitHub.
+
+The dedicated `betamods_backup` SQL login has SELECT on public tables and
+sequences plus future objects owned by `neondb_owner`, schema USAGE and database
+CONNECT. It owns no objects, has no memberships or permanent-data write/CREATE
+permissions, and defaults to read-only transactions. PostgreSQL's existing
+PUBLIC temporary-table permission is inherited; other roles' permissions were
+not changed. Supabase cannot make a generated S3 key read-only: the separate
+`betamods-pilot-backup` key has full storage access within only that dedicated
+project. Anyone able to run trusted repository workflows can use its secrets.
+
+The core exports a read-only consistent database snapshot and reconciles the
+clean file references, storage ledger and bucket. Unexpected, missing, changed
+or unaccounted objects fail the job instead of producing a partial success.
+The database dump and actual object bytes are encrypted with AES-256-GCM before
+artifact upload; neither plaintext data nor credentials belong in job logs or
+artifacts. Backups use a separate random encryption key from the application.
+
+Verification downloads the retained artifact, authenticates/decrypts it,
+checks each object, and restores PostgreSQL into an empty disposable loopback
+database named `betamods_restore_rehearsal`. This is not permission to restore
+over the live Neon branch or copy fixtures into it. Real disaster recovery
+requires a separately approved empty destination, reviewed schema and object
+restoration, and a full application smoke test before switching any runtime URL.
+
+Only after successful verification may retention keep the new snapshot plus
+the newest previous verified one. Repository artifact preflight reserves a
+third temporary copy and stops above 450 MiB. Encrypted payloads stop at 149 MiB
+to allow ZIP framing under 150 MiB per artifact. Unexpected prior leftovers
+block rather than trigger deletion of unrelated artifacts. GitHub's 90-day
+retention still expires snapshots if backups stop; this is not permanent archival.
+
+GitHub account billing was inspected: Free, 0/2,000 included minutes and
+0/0.5 GB Actions storage at setup; Actions and Packages both had $0 budgets
+with **Stop usage: Yes**. Preserve those hard stops, not just alert emails.
+Artifact storage is shared with Packages and other repositories; the workflow's
+repository check cannot account for later unrelated usage. Quota exhaustion
+can stop backups. [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+
+At the 100 MiB total data ceiling, 31 nightly full reads use roughly 3.25 GB of
+Supabase egress before tester downloads. Its Free 5 GB uncached allowance is
+finite; inspect it and pause rather than upgrade. A source archive kept by its
+author is still useful even with backups. [Supabase pricing](https://supabase.com/pricing).
+
+Recovery needs the backup encryption key and the application's independent
+secrets (especially `ENCRYPTION_KEY` for linked Nexus credentials); snapshots
+do not include runtime secret configuration. Keep an owner-controlled copy in
+a password manager or equivalent private recovery store. The ignored local
+credential files are preparation/recovery copies, not a running PC dependency.
+Encryption protects leaked artifacts, not an attacker who controls both the
+repository's workflows and its secrets. Do not rotate/delete the backup key
+without preserving the key for retained snapshots.
 
 ## Required before sharing a Discord link
 

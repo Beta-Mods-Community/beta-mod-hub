@@ -69,8 +69,11 @@ The cloud profile deliberately reduces files to 8 MiB. ZIP builds have strict
 32 MiB expanded/256-entry checks; nested/encrypted/unsupported containers fail
 closed. Images have 8 MiB/4,194,304-pixel ceilings with original and canonical
 scans. Scan envelopes require explicit success and exact SHA256 binding.
-Storage is capped at 750 MiB total/128 MiB per account, five approved uploaders,
+Storage is capped at 100 MiB total/128 MiB per-account ceiling, five approved uploaders,
 and five attempts/hour. Cloud overrides can tighten but not raise these caps.
+The 100 MiB total cap also bounds full encrypted off-PC backup egress/storage.
+The approved backup target is the private repository's GitHub Actions artifacts;
+see `DEPLOY-CLOUD.md`. Never run the old Windows/R2 backup scripts for this target.
 Promotion input is capped at 32 MiB. `start:cloud` uses the native bounded
 launcher, 9mb form parsing and one mutation/export at a time, not Compose.
 

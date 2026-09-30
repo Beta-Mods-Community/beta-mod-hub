@@ -46,7 +46,7 @@ describe("readPilotLimits", () => {
     assert.equal(resolved.mode, "on");
     assert.equal(resolved.maxArchiveBytes, 8 * MiB);
     assert.equal(resolved.maxBytesPerTester, 128 * MiB);
-    assert.equal(resolved.maxTotalBytes, 750 * MiB);
+    assert.equal(resolved.maxTotalBytes, 100 * MiB);
     assert.equal(resolved.maxApprovedUploaders, 5);
     assert.equal(resolved.uploadsPerWindow, 5);
     assert.equal(resolved.windowMinutes, 60);
@@ -73,7 +73,7 @@ describe("readPilotLimits", () => {
   it("clamps even blank or invalid cloud pilot cap overrides", () => {
     const resolved = readPilotLimits({ CLOUD_PILOT: "on", PILOT_MAX_ARCHIVE_BYTES: "", PILOT_MAX_TOTAL_BYTES: "unlimited" });
     assert.equal(resolved.maxArchiveBytes, 8 * MiB);
-    assert.equal(resolved.maxTotalBytes, 750 * MiB);
+    assert.equal(resolved.maxTotalBytes, 100 * MiB);
   });
 
   it("defaults to the agreed pilot numbers with no env at all", () => {

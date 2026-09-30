@@ -1,0 +1,120 @@
+name: Cloud pilot encrypted backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 7 * * *'
+
+# No PR trigger, paid runner, cache, app build, or deployed database restore.
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: betamods-cloud-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    if: >-
+      github.repository == 'Beta-Mods/beta-mod-hub' &&
+      github.event.repository.private == true &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'schedule' && vars.CLOUD_BACKUPS_ENABLED == 'true'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # Official action release tags resolved to these full commit IDs.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Fail closed before consuming backup storage
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/cloud-backup-retention.mjs preflight
+      - name: Install locked runtime dependencies without lifecycle scripts
+        run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+      - name: Start disposable PostgreSQL 18 restore target
+        run: |
+          set -euo pipefail
+          restore_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$restore_password"
+          export POSTGRES_PASSWORD="$restore_password"
+          docker run --detach --rm --name betamods-backup-rehearsal \
+            --publish 127.0.0.1:54329:54329 \
+            --env POSTGRES_PASSWORD --env POSTGRES_USER=backup_restore \
+            --env POSTGRES_DB=betamods_restore_rehearsal \
+            postgres:18 postgres -p 54329
+          for attempt in $(seq 1 60); do
+            if docker exec betamods-backup-rehearsal pg_isready -h 127.0.0.1 -p 54329 -U backup_restore >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec betamods-backup-rehearsal pg_isready -h 127.0.0.1 -p 54329 -U backup_restore
+          mkdir -p "$RUNNER_TEMP/betamods-backup-bin" "$RUNNER_TEMP/betamods-backup-upload"
+          chmod +x scripts/cloud-backup-pg-client.sh
+          ln -s "$GITHUB_WORKSPACE/scripts/cloud-backup-pg-client.sh" "$RUNNER_TEMP/betamods-backup-bin/pg_dump"
+          ln -s "$GITHUB_WORKSPACE/scripts/cloud-backup-pg-client.sh" "$RUNNER_TEMP/betamods-backup-bin/pg_restore"
+          echo "BACKUP_RESTORE_DATABASE_URL=postgresql://backup_restore:$restore_password@127.0.0.1:54329/betamods_restore_rehearsal?sslmode=disable" >> "$GITHUB_ENV"
+      - name: Create authenticated encrypted database and object snapshot
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_STORAGE_ENDPOINT: https://yoyusyevjusierybnoaw.storage.supabase.co/storage/v1/s3
+          BACKUP_STORAGE_REGION: us-east-1
+          BACKUP_STORAGE_BUCKET: betamods-pilot
+          BACKUP_STORAGE_ACCESS_KEY: ${{ secrets.BACKUP_STORAGE_ACCESS_KEY }}
+          BACKUP_STORAGE_SECRET_KEY: ${{ secrets.BACKUP_STORAGE_SECRET_KEY }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          node scripts/cloud-backup.mjs create \
+            --output "$RUNNER_TEMP/betamods-backup-upload/snapshot.bmbak" \
+            --pg-dump "$RUNNER_TEMP/betamods-backup-bin/pg_dump"
+          node scripts/cloud-backup-retention.mjs check-file "$RUNNER_TEMP/betamods-backup-upload/snapshot.bmbak"
+      - name: Upload encrypted snapshot only
+        id: upload
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: cloud-backup-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/betamods-backup-upload/snapshot.bmbak
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90
+          overwrite: false
+      - name: Retrieve the actual retained artifact into a different directory
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          artifact-ids: ${{ steps.upload.outputs.artifact-id }}
+          path: ${{ runner.temp }}/betamods-backup-download
+          merge-multiple: true
+      - name: Decrypt, hash every object, and rehearse database restoration
+        id: verify
+        env:
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          node scripts/cloud-backup.mjs verify \
+            --input "$RUNNER_TEMP/betamods-backup-download/snapshot.bmbak" \
+            --pg-restore "$RUNNER_TEMP/betamods-backup-bin/pg_restore"
+      - name: Keep replacement and newest prior verified snapshot
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BACKUP_RESTORE_VERIFIED: 'true'
+          BACKUP_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: node scripts/cloud-backup-retention.mjs prune "$BACKUP_ARTIFACT_ID"
+      - name: Remove only this run's failed unverified upload
+        if: ${{ failure() && steps.upload.outputs.artifact-id != '' && steps.verify.outcome != 'success' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BACKUP_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: node scripts/cloud-backup-retention.mjs discard-current "$BACKUP_ARTIFACT_ID"
+      - name: Destroy disposable restore database
+        if: always()
+        run: docker rm --force --volumes betamods-backup-rehearsal >/dev/null 2>&1 || true
