@@ -57,8 +57,11 @@ The fixed commit is live in deploy `dep-dau7bgvavr4c7380b5k0` (1m33s).
 Actual Chrome native-form retesting now passes: Continue set the gate cookie
 and reached the homepage, then normal navigation reached signup. No browser
 protection was disabled or bypassed. The fix passed 239 unit tests, typecheck,
-lint and the isolated cloud build. Owner password/signup/email verification
-remain a private user handoff.
+lint and the isolated cloud build. The owner then completed real signup and
+email verification; delivery was confirmed in Resend and verification in the
+isolated pilot database. Administrator/uploader permission is awaiting the
+owner's explicit approval. Eleven subsequent hosted gate regression checks
+passed without database writes, mail, scans or uploads.
 
 ## Selected target
 

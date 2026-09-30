@@ -331,8 +331,11 @@ while preserving null/missing/foreign-origin rejection, cookie flags and
 token-safe redirects. That commit is now live (deploy
 `dep-dau7bgvavr4c7380b5k0`, 1m33s); native Chrome Continue succeeded and normal
 navigation reached signup. No browser security setting was disabled or
-bypassed. Owner password/signup is left as a private user handoff. This is
-not a completed account-verification/reset or hosted upload rehearsal. Memory
+bypassed. The owner then completed signup and real email verification. Resend
+shows delivery and the isolated database confirms verification; no development
+account was copied or session minted. Administrator/uploader approval remains
+pending. Eleven additional hosted gate checks passed. This is not a completed
+password-reset or hosted upload rehearsal. Memory
 boundary tests and backup/restore are still required before inviting testers.
 
 Private numeric memory evidence added in `aebfca1` avoids Render Free's paid
