@@ -1,6 +1,8 @@
 # Deployment configuration and responsibilities
 
-This is a configuration overview for operators, not a one-click production deployment or a copy of the live service's runbook. The community repository contains runtime code but no production credentials, backup workflows, provider accounts, or deployment connection. Contributor pull requests must never deploy automatically to the live site.
+This is a configuration overview for the existing private application repository, not a one-click deployment or permission to change the live service. Runtime code, operational scripts, and preserved deployment targets remain together in this sole app codebase. The owner controls deployment; contributor changes must be reviewed and tested before an authorized release.
+
+New repository invitations are on hold until access to privileged workflows, operational history, and backup artifacts has been separated and verified. The credential-free contributor CI does not prove that this broader separation or branch protection is complete. Existing hosting and backup operations must not be interrupted as part of documentation or contributor setup.
 
 ## Local development profile
 
@@ -47,7 +49,9 @@ Object-storage keys are server-only. Use a dedicated project and a private bucke
 - Configure HTTPS, verified email delivery, stable secrets, account verification, and least-privilege administrator access.
 - Confirm clean uploads, scanner failure handling, authorized downloads, and denial of private files to other accounts in an isolated test environment.
 - Check the host's actual memory, request, storage, and billing limits. Application caps and budget estimates are not a promise of zero provider charges.
-- Establish encrypted backups, retention, restore rehearsals, logging, updates, and incident ownership outside the public contributor workflow.
+- Establish encrypted backups, retention, restore rehearsals, logging, updates, and incident ownership outside the credential-free contributor workflow. Verify access separation before inviting collaborators.
 - Record the deployed revision and any unverified cases. A successful build or unit suite is not evidence that provider integration or disaster recovery works.
 
-Legacy hosting configurations and service-specific operational scripts are intentionally excluded from this snapshot. If you run your own instance, you are responsible for its security, availability, costs, privacy practices, and permission to host uploaded content. Do not use the project's live pilot or its users as your test environment.
+The existing `DEPLOY-CLOUD.md` describes the current hosted profile. `DEPLOY-HOME.md`, `compose.home.yml`, `DEPLOY.md`, and `compose.oracle.yml` preserve earlier alternatives; their presence is not approval to switch hosting or connect contributor machines to production. Operational scripts and integration/end-to-end tests remain in the repository but are excluded from contributor CI.
+
+Anyone authorized to operate an instance is responsible for its security, availability, costs, privacy practices, and permission to host uploaded content. Repository access is not an open-source license or deployment authorization. Do not use the live pilot or its users as a development test environment.

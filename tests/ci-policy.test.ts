@@ -6,7 +6,8 @@ const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta
 const source = workflow.replace(/^\s*#.*$/gm, "");
 
 // These are regression checks for the reviewed workflow, not a sandbox against
-// a malicious PR. Repository branch protection and maintainer review still apply.
+// a malicious PR. Read-only contributor access and maintainer review are separate
+// controls; this file does not enable private branch protection on GitHub Free.
 test("contributor checks use unprivileged PR events and disposable hosted runners", () => {
   assert.match(source, /\n  pull_request:\s*\n/);
   assert.match(source, /permissions:\s+contents: read\s+concurrency:/);

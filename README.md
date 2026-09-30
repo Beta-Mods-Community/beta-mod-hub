@@ -2,7 +2,9 @@
 
 Beta Mods is a community project for testing game mods before release. Authors share beta builds, testers report reproducible bugs, and build-specific readiness votes help authors decide what needs more work.
 
-The site is in a small private beta. This community repository contains the website software, not the hosted database, uploaded mods, private reports, account details, or production credentials. Private deployment history, operational workflows, and backup artifacts are not part of this source snapshot. Publishing the website's source does not change the ownership or permissions of any author's mod.
+The site is in a small private beta. This private repository is the sole application codebase, including its existing artwork, runtime, tests, and operational tooling. There is no separate community edition or manually mirrored copy of the app.
+
+The intended contribution model is invite-only. New repository invitations are on hold until access to backup artifacts, operational history, and production-connected workflows has been separated and verified. These documents do not mean that read-only roles, branch protection, or enforced pull-request checks are already configured. Site testers can keep providing feedback in Discord without repository access.
 
 ## What works today
 
@@ -22,17 +24,16 @@ The application uses Next.js 16, React 19, TypeScript, Tailwind CSS 4, Drizzle O
 
 The current hosted pilot uses Render for the app, Neon for PostgreSQL, a private Supabase S3 bucket for files, Transloadit for malware scanning, and Resend for account emails. Contributors do not need accounts with those services to work on the UI or run the default checks.
 
-Local development can use local PostgreSQL, local file storage, and a ClamAV-backed scanner. No container platform or hosted provider account is required for that setup. Legacy hosting configurations are not included in this community edition. Merging a change here does not deploy it to the live pilot.
-
-The community edition uses geometric SVG artwork instead of the live site's illustration and icon. See [Source and asset scope](ASSETS.md) for the boundary between project code, artwork, dependencies, and user content.
+Local development can use local PostgreSQL, local file storage, and a ClamAV-backed scanner. No container platform or hosted provider account is required for that setup. Older home and Oracle configurations remain in the same repository as alternatives, not instructions to change the current live service.
 
 ## Start contributing locally
 
-Fork this repository, then clone your fork into a fresh directory:
+After the owner has approved and safely configured your access, clone the authorized repository into a fresh directory:
 
 ```sh
-git clone <your-fork-url> betamods
+git clone <authorized-repository-url> betamods
 cd betamods
+git switch -c <your-change-branch>
 npm ci
 npm run dev -- --hostname 127.0.0.1
 ```
@@ -51,11 +52,11 @@ npm test
 npm run build
 ```
 
-See [Contributing](CONTRIBUTING.md) for database-backed development, scanner setup, and the limits of the included test suite.
+See [Contributing](CONTRIBUTING.md) for database-backed development, scanner setup, and the separate integration and end-to-end checks. Those checks can write data and are not part of the credential-free contributor CI.
 
 ## Work on the project together
 
-Bug reports, design feedback, accessibility work, documentation, and testing are contributions too. Use an Issue to explain a problem or discuss a substantial proposal before building it. Submit code through a branch in your fork and a pull request. Maintainers review and test changes before merging; a contribution does not grant production access or permission to deploy.
+Bug reports, design feedback, accessibility work, documentation, and testing are contributions too. Use Discord, or an Issue once authorized, to discuss a substantial proposal before building it. The contribution process is a focused branch, a pull request, and owner review and testing before merge. This is the intended workflow, not a claim that GitHub currently enforces it. Do not push directly to `main`, run operational workflows, or deploy without explicit owner authorization.
 
 - [Contributing](CONTRIBUTING.md): setup, checks, and pull requests.
 - [Governance](GOVERNANCE.md): how decisions and maintainer responsibilities work.
@@ -66,10 +67,12 @@ Bug reports, design feedback, accessibility work, documentation, and testing are
 
 ## Security and file ownership
 
+Hosted user data, uploaded mods, and live credentials are separate from source code and must remain private. Backup workflows and their retained artifacts need additional access review before collaborators are admitted; a private repository alone is not sufficient separation.
+
 Every upload must pass the quarantine, malware scan, and final-storage sequence. Missing or failed scans must block publication. Contributions must preserve authorization checks, private storage, quota accounting, and this fail-closed behavior.
 
 Never attach real credentials, access codes, user exports, private mod archives, or live signed download URLs to an Issue or pull request. Use small synthetic fixtures that you have permission to share.
 
-## License
+## Source permissions
 
-The project intends to publish under an open-source license. The license selection is being finalized; the repository's `LICENSE` file, once adopted, will define the granted rights. Until it is present, do not assume that public visibility alone grants a license to reuse the code. Uploaded mods and third-party dependencies retain their own licenses and permissions.
+No open-source license has been adopted. Access to this private repository does not authorize public redistribution of its code or artwork. Agree on permission with the owner before sharing it or incorporating third-party material. Uploaded mods and dependencies retain their own licenses and permissions; contributing to the website does not transfer ownership of them.

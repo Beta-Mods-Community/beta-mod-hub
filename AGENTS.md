@@ -94,10 +94,13 @@ verification, mod visibility and author/reporter permissions still apply.
 The 100 MiB total cap also bounds full encrypted off-PC backup egress/storage.
 The approved backup target is the private repository's GitHub Actions artifacts;
 see `DEPLOY-CLOUD.md`. Never run the old Windows/R2 backup scripts for this target.
-Do not toggle this deployment repository public: its retained backup artifacts
-must remain private, and its backup workflow requires a private repository.
-Community source preparation uses a separate reviewed snapshot, excluding
-private operational records and credentials. See `OPEN-SOURCE-RELEASE.md`.
+Keep this repository private. It is the sole application codebase; there is no
+public edition, source export, or second independently edited community copy.
+The intended contributor access is invitation-only, with production operations
+and backup artifacts isolated from source access. Until the operations cutover
+is verified, retained artifacts and credentials still require owner-only access.
+Do not invite contributors or claim PR-only enforcement from local files alone.
+See `REPOSITORY-SETUP.md` for the cutover order and actual transition status.
 Promotion input is capped at 32 MiB. `start:cloud` uses the native bounded
 launcher, 9mb form parsing and one mutation/export at a time, not Compose.
 

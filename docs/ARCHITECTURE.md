@@ -1,6 +1,6 @@
 # Beta Mods architecture
 
-This document describes the application in the community source snapshot. It separates the website's code and security boundaries from the private operation of the hosted pilot.
+This document describes the existing private application repository. It remains the sole codebase for the site, including its runtime, artwork, complete tests, and operational tooling. Application source, hosted user data, and permission to operate the live service are separate concerns.
 
 ## Application structure
 
@@ -12,7 +12,9 @@ This document describes the application in the community source snapshot. It sep
 | `db` and `schema.sql` | Drizzle schema modules, SQL schema, and migrations |
 | `scripts/scan-server.mjs` | Local HTTP wrapper for a real ClamAV daemon |
 | `scripts/cloud-*.mjs` | Bounded Node runtime and request policy for the cloud pilot |
-| `tests` | Unit and policy tests that do not require live services |
+| `tests/*.test.ts` | Unit and policy tests that do not require live services |
+| `tests/integration` | Database-backed tests with isolated development prerequisites |
+| Other `scripts` and deployment files | End-to-end checks, operator tools, backups, and preserved alternative hosting configurations |
 
 Next.js serves the UI and server-side application logic. PostgreSQL stores accounts, mod metadata, build references, feedback, quota reservations, and moderation state. File bytes are separate from database records: local development uses private filesystem storage, while the cloud profile uses private S3-compatible storage.
 
@@ -44,8 +46,12 @@ Bug reports and readiness votes are tied to the build tested. A new build does n
 
 An owner can generate a release package from the latest scanned build, description, requirements, and scanned media. It contains text for manual Nexus publication and a requirements checklist. Authors review the generated BBCode and publish themselves, then record the final Nexus URL. The application does not automate Nexus's website or create a Nexus release on the author's behalf.
 
-## Public source and private operations
+## Repository and operational access
 
-This repository omits live credentials, user content, database exports, backups, deployment history, and service-specific operator tools. Its GitHub workflow validates untrusted contributions without production access. A merged pull request is source code, not authorization to deploy it or migrate a database.
+Application source stays in this one private repository. No separate contributor app edition, artwork substitution, or manually mirrored source tree is required. Hosted database contents, uploaded files, and secret values do not belong in tracked source.
 
-See [Deployment](DEPLOYMENT.md) for supported configuration profiles and [Contributing](../CONTRIBUTING.md) for an isolated local setup. Artwork in the community edition differs from the running site's artwork; see [Source and asset scope](../ASSETS.md).
+Operational workflows, history, and retained backup artifacts require their own access review. New invitations are on hold until their separation has been completed and verified. The contributor workflow configuration runs without provider credentials, but that does not certify that all other repository access is safe or that branch protection is configured.
+
+Integration and live-provider checks remain available as separate, potentially mutating tools; they are not included in the credential-free contributor CI. A pull request is not permission to run an operator script, migrate a database, or deploy.
+
+See [Deployment](DEPLOYMENT.md) for configuration profiles and [Contributing](../CONTRIBUTING.md) for isolated local setup and verification requirements. No open-source license has been adopted, and repository access does not grant permission to republish its code or assets.
