@@ -964,3 +964,39 @@ Chrome's native file-picker controls stalled, and the last read-only check found
 zero Start NG builds and zero pending reservations. The owner was asked only to
 cancel a stuck file-selection window so normal authenticated uploading can resume.
 No session was minted, upload path bypassed, antivirus disabled or scan skipped.
+
+### Start NG seed completed through the normal cloud UI
+
+The browser was recovered with one clearly named Chrome upload tab; the owner
+did not need to create another account or change extension/security permissions.
+The existing owner submitted the original ZIP through the normal authenticated
+form and Transloadit pipeline. Build `4f8d58bf-6f2a-41d4-9871-4e56a693340a`
+is live as `1.0.0 Beta`, with a passed malware scan. The existing 1920x1080
+cover was uploaded and scanned normally as media
+`ccdf692b-8836-4833-a077-c17afc6385e9`.
+
+The regular, non-admin QA account downloaded the build through its normal
+Download link. Its 3,217,451 bytes match the unchanged original exactly, SHA256
+`2c34e4521521b98da3be80d698e4946bbeb233eebcf65d36a2c129a9f4574976`.
+That account sees voting and bug-report controls but no owner edit/delete or
+upload controls. No fake verdict or report was submitted on the real mod.
+
+A fresh read-only isolated-pilot reconciliation confirms only Start NG remains:
+one build, one scanned image, four requirements, two accounts and one approved
+uploader. Two private objects total 3,320,387 bytes with zero drift; ledger is
+2 stored / 0 held / 9 released. Scan allowance is 453 / 3072 estimated MiB,
+resetting 2026-10-01 00:00 UTC. No account, attempt or scan-budget reset occurred.
+
+The real upload also exposed the same stale-current-page behavior as requirements:
+its successful redirect cleared the form but needed a reload to show the new
+build. `32333fc` invalidates mod/catalog/dashboard views after confirmed build and
+feedback writes, not from failure or uncertain-outcome branches. Auth, scanning,
+storage and quota logic are unchanged. All 372 unit tests, typecheck, full lint,
+and isolated cloud build pass. Requirements revision `7d45c19` was confirmed Live;
+the final cache-refresh revision `32333fc` is now confirmed Live in
+`dep-daul1mp42hec73est69g` (1m41s deployment). The narrow invalidation placement is
+unit/AST tested; no second dummy build or fake report was added just to re-test it.
+The real uploaded seed and ordinary-account download passed before that final
+invalidation-only patch. The limited private beta is ready with disclosed
+free-host cold starts, bounded uploads and outstanding edge-case follow-ups;
+this is not an unlimited or generally production-proven public launch.

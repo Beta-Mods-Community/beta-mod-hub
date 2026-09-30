@@ -1,7 +1,7 @@
 # Bounded cloud-only tester pilot
 
-Status: **owner-authorized private beta for 3–5 trusted Discord testers;
-final handoff preparation in progress**. Updated 2026-09-30. Keep the existing
+Status: **ready for the owner-authorized private beta with 3–5 trusted Discord
+testers**. Updated 2026-09-30. Keep the existing
 gated Render Free pilot, with no PC dependency; this is not an unlimited public
 mod host. The preserved home and Oracle targets are unchanged.
 
@@ -494,9 +494,14 @@ trusted Discord testers. Do not restart hosting selection or turn the entire
 remaining synthetic checklist into a new prerequisite for this small beta.
 Keep unresolved results visible, retain every scan/permission/quota control,
 and distinguish a private experimental beta from a generally released service.
-This checkpoint does not claim the latest UI deployment, cleanup or StartNG
-listing/build preparation has completed; record their verified outcomes in the
-handoff before announcing what testers can use.
+**Final handoff:** Render revision `32333fc` is Live in deployment
+`dep-daul1mp42hec73est69g`. The five explicitly approved fake listings and their
+12 stored files/test reports were deleted; accounts and local files were preserved.
+Start NG is the only cloud listing, with its unchanged original ZIP, scanned cover,
+and four requirements. The non-admin QA account downloaded the original build
+byte-for-byte. Final inventory: 2 objects / 3,320,387 bytes, zero drift or held
+reservations. See `COMPLETION-NOTES.md` for evidence and the unresolved follow-ups.
+No Discord invitation has been sent automatically.
 
 **Sep 30 checkpoint:** the repeated-image OOM was reproduced and addressed with
 explicit Sharp cleanup plus `MALLOC_ARENA_MAX=2` before Linux Node startup.
