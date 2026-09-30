@@ -895,3 +895,19 @@ volumes were not deleted or changed. No Railway deployment should be restarted.
 These old services are not part of Render/Transloadit's runtime and do not explain
 the current Render upload refusal. The dashboard showed 23 days / $4.74 trial
 allowance remaining; no payment-method or billing audit is claimed.
+
+Recovery revision `3ea85f5` is live on Render deployment
+`dep-dauk5qe7bikc73f2fra0` at 17:15:21 UTC. Instance `m457c` listened at
+17:15:16, with startup RSS 139,026,432 and cgroup peak 96,018,432 bytes.
+The service passed its unchanged cloud-runtime guards; the scanner remains
+Transloadit and final storage remains private Supabase S3. The old `R2Store`
+helper names are shared S3-compatible implementation names, not a cloud runtime
+fallback to R2 or Railway. No blocked-file retry was performed for this release.
+
+A 17:13:41 UTC read-only check explicitly verified the pilot database target
+differs from both local-dev and production-main hosts. It found 10 stored ledger
+rows / 63,426,540 bytes, 9 released rows, zero held rows and one approved uploader.
+The latest reservation is still 07:07:58.781 UTC, confirming no reservation was
+created by the later refused request. No uploads-enabled override row exists
+(the documented default is enabled). This was a database check, not a fresh
+object-storage reconciliation. No database changes or quota resets were made.
