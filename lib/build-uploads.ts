@@ -18,6 +18,8 @@ import {
   writeQuarantine,
 } from "./storage";
 import { scanUpload } from "./scan";
+import { isCloudPilot } from "./pilot";
+import { validateCloudArchive } from "./cloud-archive";
 import {
   getUploadPermission,
   releaseReservation,
@@ -96,7 +98,7 @@ export async function uploadBuild(
   catch (error) { return { message: mutationMessage(error) }; }
 
   const limits = readPilotLimits();
-  const archiveError = validateBuildArchive(file.name, file.size, effectiveArchiveLimit(limits, MAX_UPLOAD_BYTES));
+  const archiveError = validateBuildArchive(file.name, file.size, effectiveArchiveLimit(limits, MAX_UPLOAD_BYTES), isCloudPilot());
   if (archiveError) return { message: archiveError };
 
   // Kill switch and pilot allowlist, in that order. The page also checks these
@@ -133,6 +135,14 @@ export async function uploadBuild(
     // 2. Scan — the quarantined bytes against the malware scanner.
     const quarantineData = readQuarantine(quarantineKey);
     if (!quarantineData) throw new Error("quarantine write failed");
+
+    if (isCloudPilot()) {
+      const archive = await validateCloudArchive(quarantineData);
+      if (!archive.ok) {
+        await releaseReservation(reservationId);
+        return { message: archive.message };
+      }
+    }
 
     const scan = await scanUpload(quarantineData);
     if (!scan.ok) {

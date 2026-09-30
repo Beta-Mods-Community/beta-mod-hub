@@ -12,9 +12,11 @@ const errorClass = "mt-1.5 text-sm text-rose-300";
 export default function BugReportForm({
   betaModId,
   builds,
+  cloudPilot = false,
 }: {
   betaModId: string;
   builds: { id: string; versionLabel: string }[];
+  cloudPilot?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
     submitBugReport,
@@ -123,8 +125,8 @@ export default function BugReportForm({
 
       <div>
         <label htmlFor={`${prefix}-bug-attachment`} className={labelClass}>Log or save file (optional)</label>
-        <input id={`${prefix}-bug-attachment`} name="attachment" type="file" accept={ATTACHMENT_ACCEPT} className={inputClass} />
-        <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Text/log, ZIP, JSON/INI, or game saves (.sav, .save, .fos), up to 20 MiB. Scanned before storage. Only you and the mod author can download it. Remove passwords or personal details first.</p>
+        <input id={`${prefix}-bug-attachment`} name="attachment" type="file" accept={cloudPilot ? ".txt,.log,.json,.ini,.zip" : ATTACHMENT_ACCEPT} className={inputClass} />
+        <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{cloudPilot ? "Plain UTF-8 text/log, JSON/INI or ZIP, up to 8 MiB. Binary saves are not supported yet. ZIPs cannot be encrypted or contain nested archives. Files are sent privately to Transloadit for scanning. " : "Text/log, ZIP, JSON/INI, or game saves (.sav, .save, .fos), up to 20 MiB. Scanned before storage. "}Only you and the mod author can download it. Remove passwords or personal details first.</p>
       </div>
 
       {state?.message && (

@@ -13,7 +13,8 @@ import { AuthorResponseSchema, RetestSchema, validateAttachment, validateAttachm
 import { recordBuildVote } from "./feedback-write";
 import { getAccountWriteError } from "./access";
 import { notifyModFollowers, notifyUser } from "./notifications";
-import { readPilotLimits } from "./pilot";
+import { readPilotLimits, isCloudPilot, CLOUD_PILOT_CEILINGS } from "./pilot";
+import { validateCloudFeedback } from "./cloud-feedback-policy";
 import { getUploadPermission, releaseReservation, reserveStorage, retainReservationForCleanup } from "./storage-usage";
 import { deleteQuarantine, deleteStored, promoteQuarantine, readQuarantine, sanitizeFilename, storageKey, writeQuarantine } from "./storage";
 import { scanUpload } from "./scan";
@@ -49,6 +50,7 @@ export async function submitBugReport(_state: BugReportFormState, formData: Form
   const rawAttachment = formData.get("attachment");
   const file = rawAttachment instanceof File && rawAttachment.size > 0 ? rawAttachment : null;
   if (file) {
+    if (isCloudPilot() && file.size > CLOUD_PILOT_CEILINGS.maxArchiveBytes) return { message: "Pilot attachments must be no larger than 8 MiB." };
     const invalid = validateAttachment(file.name, file.size);
     if (invalid) return { message: invalid };
   }
@@ -71,6 +73,10 @@ export async function submitBugReport(_state: BugReportFormState, formData: Form
       if (!bytes) throw new Error("Missing quarantined attachment");
       const contentError = validateAttachmentContents(file.name, bytes);
       if (contentError) throw new ModMutationError(contentError);
+      if (isCloudPilot()) {
+        const error = await validateCloudFeedback(file.name, bytes);
+        if (error) throw new ModMutationError(error);
+      }
       const scan = await scanUpload(bytes);
       if (!scan.ok) throw new ModMutationError(scan.reason === "infected"
         ? "Attachment blocked because the malware scanner flagged it."

@@ -19,9 +19,11 @@ const errorClass = "mt-1.5 text-sm text-rose-300";
 export default function BuildUploadForm({
   betaModId,
   maxBytes,
+  zipOnly = false,
 }: {
   betaModId: string;
   maxBytes: number;
+  zipOnly?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(uploadBuild, undefined);
   const prefix = useId();
@@ -32,7 +34,7 @@ export default function BuildUploadForm({
   return (
     <form action={formAction} aria-busy={pending} onSubmit={event => {
       const file = new FormData(event.currentTarget).get("file");
-      const error = file instanceof File ? validateBuildArchive(file.name, file.size, maxBytes) : "Choose an archive.";
+      const error = file instanceof File ? validateBuildArchive(file.name, file.size, maxBytes, zipOnly) : "Choose an archive.";
       setFileError(error);
       if (error) event.preventDefault();
     }} className="flex flex-col gap-4">
@@ -85,14 +87,15 @@ export default function BuildUploadForm({
         <label htmlFor="build-file" className={labelClass}>
           Build file
         </label>
-        <input id="build-file" name="file" type="file" required accept={BUILD_ARCHIVE_ACCEPT} aria-describedby="build-file-help" onChange={event => {
+        <input id="build-file" name="file" type="file" required accept={zipOnly ? ".zip" : BUILD_ARCHIVE_ACCEPT} aria-describedby="build-file-help" onChange={event => {
           const file = event.target.files?.[0];
-          setFileError(file ? validateBuildArchive(file.name, file.size, maxBytes) : null);
+          setFileError(file ? validateBuildArchive(file.name, file.size, maxBytes, zipOnly) : null);
         }} className={inputClass} />
         <p id="build-file-help" className="mt-1 text-xs text-[var(--muted)]">
-          ZIP, 7z, RAR, TAR, or TAR.GZ; max {formatBytes(maxBytes)}. Scanned for malware before it&apos;s stored
+          {zipOnly ? "ZIP only, no encrypted or nested archives; up to 32 MiB expanded and 256 entries" : "ZIP, 7z, RAR, TAR, or TAR.GZ"}; max {formatBytes(maxBytes)}. Scanned for malware before it&apos;s stored
           or shared.
         </p>
+        {zipOnly && <p className="mt-1 text-xs text-[var(--muted)]">Files are sent privately to Transloadit for scanning. See our privacy notice before uploading confidential material.</p>}
       </div>
 
       {fileError && <p role="alert" className={errorClass}>{fileError}</p>}

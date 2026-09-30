@@ -8,6 +8,7 @@ import { assertMediaOwner, MAX_MOD_IMAGES, MediaCaptionSchema, MediaIdSchema, Me
 import { processMediaUpload } from "./media-upload";
 import { lockModForMutation } from "./mod-lifecycle";
 import { readPilotLimits } from "./pilot";
+import { cloudPilotEnabled, CLOUD_UPLOAD_BYTES } from "./cloud-pilot";
 import { deleteStored } from "./storage";
 import { getUploadPermission, releaseReservation, reserveStorage, resizeHeldReservation, retainReservationForCleanup } from "./storage-usage";
 
@@ -22,7 +23,8 @@ export async function uploadModMediaForUser(input: { userId: string; modId: stri
   if (!db) throw new MediaError("The database is unavailable.");
   const modId = MediaIdSchema.parse(input.modId);
   const caption = MediaCaptionSchema.parse(input.caption);
-  if (!input.file.size || input.file.size > MAX_MEDIA_BYTES) throw new MediaError("Choose an image no larger than 10 MiB.");
+  const maxBytes = cloudPilotEnabled() ? CLOUD_UPLOAD_BYTES : MAX_MEDIA_BYTES;
+  if (!input.file.size || input.file.size > maxBytes) throw new MediaError(`Choose an image no larger than ${maxBytes / 1024 / 1024} MiB.`);
   const [mod] = await db.select().from(betaMods).where(eq(betaMods.id, modId));
   assertMediaOwner(mod, input.userId);
   if ((await getModMedia(modId)).length >= MAX_MOD_IMAGES) throw new MediaError(`A mod can have up to ${MAX_MOD_IMAGES} screenshots. Remove one before uploading another.`);

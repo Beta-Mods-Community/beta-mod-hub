@@ -37,7 +37,7 @@ import {
 import { MAX_UPLOAD_BYTES } from "@lib/definitions";
 import { voteReady } from "@lib/feedback";
 import { formatDate } from "@lib/format";
-import { effectiveArchiveLimit, readPilotLimits } from "@lib/pilot";
+import { effectiveArchiveLimit, readPilotLimits, isCloudPilot } from "@lib/pilot";
 import { confirmPromotion } from "@lib/promote";
 import { addRequirement, removeRequirement } from "@lib/requirements";
 import { getSession } from "@lib/session";
@@ -302,7 +302,7 @@ export default async function BetaModPage({
 
           {isOwner && !readOnly && <details className="panel p-5 sm:p-7">
             <summary className="cursor-pointer text-base font-semibold text-[var(--text)]">Screenshots and cover image</summary>
-            <div className="mt-5"><ModMediaManager betaModId={mod.id} media={gallery} uploadPermission={uploadPermission} /></div>
+            <div className="mt-5"><ModMediaManager betaModId={mod.id} media={gallery} uploadPermission={uploadPermission} cloudPilot={isCloudPilot()} /></div>
           </details>}
 
           <section id="files" className="scroll-mt-24 border-b border-[var(--line)] pb-8">
@@ -367,7 +367,7 @@ export default async function BetaModPage({
                 </summary>
                 <div className="border-t border-[var(--line)] p-4 sm:p-5">
                   {uploadPermission.allowed ? (
-                    <BuildUploadForm betaModId={mod.id} maxBytes={maxArchiveBytes} />
+                    <BuildUploadForm betaModId={mod.id} maxBytes={maxArchiveBytes} zipOnly={isCloudPilot()} />
                   ) : (
                     <p className="text-sm text-[var(--text-soft)]">{uploadPermission.message}</p>
                   )}

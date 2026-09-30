@@ -5,7 +5,7 @@ import { betaMods, bugReports, builds as buildTable, users } from "@/db/schema";
 import { bugAttachments, bugReportWorkflow } from "@/db/feedback-schema";
 import { deleteBugAttachment, respondToBugReport, retestBugReport } from "@lib/feedback";
 import { formatDate } from "@lib/format";
-import { formatBytes } from "@lib/pilot";
+import { formatBytes, isCloudPilot } from "@lib/pilot";
 import { canReadAttachment } from "@lib/feedback-policy";
 import { getReputationHistoryByUserIds } from "@lib/dal";
 import { computeReputation } from "@lib/reputation";
@@ -87,6 +87,6 @@ export default async function BugReports({ betaModId, builds, viewerId, isOwner,
       </article>;
     })}</div>
     {(page > 1 || page * 20 < total) && <nav aria-label="Bug report pages" className="mt-5 flex items-center justify-between gap-4">{page > 1 ? <Link className="button-secondary" href={pageUrl(page - 1)}>Previous</Link> : <span />}<span className="text-xs text-[var(--muted)]">Page {page}</span>{page * 20 < total ? <Link className="button-secondary" href={pageUrl(page + 1)}>Next</Link> : <span />}</nav>}
-    {readOnly ? <p className="mt-5 border-t border-[var(--line)] pt-4 text-sm text-[var(--muted)]">This mod is read-only.</p> : builds.length === 0 ? <p className="mt-5 text-sm text-[var(--muted)]">Bug reporting opens after the first build is uploaded.</p> : viewerId ? <details className="mt-5 rounded-md border border-[var(--line)]"><summary className="cursor-pointer px-4 py-3 text-sm font-semibold">File a bug report</summary><div className="border-t border-[var(--line)] p-4"><BugReportForm betaModId={betaModId} builds={builds} /></div></details> : <p className="mt-5 text-sm"><Link className="text-[var(--accent)]" href="/login">Sign in</Link> to report a bug.</p>}
+    {readOnly ? <p className="mt-5 border-t border-[var(--line)] pt-4 text-sm text-[var(--muted)]">This mod is read-only.</p> : builds.length === 0 ? <p className="mt-5 text-sm text-[var(--muted)]">Bug reporting opens after the first build is uploaded.</p> : viewerId ? <details className="mt-5 rounded-md border border-[var(--line)]"><summary className="cursor-pointer px-4 py-3 text-sm font-semibold">File a bug report</summary><div className="border-t border-[var(--line)] p-4"><BugReportForm betaModId={betaModId} builds={builds} cloudPilot={isCloudPilot()} /></div></details> : <p className="mt-5 text-sm"><Link className="text-[var(--accent)]" href="/login">Sign in</Link> to report a bug.</p>}
   </section>;
 }

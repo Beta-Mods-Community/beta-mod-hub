@@ -33,9 +33,10 @@ function MediaRow({ image, betaModId, first, last }: { image: GalleryImage; beta
   </form>;
 }
 
-export default function ModMediaManager({ betaModId, media, uploadPermission }: {
+export default function ModMediaManager({ betaModId, media, uploadPermission, cloudPilot = false }: {
   betaModId: string;
   media: GalleryImage[];
+  cloudPilot?: boolean;
   uploadPermission?: { allowed: true } | { allowed: false; message: string };
 }) {
   const [state, action, pending] = useActionState(uploadModMedia, undefined);
@@ -54,7 +55,7 @@ export default function ModMediaManager({ betaModId, media, uploadPermission }: 
       <div>
         <label htmlFor="mod-image-file" className="mb-2 block text-sm font-semibold">Screenshot</label>
         <input id="mod-image-file" name="file" type="file" accept="image/png,image/jpeg,image/webp" required disabled={pending} className="field" onChange={(event) => setSelectedName(event.currentTarget.files?.[0]?.name ?? "")} />
-        <p className="mt-2 text-xs text-[var(--muted)]">PNG, JPEG or WebP · Up to 10 MiB · 160–4096 pixels per side · Still images only</p>
+        <p className="mt-2 text-xs text-[var(--muted)]">PNG, JPEG or WebP · Up to {cloudPilot ? "8 MiB / 8 megapixels" : "10 MiB"} · 160–4096 pixels per side · Still images only{cloudPilot ? " · Privately scanned by Transloadit" : ""}</p>
       </div>
       <div>
         <label htmlFor="mod-image-caption" className="mb-2 block text-sm font-semibold">Caption <span className="font-normal text-[var(--muted)]">(optional)</span></label>

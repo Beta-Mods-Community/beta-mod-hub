@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { decodeMediaImage } from "./image-decode";
 import { MAX_MEDIA_BYTES } from "./image-meta";
+import { cloudPilotEnabled, CLOUD_UPLOAD_BYTES } from "./cloud-pilot";
 import { MediaError } from "./media-policy";
 import { scanUpload, type ScanResult } from "./scan";
 import { deleteQuarantine, deleteStored, promoteQuarantine, sweepStaleQuarantine, writeQuarantine } from "./storage";
@@ -51,12 +52,14 @@ export async function processMediaUpload(input: {
   const id = randomUUID();
   const finalKey = `media/${input.modId}/${id}.webp`;
   try {
-    if (!input.file.size || input.file.size > MAX_MEDIA_BYTES) throw new MediaError("Choose an image no larger than 10 MiB.");
+    const maxBytes = cloudPilotEnabled() ? CLOUD_UPLOAD_BYTES : MAX_MEDIA_BYTES;
+    if (!input.file.size || input.file.size > maxBytes) throw new MediaError(`Choose an image no larger than ${maxBytes / 1024 / 1024} MiB.`);
     deps.sweep();
     const original = new Uint8Array(await input.file.arrayBuffer());
     originalKey = deps.quarantine(original);
     assertClean(await deps.scan(original));
     const image = await deps.decode(original);
+    if (image.data.byteLength > maxBytes) throw new MediaError("The processed image exceeds this site's upload limit.");
     await input.resizeReservation(image.data.byteLength);
     imageKey = deps.quarantine(image.data);
     assertClean(await deps.scan(image.data));

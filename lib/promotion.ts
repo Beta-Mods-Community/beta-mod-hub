@@ -7,6 +7,7 @@ import path from "node:path";
 import { ZipArchive } from "archiver";
 
 import { sanitizeFilename } from "./storage";
+import { isCloudPilot, MiB } from "./pilot";
 
 /**
  * Promotion package generation — the spec's "The promotion package".
@@ -34,6 +35,36 @@ import { sanitizeFilename } from "./storage";
  * spec ("validate at generation time, not just at paste time").
  */
 export const NEXUS_SUMMARY_LIMIT = 250;
+export const CLOUD_PROMOTION_INPUT_LIMIT_BYTES = 32 * MiB;
+export const CLOUD_PROMOTION_METADATA_LIMIT_BYTES = MiB;
+const ZIP_ENTRY_BUDGET_BYTES = 1024;
+
+class PromotionSizeLimitError extends Error {
+  constructor() {
+    super("This promotion package exceeds the cloud pilot's 32 MiB package limit. Reduce its included files or screenshots and try again.");
+  }
+}
+
+/**
+ * Counts actual payload bytes plus conservative ZIP entry/path overhead.
+ * It deliberately counts every queued buffer, even if archiver has already
+ * consumed an earlier one. The cap is not based on compressed output size.
+ */
+export function createPromotionInputBudget(cloudPilot: boolean) {
+  let used = 0;
+  return {
+    add(name: string, payloadBytes: number): number {
+      if (!cloudPilot) return used;
+      const overhead = ZIP_ENTRY_BUDGET_BYTES + 2 * Buffer.byteLength(name, "utf8");
+      if (!Number.isSafeInteger(payloadBytes) || payloadBytes < 0 ||
+        payloadBytes > CLOUD_PROMOTION_INPUT_LIMIT_BYTES - used - overhead) {
+        throw new PromotionSizeLimitError();
+      }
+      used += payloadBytes + overhead;
+      return used;
+    },
+  };
+}
 
 export type PromotionMod = {
   id: string;
@@ -79,6 +110,29 @@ export type PromotionPackageResult =
       cleanup: () => Promise<void>;
     }
   | { ok: false; error: string };
+
+/** Bound source text before Markdown expansion or large joins allocate copies. */
+export function assertPromotionMetadataBound(input: PromotionPackageInput, cloudPilot: boolean): void {
+  if (!cloudPilot) return;
+  let used = 0;
+  function add(value: string | null | undefined): void {
+    // The per-field margin also bounds pathological arrays of empty strings.
+    used += 16 + Buffer.byteLength(value ?? "", "utf8");
+    if (used > CLOUD_PROMOTION_METADATA_LIMIT_BYTES) {
+      throw new Error("Promotion package text exceeds the cloud pilot's 1 MiB metadata limit.");
+    }
+  }
+  for (const value of [input.mod.title, input.mod.game, input.mod.description,
+    input.build.versionLabel, input.build.changelog, input.build.fileUrl]) add(value);
+  for (const requirement of input.requirements) {
+    add(requirement.nexusModName);
+    add(requirement.nexusModUrl);
+  }
+  for (const media of input.media ?? []) {
+    add(media.filename);
+    add(media.caption);
+  }
+}
 
 function slugify(value: string): string {
   return (
@@ -232,6 +286,13 @@ export async function buildPromotionPackage(
   input: PromotionPackageInput,
 ): Promise<PromotionPackageResult> {
   const { mod, build } = input;
+  const cloudPilot = isCloudPilot();
+  const budget = createPromotionInputBudget(cloudPilot);
+  try {
+    assertPromotionMetadataBound(input, cloudPilot);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Promotion package metadata is too large." };
+  }
 
   // Validate the short description at generation time (spec requirement).
   const derived = deriveSummary(mod.description ?? "");
@@ -244,6 +305,25 @@ export async function buildPromotionPackage(
     };
   }
 
+  const root = `promotion-${slugify(mod.title)}`;
+  const fileBase = sanitizeFilename(path.basename(build.fileUrl)) || "build.zip";
+  const texts = buildTextFiles(input, derived.summary);
+  const mediaEntries = (input.media ?? []).map((media, index) => ({
+    ...media,
+    packageFilename: `${String(index + 1).padStart(2, "0")}-${sanitizeFilename(media.filename)}`,
+  }));
+  const captions = mediaEntries.length
+    ? `${mediaEntries.map((media) => `${media.packageFilename}${media.caption ? `: ${media.caption}` : ""}`).join("\n")}\n`
+    : "";
+  try {
+    for (const [name, content] of Object.entries(texts)) {
+      budget.add(`${root}/${name}`, Buffer.byteLength(content, "utf8"));
+    }
+    if (captions) budget.add(`${root}/media/captions.txt`, Buffer.byteLength(captions, "utf8"));
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Promotion package text is too large." };
+  }
+
   const stored = await input.readStoredFile();
   if (!stored) {
     return {
@@ -251,15 +331,18 @@ export async function buildPromotionPackage(
       error: "The latest build's file is missing from storage — re-upload it.",
     };
   }
+  try {
+    // size is informational; the buffer's actual length is the only safe charge.
+    budget.add(`${root}/files/${fileBase}`, stored.data.byteLength);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Promotion package is too large." };
+  }
 
   const scratchDir = await mkdtemp(path.join(tmpdir(), "betamods-promotion-"));
-  const root = `promotion-${slugify(mod.title)}`;
-  const fileBase = sanitizeFilename(path.basename(build.fileUrl)) || "build.zip";
   const suffix = slugify(build.versionLabel);
   const zipFilename = `promotion-${slugify(mod.title)}${suffix ? `-${suffix}` : ""}.zip`;
   const zipPath = path.join(scratchDir, zipFilename);
 
-  const texts = buildTextFiles(input, derived.summary);
   const archive = new ZipArchive({ zlib: { level: 6 } });
   const sink = createWriteStream(zipPath);
   const closed = new Promise<void>((resolve) => sink.once("close", resolve));
@@ -284,17 +367,15 @@ export async function buildPromotionPackage(
     archive.append(Buffer.from(stored.data.buffer, stored.data.byteOffset, stored.data.byteLength), {
       name: `${root}/files/${fileBase}`,
     });
-    const captions: string[] = [];
-    for (const [index, media] of (input.media ?? []).entries()) {
+    for (const media of mediaEntries) {
       const image = await media.readStoredFile();
       if (!image) throw new Error("A screenshot is missing from final storage.");
-      const filename = `${String(index + 1).padStart(2, "0")}-${sanitizeFilename(media.filename)}`;
+      budget.add(`${root}/media/${media.packageFilename}`, image.data.byteLength);
       archive.append(Buffer.from(image.data.buffer, image.data.byteOffset, image.data.byteLength), {
-        name: `${root}/media/${filename}`,
+        name: `${root}/media/${media.packageFilename}`,
       });
-      captions.push(`${filename}${media.caption ? `: ${media.caption}` : ""}`);
     }
-    if (captions.length) archive.append(`${captions.join("\n")}\n`, { name: `${root}/media/captions.txt` });
+    if (captions) archive.append(captions, { name: `${root}/media/captions.txt` });
     await archive.finalize();
     await done;
 
@@ -309,11 +390,11 @@ export async function buildPromotionPackage(
         await rm(scratchDir, { recursive: true, force: true });
       },
     };
-  } catch {
+  } catch (error) {
     archive.abort();
     sink.destroy();
     await closed;
     await rm(scratchDir, { recursive: true, force: true });
-    return { ok: false, error: "Failed to assemble the promotion package." };
+    return { ok: false, error: error instanceof PromotionSizeLimitError ? error.message : "Failed to assemble the promotion package." };
   }
 }
