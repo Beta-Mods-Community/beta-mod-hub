@@ -19,6 +19,20 @@
 export const MiB = 1024 * 1024;
 export const GiB = 1024 * 1024 * 1024;
 
+/** Fixed ceilings for the small cloud-only pilot, never raised by env values. */
+export const CLOUD_PILOT_CEILINGS = Object.freeze({
+  maxArchiveBytes: 8 * MiB,
+  maxBytesPerTester: 128 * MiB,
+  maxTotalBytes: 750 * MiB,
+  maxApprovedUploaders: 5,
+  uploadsPerWindow: 5,
+  minimumWindowMinutes: 60,
+  downloadUrlTtlSeconds: 300,
+});
+
+/** Bounded promotion reads, including a small fixed container/header margin. */
+export const CLOUD_PILOT_READ_LIMIT_BYTES = CLOUD_PILOT_CEILINGS.maxArchiveBytes + 64 * 1024;
+
 export type PilotLimits = {
   /** Allowlist mode. When off, every signed-in mod owner may upload. */
   mode: "on" | "off";
@@ -70,9 +84,13 @@ function readMode(raw: string | undefined): "on" | "off" {
   return PILOT_DEFAULTS.mode;
 }
 
+export function isCloudPilot(env: Env = process.env): boolean {
+  return readMode(env.CLOUD_PILOT) === "on";
+}
+
 /** Resolve the effective pilot limits from the environment. */
 export function readPilotLimits(env: Env = process.env): PilotLimits {
-  return {
+  const limits: PilotLimits = {
     mode: readMode(env.PILOT_MODE),
     maxArchiveBytes: readInt(
       env.PILOT_MAX_ARCHIVE_BYTES,
@@ -103,6 +121,22 @@ export function readPilotLimits(env: Env = process.env): PilotLimits {
       env.PILOT_RESERVATION_TTL_MINUTES,
       PILOT_DEFAULTS.reservationTtlMinutes,
     ),
+  };
+  if (!isCloudPilot(env)) return limits;
+
+  // This profile is a safety boundary, not a set of suggested defaults.
+  // Operators may tighten any cap but cannot accidentally turn it into the
+  // old 250 MiB / 8 GiB pilot on a small free host or storage account.
+  return {
+    ...limits,
+    mode: "on",
+    maxArchiveBytes: Math.min(limits.maxArchiveBytes, CLOUD_PILOT_CEILINGS.maxArchiveBytes),
+    maxBytesPerTester: Math.min(limits.maxBytesPerTester, CLOUD_PILOT_CEILINGS.maxBytesPerTester),
+    maxTotalBytes: Math.min(limits.maxTotalBytes, CLOUD_PILOT_CEILINGS.maxTotalBytes),
+    maxApprovedUploaders: Math.min(limits.maxApprovedUploaders, CLOUD_PILOT_CEILINGS.maxApprovedUploaders),
+    uploadsPerWindow: Math.min(limits.uploadsPerWindow, CLOUD_PILOT_CEILINGS.uploadsPerWindow),
+    windowMinutes: Math.max(limits.windowMinutes, CLOUD_PILOT_CEILINGS.minimumWindowMinutes),
+    downloadUrlTtlSeconds: Math.min(limits.downloadUrlTtlSeconds, CLOUD_PILOT_CEILINGS.downloadUrlTtlSeconds),
   };
 }
 

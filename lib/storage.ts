@@ -16,16 +16,19 @@ import path from "node:path";
 import { S3Client } from "@aws-sdk/client-s3";
 
 import { createR2Store, type R2Store } from "./storage-r2";
+import { CLOUD_PILOT_READ_LIMIT_BYTES, isCloudPilot } from "./pilot";
+import { objectStorageConfig, readStorageDriver } from "./storage-config";
 
 /**
- * Storage abstraction over two drivers:
+ * Storage abstraction over three drivers:
  *   - local (dev + e2e): files under ./data (gitignored)
  *   - r2 (production pilot): final files live in Cloudflare R2
+ *   - s3 (cloud-only pilot): final files live in a private Supabase bucket
  *
- * Quarantine is ALWAYS on local disk (server-side temp). In production the
- * `app-data` volume is quarantine and nothing else — it is a scratch buffer
- * that is emptied as each upload finishes, never a place a user's mod is
- * kept. Uploads are scanned against the malware scanner before anything is
+ * Quarantine is ALWAYS private server-side scratch (ephemeral on the cloud
+ * pilot, the `app-data` volume on Compose targets). It is emptied as each
+ * upload finishes, never used as permanent object storage. Uploads are scanned
+ * against the malware scanner before anything is
  * promoted to final storage. Nothing is ever served from the
  * quarantine/upload path — only from the stored location, after a clean scan.
  */
@@ -37,35 +40,43 @@ const uploadsRoot = path.join(dataRoot, "uploads");
 mkdirSync(quarantineRoot, { recursive: true });
 mkdirSync(uploadsRoot, { recursive: true });
 
-const isR2 = process.env.STORAGE_DRIVER === "r2";
+const driver = readStorageDriver();
+const isObjectStorage = driver === "r2" || driver === "s3";
+const maxMaterializedBytes = isCloudPilot() ? CLOUD_PILOT_READ_LIMIT_BYTES : undefined;
 const bucket = process.env.STORAGE_BUCKET ?? "";
 
-/** True when final storage is R2, so callers can presign instead of proxying. */
+/** True for either private object-store driver, so routes presign, never proxy. */
+export function usesObjectStorage(): boolean {
+  return isObjectStorage;
+}
+
+/** Backwards-compatible route API; includes the S3-compatible cloud driver. */
 export function usesR2Storage(): boolean {
-  return isR2;
+  return usesObjectStorage();
 }
 
 let r2: R2Store | null = null;
 function getR2(): R2Store {
   if (!r2) {
-    const endpoint = process.env.STORAGE_ENDPOINT;
-    const accessKeyId = process.env.STORAGE_ACCESS_KEY;
-    const secretAccessKey = process.env.STORAGE_SECRET_KEY;
-    if (!endpoint || !accessKeyId || !secretAccessKey) {
-      throw new Error(
-        "STORAGE_DRIVER=r2 but STORAGE_ENDPOINT / STORAGE_ACCESS_KEY / STORAGE_SECRET_KEY are not all set",
-      );
-    }
     r2 = createR2Store({
-      client: new S3Client({
-        region: "auto",
-        endpoint,
-        credentials: { accessKeyId, secretAccessKey },
-      }),
+      client: new S3Client(objectStorageConfig()),
       bucket,
+      maxMaterializedBytes,
     });
   }
   return r2;
+}
+
+function assertCloudStorage(): void {
+  if (isCloudPilot() && driver !== "s3") {
+    throw new Error("CLOUD_PILOT requires private STORAGE_DRIVER=s3 storage");
+  }
+}
+
+function assertMaterializationSize(size: number): void {
+  if (maxMaterializedBytes !== undefined && size > maxMaterializedBytes) {
+    throw new Error("File exceeds the cloud pilot memory limit");
+  }
 }
 
 function quarantinePath(key: string): string {
@@ -93,6 +104,8 @@ export function storageKey(prefix: string, filename: string): string {
 // --- Quarantine (always local disk) ---
 
 export function writeQuarantine(data: Uint8Array): string {
+  assertCloudStorage();
+  assertMaterializationSize(data.byteLength);
   const key = `quarantine/${randomUUID()}`;
   writeFileSync(quarantinePath(key), data);
   return key;
@@ -101,6 +114,7 @@ export function writeQuarantine(data: Uint8Array): string {
 export function readQuarantine(key: string): Buffer | null {
   const abs = quarantinePath(key);
   if (!existsSync(abs)) return null;
+  assertMaterializationSize(statSync(abs).size);
   return readFileSync(abs);
 }
 
@@ -144,13 +158,16 @@ export async function promoteQuarantine(
   if (!existsSync(abs)) {
     throw new Error("quarantine entry missing before promote");
   }
+  assertCloudStorage();
+  assertMaterializationSize(statSync(abs).size);
   const data = readFileSync(abs);
 
-  if (isR2) {
+  if (isObjectStorage) {
     // Upload first, then drop the local copy. If the PUT fails the exception
     // propagates, the caller releases the reservation, and the quarantine file
-    // is deleted by the caller's error path — so a failed upload never leaves
-    // bytes in R2 and never leaves bytes on the PC either.
+    // is deleted by the caller's error path. The caller also removes a remote
+    // object if a later publication step fails, retaining its ledger charge
+    // when removal cannot be confirmed.
     await getR2().put(finalKey, data, options?.contentType);
     rmSync(abs, { force: true });
   } else {
@@ -165,27 +182,29 @@ export async function promoteQuarantine(
 /**
  * Read a stored object's bytes.
  *
- * Deliberately NOT the download path in production: streaming an archive out
- * of the home PC is exactly what R2 is here to avoid. Callers that serve users
+ * Deliberately NOT the object-store download path: archive bytes travel from
+ * private object storage straight to the requester. Callers that serve users
  * should prefer `presignStoredDownload`; this remains for the promotion
  * package, which builds a fresh zip and cannot be handed off as a single URL.
  */
 export async function readStored(
   finalKey: string,
 ): Promise<{ data: Uint8Array; size: number } | null> {
-  if (isR2) {
+  assertCloudStorage();
+  if (isObjectStorage) {
     return getR2().get(finalKey);
   }
 
   const abs = storedPath(finalKey);
   if (!existsSync(abs)) return null;
+  assertMaterializationSize(statSync(abs).size);
   const data = readFileSync(abs);
   return { data, size: data.length };
 }
 
 /**
- * A short-lived presigned R2 GET URL, so bytes travel from R2 straight to the
- * requester instead of through this PC's home connection.
+ * A short-lived presigned private GET URL, so bytes travel from object storage
+ * straight to the requester instead of through the application server.
  *
  * Builds presign with { filename } (attachment download). Media presigns with
  * { inline, contentType } so gallery images render inside an <img> tag.
@@ -204,12 +223,14 @@ export async function presignStoredDownload(
     expiresIn: number;
   },
 ): Promise<string | null> {
-  if (!isR2) return null;
+  assertCloudStorage();
+  if (!isObjectStorage) return null;
   return getR2().presignDownload(finalKey, options);
 }
 
 export async function deleteStored(finalKey: string): Promise<void> {
-  if (isR2) {
+  assertCloudStorage();
+  if (isObjectStorage) {
     await getR2().remove(finalKey);
     return;
   }
@@ -220,5 +241,6 @@ export async function deleteStored(finalKey: string): Promise<void> {
 export async function storedObjectInventory(): Promise<
   Array<{ key: string; size: number }>
 > {
-  return isR2 ? getR2().inventory() : [];
+  assertCloudStorage();
+  return isObjectStorage ? getR2().inventory() : [];
 }

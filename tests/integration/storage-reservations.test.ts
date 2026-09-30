@@ -295,6 +295,30 @@ describeDb("storage ledger (integration)", () => {
     if (!third.ok) assert.equal(third.reason, "rate-limited");
   });
 
+  it("keeps old stored files charged but excludes their old attempts from the rate window", async () => {
+    const userId = await makeUser("old-stored");
+    const [stored] = await db!.insert(schema.storageReservations).values({
+      userId, bytes: 900, state: "stored",
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      settledAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    }).returning({ id: schema.storageReservations.id });
+    try {
+      const opts = limits({ maxBytesPerTester: 1000, uploadsPerWindow: 1 });
+      const tooLarge = await ledger.reserveStorage({ userId, bytes: 101, limits: opts });
+      assert.equal(tooLarge.ok, false);
+      if (!tooLarge.ok) assert.equal(tooLarge.reason, "tester-cap");
+
+      const fits = await ledger.reserveStorage({ userId, bytes: 100, limits: opts });
+      assert.equal(fits.ok, true, "old stored row must not count as a recent attempt");
+      if (fits.ok) await ledger.releaseReservation(fits.reservationId);
+      const recent = await ledger.reserveStorage({ userId, bytes: 1, limits: opts });
+      assert.equal(recent.ok, false);
+      if (!recent.ok) assert.equal(recent.reason, "rate-limited");
+    } finally {
+      await db!.delete(schema.storageReservations).where(eq(schema.storageReservations.id, stored.id));
+    }
+  });
+
   it("settles a reservation against its build and counts it as stored", async () => {
     const userId = await makeUser("settle");
     const modId = await makeMod(userId, "pilot settle");

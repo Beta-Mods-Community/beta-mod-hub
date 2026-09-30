@@ -128,6 +128,84 @@ describe("R2 store: get", () => {
   });
 });
 
+describe("cloud object store: bounded materialization", () => {
+  it("counts stream bytes and accepts an object exactly at the limit", async () => {
+    const { client } = stubClient(() => ({
+      Body: (async function* () { yield new Uint8Array([1, 2]); yield new Uint8Array([3, 4]); })(),
+    }));
+    const out = await createR2Store({ client, bucket: BUCKET, maxMaterializedBytes: 4 }).get("k");
+    assert.deepEqual([...(out?.data ?? [])], [1, 2, 3, 4]);
+    assert.equal(out?.size, 4);
+  });
+
+  it("refuses oversized headers before consuming the body and closes it", async () => {
+    let destroyed = false;
+    let consumed = false;
+    const { client } = stubClient(() => ({ ContentLength: 5, Body: {
+      async *[Symbol.asyncIterator]() { consumed = true; yield new Uint8Array([1]); },
+      destroy() { destroyed = true; },
+    } }));
+    assert.equal(await createR2Store({ client, bucket: BUCKET, maxMaterializedBytes: 4 }).get("k"), null);
+    assert.equal(consumed, false);
+    assert.equal(destroyed, true);
+  });
+
+  it("stops an over-limit stream even when ContentLength is missing or dishonest", async () => {
+    for (const ContentLength of [undefined, 1]) {
+      let closed = false;
+      let thirdChunk = false;
+      const { client } = stubClient(() => ({ ContentLength, Body: (async function* () {
+        try {
+          yield new Uint8Array([1, 2, 3]);
+          yield new Uint8Array([4, 5]);
+          thirdChunk = true;
+          yield new Uint8Array([6]);
+        } finally { closed = true; }
+      })() }));
+      assert.equal(await createR2Store({ client, bucket: BUCKET, maxMaterializedBytes: 4 }).get("k"), null);
+      assert.equal(closed, true);
+      assert.equal(thirdChunk, false);
+    }
+  });
+
+  it("never falls back to unbounded transformToByteArray in cloud mode", async () => {
+    let transformed = false;
+    const { client } = stubClient(() => ({ Body: {
+      transformToByteArray: async () => { transformed = true; return new Uint8Array(100); },
+    } }));
+    assert.equal(await createR2Store({ client, bucket: BUCKET, maxMaterializedBytes: 4 }).get("k"), null);
+    assert.equal(transformed, false);
+  });
+
+  it("rejects malformed stream chunks or invalid content-length headers", async () => {
+    for (const output of [
+      { Body: (async function* () { yield "unexpected string"; })() },
+      { ContentLength: -1, Body: (async function* () { yield new Uint8Array([1]); })() },
+      { ContentLength: 1.5, Body: (async function* () { yield new Uint8Array([1]); })() },
+    ]) {
+      const { client } = stubClient(() => output);
+      assert.equal(await createR2Store({ client, bucket: BUCKET, maxMaterializedBytes: 4 }).get("k"), null);
+    }
+  });
+
+  it("refuses over-limit PUTs before contacting storage without changing accepted bytes", async () => {
+    const { client, calls } = stubClient();
+    const store = createR2Store({ client, bucket: BUCKET, maxMaterializedBytes: 4 });
+    await assert.rejects(() => store.put("k", new Uint8Array(5)), /cloud pilot storage limit/);
+    assert.equal(calls.length, 0);
+    await store.put("k", new Uint8Array(4));
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].input.ACL, undefined, "no public ACL is ever requested");
+  });
+
+  it("rejects invalid limit configuration rather than disabling the cap", () => {
+    const { client } = stubClient();
+    for (const maxMaterializedBytes of [0, -1, Infinity, NaN, 1.5]) {
+      assert.throws(() => createR2Store({ client, bucket: BUCKET, maxMaterializedBytes }), /positive safe integer/);
+    }
+  });
+});
+
 describe("R2 store: remove", () => {
   it("deletes by bucket and key", async () => {
     const { client, calls } = stubClient();

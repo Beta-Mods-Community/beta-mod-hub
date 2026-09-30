@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   effectiveArchiveLimit,
+  CLOUD_PILOT_CEILINGS,
   evaluateReservation,
   formatBytes,
   GiB,
@@ -33,6 +34,48 @@ function facts(overrides: Partial<ReservationFacts> = {}): ReservationFacts {
 }
 
 describe("readPilotLimits", () => {
+  it("forces cloud pilot allowlisting and non-raisable free-pilot ceilings", () => {
+    const resolved = readPilotLimits({
+      CLOUD_PILOT: "on", PILOT_MODE: "off",
+      PILOT_MAX_ARCHIVE_BYTES: String(512 * MiB),
+      PILOT_MAX_BYTES_PER_TESTER: String(8 * GiB),
+      PILOT_MAX_TOTAL_BYTES: String(80 * GiB),
+      PILOT_MAX_UPLOADERS: "500", PILOT_UPLOADS_PER_WINDOW: "500",
+      PILOT_UPLOAD_WINDOW_MINUTES: "1", DOWNLOAD_URL_TTL_SECONDS: "86400",
+    });
+    assert.equal(resolved.mode, "on");
+    assert.equal(resolved.maxArchiveBytes, 8 * MiB);
+    assert.equal(resolved.maxBytesPerTester, 128 * MiB);
+    assert.equal(resolved.maxTotalBytes, 750 * MiB);
+    assert.equal(resolved.maxApprovedUploaders, 5);
+    assert.equal(resolved.uploadsPerWindow, 5);
+    assert.equal(resolved.windowMinutes, 60);
+    assert.equal(resolved.downloadUrlTtlSeconds, 300);
+    assert.ok(Object.isFrozen(CLOUD_PILOT_CEILINGS));
+  });
+
+  it("allows only tighter cloud pilot configuration", () => {
+    const resolved = readPilotLimits({
+      CLOUD_PILOT: "true", PILOT_MAX_ARCHIVE_BYTES: "1000",
+      PILOT_MAX_BYTES_PER_TESTER: "2000", PILOT_MAX_TOTAL_BYTES: "4000",
+      PILOT_MAX_UPLOADERS: "2", PILOT_UPLOADS_PER_WINDOW: "1",
+      PILOT_UPLOAD_WINDOW_MINUTES: "120", DOWNLOAD_URL_TTL_SECONDS: "30",
+    });
+    assert.equal(resolved.maxArchiveBytes, 1000);
+    assert.equal(resolved.maxBytesPerTester, 2000);
+    assert.equal(resolved.maxTotalBytes, 4000);
+    assert.equal(resolved.maxApprovedUploaders, 2);
+    assert.equal(resolved.uploadsPerWindow, 1);
+    assert.equal(resolved.windowMinutes, 120);
+    assert.equal(resolved.downloadUrlTtlSeconds, 30);
+  });
+
+  it("clamps even blank or invalid cloud pilot cap overrides", () => {
+    const resolved = readPilotLimits({ CLOUD_PILOT: "on", PILOT_MAX_ARCHIVE_BYTES: "", PILOT_MAX_TOTAL_BYTES: "unlimited" });
+    assert.equal(resolved.maxArchiveBytes, 8 * MiB);
+    assert.equal(resolved.maxTotalBytes, 750 * MiB);
+  });
+
   it("defaults to the agreed pilot numbers with no env at all", () => {
     const resolved = readPilotLimits({});
     assert.equal(resolved.maxArchiveBytes, 250 * MiB);

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 
 import { db } from "./db";
 import {
@@ -209,15 +209,14 @@ export async function reserveStorage(input: {
         .select({
           stored: sql<string | number>`coalesce(sum(${storageReservations.bytes}) filter (where ${storageReservations.state} = 'stored'), 0)`,
           reserved: sql<string | number>`coalesce(sum(${storageReservations.bytes}) filter (where ${storageReservations.state} = 'held'), 0)`,
-          attempts: sql<string | number>`count(*)`,
+          // The rate window applies only to attempts, not to stored bytes.
+          // Old builds remain charged until their objects are removed.
+          // A raw SQL interpolation does not use Drizzle's timestamp encoder:
+          // bind an ISO string explicitly, rather than passing a Date to pg.
+          attempts: sql<string | number>`count(*) filter (where ${storageReservations.createdAt} > ${windowStart.toISOString()}::timestamptz)`,
         })
         .from(storageReservations)
-        .where(
-          and(
-            eq(storageReservations.userId, input.userId),
-            gt(storageReservations.createdAt, windowStart),
-          ),
-        );
+        .where(eq(storageReservations.userId, input.userId));
 
       const facts = {
         storedBytes: bytes(totals?.stored),

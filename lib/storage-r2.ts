@@ -10,12 +10,12 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 /**
- * The R2 half of storage, with the S3 client and the URL signer injected.
+ * Private S3-compatible storage (R2 or Supabase), with the client and signer injected.
  *
  * Keeping the client injectable is what lets the driver's behaviour be unit
  * tested without a network or a real bucket — see tests/storage-r2.test.ts.
- * Nothing here talks to the local disk: quarantine is local, final storage is
- * R2, and the two are never mixed.
+ * Nothing here talks to disk: quarantine is separate, and only scanned final
+ * objects reach this store. The existing R2 names remain for compatibility.
  */
 
 /** Real signer. Replaced by a stub in tests. */
@@ -29,6 +29,8 @@ export type R2StoreOptions = {
   client: S3Client;
   bucket: string;
   sign?: PresignFn;
+  /** When set, reads are counted while streaming and writes are bounded. */
+  maxMaterializedBytes?: number;
 };
 
 export type R2Store = {
@@ -60,17 +62,50 @@ function contentDisposition(filename: string): string {
   return `attachment; filename="${safe}"`;
 }
 
+type BoundedBody = AsyncIterable<Uint8Array> & { destroy?: () => void };
+
+/** Never call transformToByteArray on an untrusted-size cloud object. */
+async function readBoundedBody(body: unknown, maxBytes: number): Promise<Uint8Array> {
+  const stream = body as BoundedBody;
+  if (typeof stream[Symbol.asyncIterator] !== "function") {
+    stream.destroy?.();
+    throw new Error("Object storage did not provide a bounded-readable stream");
+  }
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for await (const chunk of stream) {
+      if (!(chunk instanceof Uint8Array) || chunk.byteLength > maxBytes - total) {
+        throw new Error("Stored object exceeds the cloud pilot read limit");
+      }
+      total += chunk.byteLength;
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks, total);
+  } catch (error) {
+    stream.destroy?.();
+    throw error;
+  }
+}
+
 export function createR2Store({
   client,
   bucket,
   sign = getSignedUrl,
+  maxMaterializedBytes,
 }: R2StoreOptions): R2Store {
   if (!bucket) {
-    throw new Error("STORAGE_DRIVER=r2 but STORAGE_BUCKET is not set");
+    throw new Error("Object storage requires STORAGE_BUCKET");
+  }
+  if (maxMaterializedBytes !== undefined && (!Number.isSafeInteger(maxMaterializedBytes) || maxMaterializedBytes <= 0)) {
+    throw new Error("Object storage read limit must be a positive safe integer");
   }
 
   return {
     async put(key, data, contentType) {
+      if (maxMaterializedBytes !== undefined && data.byteLength > maxMaterializedBytes) {
+        throw new Error("Object exceeds the cloud pilot storage limit");
+      }
       await client.send(
         new PutObjectCommand({
           Bucket: bucket,
@@ -88,7 +123,15 @@ export function createR2Store({
           new GetObjectCommand({ Bucket: bucket, Key: key }),
         );
         if (!out.Body) return null;
-        const data = await out.Body.transformToByteArray();
+        if (maxMaterializedBytes !== undefined && out.ContentLength !== undefined && (
+          !Number.isSafeInteger(out.ContentLength) || out.ContentLength < 0 || out.ContentLength > maxMaterializedBytes
+        )) {
+          (out.Body as unknown as BoundedBody).destroy?.();
+          return null;
+        }
+        const data = maxMaterializedBytes === undefined
+          ? await out.Body.transformToByteArray()
+          : await readBoundedBody(out.Body, maxMaterializedBytes);
         return { data, size: data.byteLength };
       } catch {
         // A missing or unreadable object is "not found" to callers, exactly as

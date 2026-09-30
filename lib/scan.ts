@@ -1,4 +1,7 @@
 import "server-only";
+import { scanWithTransloadit, transloaditCredentials } from "./transloadit-scan";
+import { reserveCloudScanUsage } from "./cloud-scan-budget";
+import { isCloudPilot } from "./pilot";
 
 export type ScanResult =
   | { ok: true }
@@ -23,6 +26,17 @@ export type ScanResult =
  * refuses to store anything in that case. No silent "skip the scan" path.
  */
 export async function scanUpload(data: Uint8Array): Promise<ScanResult> {
+  const driver = process.env.SCAN_DRIVER ?? "clamav";
+  if (driver === "transloadit") {
+    if (!isCloudPilot() || !transloaditCredentials(process.env)) return { ok: false, reason: "not-configured" };
+    // Charge durably before contacting the provider. Never refund unknown or
+    // failed scans: an upstream Assembly can still consume the free allowance.
+    if (!await reserveCloudScanUsage(data.byteLength)) {
+      return { ok: false, reason: "unavailable", message: "The cloud pilot's scan allowance is unavailable. Please try again later." };
+    }
+    return scanWithTransloadit(data);
+  }
+  if (driver !== "clamav") return { ok: false, reason: "not-configured" };
   const endpoint = process.env.SCAN_ENDPOINT;
   if (!endpoint) {
     return { ok: false, reason: "not-configured" };
