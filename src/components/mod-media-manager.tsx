@@ -55,7 +55,7 @@ export default function ModMediaManager({ betaModId, media, uploadPermission, cl
       <div>
         <label htmlFor="mod-image-file" className="mb-2 block text-sm font-semibold">Screenshot</label>
         <input id="mod-image-file" name="file" type="file" accept="image/png,image/jpeg,image/webp" required disabled={pending} className="field" onChange={(event) => setSelectedName(event.currentTarget.files?.[0]?.name ?? "")} />
-        <p className="mt-2 text-xs text-[var(--muted)]">PNG, JPEG or WebP · Up to {cloudPilot ? "8 MiB / 8 megapixels" : "10 MiB"} · 160–4096 pixels per side · Still images only{cloudPilot ? " · Privately scanned by Transloadit" : ""}</p>
+        <p className="mt-2 text-xs text-[var(--muted)]">PNG, JPEG or WebP · Up to {cloudPilot ? "8 MiB / 4 megapixels" : "10 MiB"} · 160–4096 pixels per side · Still images only{cloudPilot ? " · Privately scanned by Transloadit" : ""}</p>
       </div>
       <div>
         <label htmlFor="mod-image-caption" className="mb-2 block text-sm font-semibold">Caption <span className="font-normal text-[var(--muted)]">(optional)</span></label>

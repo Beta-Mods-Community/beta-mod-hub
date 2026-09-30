@@ -77,25 +77,25 @@ describe("cloud pilot media limits", { concurrency: false }, () => {
     await assert.rejects(decodeMediaImage(Buffer.alloc(CLOUD_UPLOAD_BYTES + 1)), /Choose an image no larger than 8 MiB/);
   }));
 
-  it("the real Sharp decoder accepts the exact 8,388,608-pixel cloud boundary", async () => cloudMode("on", async () => {
-    assert.equal(CLOUD_IMAGE_PIXELS, 4096 * 2048);
-    const original = await sharp({ create: { width: 4096, height: 2048, channels: 3, background: "#246789" } }).png().toBuffer();
+  it("the real Sharp decoder accepts the exact 4,194,304-pixel cloud boundary", async () => cloudMode("on", async () => {
+    assert.equal(CLOUD_IMAGE_PIXELS, 4096 * 1024);
+    const original = await sharp({ create: { width: 4096, height: 1024, channels: 4, background: "#246789" } }).png().toBuffer();
     assert.ok(original.length < CLOUD_UPLOAD_BYTES);
     const result = await decodeMediaImage(original);
     assert.equal(result.width * result.height, CLOUD_IMAGE_PIXELS);
     assert.equal(result.mime, "image/webp");
   }));
 
-  it("Sharp rejects 8.4 million pixels in cloud mode but preserves the local decoder limit", async () => {
-    const original = await sharp({ create: { width: 3000, height: 2800, channels: 3, background: "#246789" } }).png().toBuffer();
-    assert.ok(3000 * 2800 > CLOUD_IMAGE_PIXELS);
+  it("Sharp rejects just over 4,194,304 pixels in cloud mode but preserves the local decoder limit", async () => {
+    const original = await sharp({ create: { width: 2050, height: 2048, channels: 3, background: "#246789" } }).png().toBuffer();
+    assert.ok(2050 * 2048 > CLOUD_IMAGE_PIXELS);
     assert.ok(original.length < CLOUD_UPLOAD_BYTES);
     await cloudMode("on", async () => {
-      await assert.rejects(decodeMediaImage(original), /valid, still/);
+      await assert.rejects(decodeMediaImage(original), /4 megapixels/);
     });
     await cloudMode(undefined, async () => {
       const result = await decodeMediaImage(original);
-      assert.deepEqual([result.width, result.height], [3000, 2800]);
+      assert.deepEqual([result.width, result.height], [2050, 2048]);
     });
   });
 

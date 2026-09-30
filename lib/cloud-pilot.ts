@@ -3,7 +3,8 @@ import { SignJWT, jwtVerify } from "jose";
 import { isCloudPilot } from "./pilot";
 
 export const CLOUD_UPLOAD_BYTES = 8 * 1024 * 1024;
-export const CLOUD_IMAGE_PIXELS = 8 * 1024 * 1024;
+// Leave native image-decoder headroom on the actual 512 MiB pilot host.
+export const CLOUD_IMAGE_PIXELS = 4 * 1024 * 1024;
 export const PILOT_COOKIE = "betamods-pilot";
 export const cloudPilotEnabled = isCloudPilot;
 

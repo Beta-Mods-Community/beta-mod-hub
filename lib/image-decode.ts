@@ -35,6 +35,6 @@ export async function decodeMediaImage(data: Uint8Array) {
     if (encoded.data.byteLength > maxBytes) throw new Error("size");
     return { data: encoded.data, width: encoded.info.width, height: encoded.info.height, mime: "image/webp" as const };
   } catch {
-    throw new MediaError(`Use a valid, still PNG, JPEG or WebP image between 160 and 4096 pixels on each side, up to ${maxBytes / 1024 / 1024} MiB${cloud ? " and 8 megapixels" : ""}.`);
+    throw new MediaError(`Use a valid, still PNG, JPEG or WebP image between 160 and 4096 pixels on each side, up to ${maxBytes / 1024 / 1024} MiB${cloud ? " and 4 megapixels" : ""}.`);
   }
 }
