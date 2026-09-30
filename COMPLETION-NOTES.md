@@ -581,3 +581,24 @@ session cache or authorization difference between deployed `60c5bd2` and HEAD;
 authorization runs before signing/reading storage. This is still an unresolved
 release blocker, not a confirmed leak and not a permission-check pass. Browser
 security blocks were not bypassed and no cookies or signed URLs were extracted.
+
+### Authenticated private-attachment denial verified (Sep 30 CDT)
+
+Resolved the preceding ambiguous download report: the owner confirmed it was
+`diagnostic.log` in Chrome, which was signed into the permitted owner account.
+They then manually navigated the in-app browser to the original application
+attachment URL (`a237c8e8-29a5-4f94-8a91-4d785d3489cc`) and reported "not found
+and nothing to download." Browser inspection of that already-open page showed
+`Not found`. A fresh `/account` load in the same in-app browser confirmed the
+separate `admin.betamods+qa@gmail.com` session was still authenticated.
+
+The user performed the navigation; automation only observed the result and
+checked the account afterward. The previously blocked automated request was
+not retried or rerouted. No browser protections, credentials, roles, storage,
+database rows or application code changed. No signed URL or session cookie was
+extracted. The actual HTTP status was not independently captured; the evidence
+is the rendered denial, confirmed QA identity and user's no-download report.
+
+This closes the authenticated non-owner private-attachment check. The earlier
+automated browser block remains historical, not a passing request. Other
+hosted rejection/resource checks remain separate and the pilot stays gated.

@@ -459,8 +459,9 @@ denial, plus five harmless invalid-ZIP cases: malformed metadata, encryption
 flags, nested archives, checksum mismatch and unsafe paths. The latter left
 zero builds on the temporary listing, zero held bytes, unchanged private
 storage and unchanged scan budget; five upload attempts remain counted. The
-temporary listing is archived. See `COMPLETION-NOTES.md` for the exact evidence
-and the browser-blocked authenticated attachment check, which is not a pass.
+temporary listing is archived. The authenticated QA private-attachment check
+subsequently passed through manual in-app navigation, as recorded below.
+See `COMPLETION-NOTES.md` for the exact evidence.
 The five archive-policy rejects are not evidence of hosted malware rejection.
 
 Sep 30 follow-up: a normal Render service restart completed at 00:07:31 CDT
@@ -475,15 +476,16 @@ payload hashes checked; one byte over fails; temporary outputs are removed.
 The subprocess inherits no provider credentials and attempts no network calls.
 This is not hosted Next/S3 integration or proof of Render's boundary memory.
 
-The owner reported a file download during the manual private-attachment check.
-The request's browser/account and downloaded file have not yet been identified:
-Chrome is signed into the permitted owner, while the in-app browser has the
-unrelated QA account. Read-only cloud data checks confirm the QA account is
-neither reporter nor owner of the clean diagnostic attachment and the report/mod
-association is consistent. The deployed authorization code is unchanged and
-requires that relationship before reading/signing storage. Treat this as an
-unresolved release blocker, not a proven authorization failure or a pass.
-Do not bypass the browser block or extract sessions to complete the test.
+The authenticated private-attachment denial check is now passed. The owner
+clarified that the earlier `diagnostic.log` download used Chrome's permitted
+owner account. They then manually opened the same application attachment URL
+inside Codex and reported "not found and nothing to download." The visible
+result was independently read as `Not found`, and a fresh account-page load
+in the same in-app browser confirmed `admin.betamods+qa@gmail.com`. Read-only
+cloud data checks confirm QA is neither the reporter nor the mod owner and the
+report/mod association is consistent. No browser protections were bypassed,
+sessions extracted, roles changed or alternative download transports used.
+This closes that specific permission check, not the other hosted launch gates.
 
 - Account/permission gates above completed without cards, paid plans or broad
   unrelated-repository access; no production DB mutation.
