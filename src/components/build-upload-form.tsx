@@ -1,14 +1,24 @@
 "use client";
 
 import { useActionState, useState, useId } from "react";
+import { unstable_rethrow } from "next/navigation";
 
 import { uploadBuild } from "@lib/build-uploads";
+import type { BuildUploadFormState } from "@lib/definitions";
 import { formatBytes } from "@lib/pilot";
 import { BUILD_ARCHIVE_ACCEPT, validateBuildArchive } from "@lib/build-upload-policy";
+import { BUILD_UPLOAD_UNCONFIRMED, recoverUploadAction } from "@/lib/upload-action-recovery";
+import UploadStatus from "@/components/upload-status";
 
 const inputClass = "field";
 const labelClass = "mb-1.5 block text-sm font-semibold text-[var(--text-soft)]";
 const errorClass = "mt-1.5 text-sm text-rose-300";
+
+// Client recovery requires hydration. The original Server Action still receives
+// this FormData once; its authentication and successful redirects are preserved.
+async function submitBuild(previous: BuildUploadFormState, data: FormData): Promise<BuildUploadFormState> {
+  return recoverUploadAction(uploadBuild, previous, data, unstable_rethrow, { message: BUILD_UPLOAD_UNCONFIRMED });
+}
 
 /**
  * `maxBytes` is the effective per-file ceiling, resolved on the server from the
@@ -25,14 +35,15 @@ export default function BuildUploadForm({
   maxBytes: number;
   zipOnly?: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(uploadBuild, undefined);
+  const [state, formAction, pending] = useActionState(submitBuild, undefined);
   const prefix = useId();
   const [versionLabel, setVersionLabel] = useState("");
   const [changelog, setChangelog] = useState("");
   const [fileError, setFileError] = useState<string | null>(null);
 
   return (
-    <form action={formAction} aria-busy={pending} onSubmit={event => {
+    <form action={formAction} onSubmit={event => {
+      if (pending) { event.preventDefault(); return; }
       const file = new FormData(event.currentTarget).get("file");
       const error = file instanceof File ? validateBuildArchive(file.name, file.size, maxBytes, zipOnly) : "Choose an archive.";
       setFileError(error);
@@ -100,8 +111,8 @@ export default function BuildUploadForm({
 
       {fileError && <p role="alert" className={errorClass}>{fileError}</p>}
 
-      {state?.message && (
-        <p role="alert" className="text-sm text-rose-300">{state.message} Your version and changelog are preserved. Select the file again to retry.</p>
+      {!pending && state?.message && (
+        <p role="alert" className="text-sm text-rose-300">{state.message} Your version and changelog are preserved.</p>
       )}
 
       <div>
@@ -110,11 +121,10 @@ export default function BuildUploadForm({
           disabled={pending || !!fileError}
           className="button-primary"
         >
-          {pending ? "Uploading and scanning…" : "Upload build"}
+          {pending ? "Upload in progress…" : "Upload build"}
         </button>
-        <p role="status" className="mt-1.5 text-xs text-[var(--muted)]">
-          {pending ? "Keep this page open. Uploading, malware scanning, and storage can take a few minutes for larger archives." : "The build appears on this page after the scan passes. If an upload fails, you can retry."}
-        </p>
+        <UploadStatus pending={pending} />
+        {!pending && <p className="mt-1.5 text-xs text-[var(--muted)]">The build appears after its scan passes. If a field needs correcting, select the file again before submitting.</p>}
       </div>
     </form>
   );

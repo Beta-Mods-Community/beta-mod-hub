@@ -1,13 +1,23 @@
 "use client";
 
 import { useActionState, useState, useId } from "react";
+import { unstable_rethrow } from "next/navigation";
 
 import { submitBugReport } from "@lib/feedback";
+import type { BugReportFormState } from "@lib/definitions";
 import { ATTACHMENT_ACCEPT } from "@lib/feedback-policy";
+import { BUG_REPORT_UNCONFIRMED, recoverUploadAction } from "@/lib/upload-action-recovery";
+import UploadStatus from "@/components/upload-status";
 
 const inputClass = "field";
 const labelClass = "mb-1.5 block text-sm font-semibold text-[var(--text-soft)]";
 const errorClass = "mt-1.5 text-sm text-rose-300";
+
+// Client recovery requires hydration; keep the original action/transport and
+// let Next handle its authentication and successful navigation exceptions.
+async function submitReport(previous: BugReportFormState, data: FormData): Promise<BugReportFormState> {
+  return recoverUploadAction(submitBugReport, previous, data, unstable_rethrow, { message: BUG_REPORT_UNCONFIRMED });
+}
 
 export default function BugReportForm({
   betaModId,
@@ -19,7 +29,7 @@ export default function BugReportForm({
   cloudPilot?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
-    submitBugReport,
+    submitReport,
     undefined,
   );
   const prefix = useId();
@@ -27,9 +37,14 @@ export default function BugReportForm({
   const [severity, setSeverity] = useState("minor");
   const [description, setDescription] = useState("");
   const [reproSteps, setReproSteps] = useState("");
+  const [submittedWithAttachment, setSubmittedWithAttachment] = useState(false);
 
   return (
-    <form action={formAction} aria-busy={pending} className="flex flex-col gap-4">
+    <form action={formAction} onSubmit={event => {
+      if (pending) { event.preventDefault(); return; }
+      const attachment = new FormData(event.currentTarget).get("attachment");
+      setSubmittedWithAttachment(attachment instanceof File && attachment.size > 0);
+    }} className="flex flex-col gap-4">
       <input type="hidden" name="betaModId" value={betaModId} />
 
       <div>
@@ -129,8 +144,8 @@ export default function BugReportForm({
         <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{cloudPilot ? "Plain UTF-8 text/log, JSON/INI or ZIP, up to 8 MiB. Binary saves are not supported yet. ZIPs cannot be encrypted or contain nested archives. Files are sent privately to Transloadit for scanning. " : "Text/log, ZIP, JSON/INI, or game saves (.sav, .save, .fos), up to 20 MiB. Scanned before storage. "}Only you and the mod author can download it. Remove passwords or personal details first.</p>
       </div>
 
-      {state?.message && (
-        <p role="alert" className="text-sm text-rose-300">{state.message} Your report text is preserved. Select an attachment again if you want to include it on retry.</p>
+      {!pending && state?.message && (
+        <p role="alert" className="text-sm text-rose-300">{state.message} Your report text is preserved.</p>
       )}
 
       <button
@@ -138,8 +153,9 @@ export default function BugReportForm({
         disabled={pending}
         className="button-primary self-start"
       >
-        {pending ? "Submitting and scanning attachment…" : "Report bug"}
+        {pending ? "Submitting report…" : "Report bug"}
       </button>
+      <UploadStatus pending={pending} hasFile={submittedWithAttachment} />
     </form>
   );
 }

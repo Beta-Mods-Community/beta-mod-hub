@@ -1,12 +1,13 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element -- Private R2 delivery uses stable app routes. */
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useState } from "react";
 import { unstable_rethrow } from "next/navigation";
-import { ArrowDown, ArrowUp, ImagePlus, LoaderCircle, Star, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ImagePlus, Star, Trash2 } from "lucide-react";
 import { manageModMedia, uploadModMedia, type MediaFormState } from "@lib/mod-media";
 import { MAX_MOD_IMAGES, type GalleryImage } from "@lib/media-policy";
 import { recoverMediaUpload } from "@/lib/media-upload-recovery";
+import UploadStatus from "@/components/upload-status";
 
 // Client wrapper keeps a rejected upload response inside this form. It requires
 // hydration; the same Server Action still sends the original FormData once.
@@ -48,8 +49,7 @@ export default function ModMediaManager({ betaModId, media, uploadPermission, cl
   uploadPermission?: { allowed: true } | { allowed: false; message: string };
 }) {
   const [state, action, pending] = useActionState(uploadScreenshot, undefined);
-  const [selectedName, setSelectedName] = useState("");
-  const formRef = useRef<HTMLFormElement>(null);
+  const [caption, setCaption] = useState("");
   const images = [...media].sort((a, b) => a.position - b.position);
   const canUpload = uploadPermission?.allowed !== false && images.length < MAX_MOD_IMAGES;
   return <section className="space-y-5" aria-labelledby="manage-screenshots-heading">
@@ -58,20 +58,21 @@ export default function ModMediaManager({ betaModId, media, uploadPermission, cl
       <span className="text-xs tabular-nums text-[var(--muted)]">{images.length} / {MAX_MOD_IMAGES} images</span>
     </div>
     <p className="text-sm text-[var(--muted)]">Choose a cover for Browse, then arrange the rest of your screenshots. Captions also describe images to screen readers.</p>
-    {canUpload ? <form ref={formRef} action={action} className="space-y-4 rounded-lg border border-dashed border-[var(--line)] bg-[var(--surface)] p-5">
+    {canUpload ? <form action={action} onSubmit={event => { if (pending) event.preventDefault(); }} className="space-y-4 rounded-lg border border-dashed border-[var(--line)] bg-[var(--surface)] p-5">
       <input type="hidden" name="betaModId" value={betaModId} />
       <div>
         <label htmlFor="mod-image-file" className="mb-2 block text-sm font-semibold">Screenshot</label>
-        <input id="mod-image-file" name="file" type="file" accept="image/png,image/jpeg,image/webp" required disabled={pending} className="field" onChange={(event) => setSelectedName(event.currentTarget.files?.[0]?.name ?? "")} />
+        <input id="mod-image-file" name="file" type="file" accept="image/png,image/jpeg,image/webp" required disabled={pending} className="field" />
         <p className="mt-2 text-xs text-[var(--muted)]">PNG, JPEG or WebP · Up to {cloudPilot ? "8 MiB / 4 megapixels" : "10 MiB"} · 160–4096 pixels per side · Still images only{cloudPilot ? " · Privately scanned by Transloadit" : ""}</p>
       </div>
       <div>
         <label htmlFor="mod-image-caption" className="mb-2 block text-sm font-semibold">Caption <span className="font-normal text-[var(--muted)]">(optional)</span></label>
-        <input id="mod-image-caption" name="caption" maxLength={200} className="field" placeholder="What should testers notice?" />
+        <input id="mod-image-caption" name="caption" maxLength={200} value={caption} onChange={event => setCaption(event.target.value)} className="field" placeholder="What should testers notice?" />
       </div>
-      <button className="button-primary" disabled={pending}>{pending ? <><LoaderCircle className="animate-spin motion-reduce:animate-none" size={16} />Uploading and scanning…</> : <><ImagePlus size={16} />Upload screenshot</>}</button>
-      <p role="status" className="text-xs text-[var(--muted)]">{pending ? `Processing ${selectedName || "your screenshot"}. Keep this page open while it is checked.` : "Images appear only after malware scanning. Location and camera metadata are removed."}</p>
-      {state?.message && <p role="status" className={`text-sm ${state.ok ? "text-emerald-300" : "text-rose-300"}`}>{state.message}</p>}
+      <button className="button-primary" disabled={pending}>{pending ? "Upload in progress…" : <><ImagePlus size={16} />Upload screenshot</>}</button>
+      <UploadStatus pending={pending} />
+      {!pending && <p className="text-xs text-[var(--muted)]">Images appear only after malware scanning. Location and camera metadata are removed.</p>}
+      {!pending && state?.message && <p role="status" className={`text-sm ${state.ok ? "text-emerald-300" : "text-rose-300"}`}>{state.message}</p>}
     </form> : <p className="rounded-lg border border-[var(--line)] p-4 text-sm text-[var(--muted)]">{uploadPermission?.allowed === false ? uploadPermission.message : "The gallery is full. Remove an image to add another."}</p>}
     <div className="space-y-3">{images.map((image, index) => <MediaRow key={image.id} betaModId={betaModId} image={image} first={index === 0} last={index === images.length - 1} />)}</div>
   </section>;
