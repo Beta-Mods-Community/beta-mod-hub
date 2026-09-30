@@ -602,3 +602,48 @@ is the rendered denial, confirmed QA identity and user's no-download report.
 This closes the authenticated non-owner private-attachment check. The earlier
 automated browser block remains historical, not a passing request. Other
 hosted rejection/resource checks remain separate and the pilot stays gated.
+
+### Full-upload follow-up: hourly refusal and HTTP transport (Sep 30 CDT)
+
+The owner declined a design-only invitation and asked to finish upload testing.
+No invitations were sent and uploads were not disabled. Existing caps, provider
+plans, DNS and the local preview are unchanged.
+
+A fresh synthetic listing (`60d7d4ed-ce05-4db4-b99e-631e667bd1eb`) received a
+125-byte harmless invalid-ZIP attempt while the owner's five previous attempts
+still occupied the hourly window. The live form displayed the five-per-hour
+refusal. A pinned read-only pilot audit at 05:52:46 UTC confirmed zero builds,
+media or linked reservations on that listing, zero held bytes globally,
+21,128,942 stored bytes and unchanged 138 MiB estimated scan usage. The previous
+attempts were not reset or deleted. Selecting an 8 MiB+1 file also showed the
+client-side size error and disabled submission; that is not hosted server-side
+rejection evidence.
+
+At 05:43:39 UTC a health request returned 200/ok in 463 ms after the intended
+idle interval, but no new startup was observed. Do not count this as a cold
+start. A single unauthenticated 9 MiB+1 ordinary POST then returned upstream
+502 in 692 ms, not the expected application 413. Subsequent health was 200/ok
+and application logs showed no crash/restart. The request was not retried by
+changing its transport or reducing it to headers-only.
+
+Loopback reproduction isolated an early-response lifecycle problem: immediate
+Connection: close caused normal whole-body requests to reset, while a
+header-first request had hidden this issue. The shared HTTP handler now sends
+a length-delimited refusal before bounded discard (10 MiB, two seconds, four
+concurrent grace drains). Rejected input never enters Next or takes a work
+slot; the accepted body cap remains 9 MiB. Saturated discard slots close
+immediately with best-effort refusal. The actual shared handler passes full
+9 MiB+1 bodies with keep-alive and client-requested close, occupied-slot 503,
+subsequent valid requests and discard bounds on both Node 22.23.3 and Node 26
+(14 focused handler/runtime tests). Deployment and hosted recheck are still
+pending at this checkpoint; the old 502 is not relabeled as a passing test.
+
+Offline boundary and positive-export generators use harmless generated data,
+no credentials, no network and no malware fixture. The positive set is five
+normal uploads, including an 8 MiB ZIP and four still images below the file and
+pixel caps. Browser form CRLF serialization is explicitly accounted for; the
+listing's 228-byte stored description and changelog `Synthetic capacity fixture`
+(no period) produce exactly 32 MiB accounted export input if hosted canonical
+images match the verified offline hashes. Expected scan accounting is 183 MiB
+for nine scans, including envelope rounding. Hosted upload/export results are
+recorded separately, not inferred from these offline checks.
