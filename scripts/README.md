@@ -17,7 +17,7 @@ works.
 | `cloud-server.mjs` | Production entry point for `npm run start:cloud`; validates cloud configuration and starts Next.js with request and memory limits. |
 | `cloud-http-handler.mjs`, `cloud-runtime-policy.mjs` | Cloud request admission, concurrency limits, and configuration validation. Imported by the launcher and tests. |
 | `cloud-memory.mjs` | Process and Linux cgroup memory measurements used by the runtime and offline checks. |
-| `scan-server.mjs` | HTTP wrapper for ClamAV. Starts a listener and requires a running `clamd`; set `SCAN_SERVER_HOST=127.0.0.1` for local use. |
+| `scan-server.mjs` | HTTP wrapper for ClamAV. Requires a running `clamd` and defaults to loopback. For local use, run `node --env-file=.env.local scripts/scan-server.mjs`; see the scanner setup in Contributing. |
 | `dev-database.mjs` | Reads private development configuration and rejects known production/cloud endpoints before mutating development tools connect. |
 | `compose-ps.mjs` | Parser for Docker Compose status output, shared by smoke checks and unit tests. |
 | `e2e-upload-state.mjs` | Captures and restores the upload controls changed by the development upload suite. |

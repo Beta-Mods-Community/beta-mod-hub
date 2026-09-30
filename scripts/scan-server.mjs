@@ -7,9 +7,11 @@
  * protocol directly over TCP — zero npm dependencies.
  *
  * Run it (needs ClamAV installed and clamd listening):
- *   node scripts/scan-server.mjs
+ *   node --env-file=.env.local scripts/scan-server.mjs
+ * The env file is loaded by Node, not by this script. See CONTRIBUTING.md.
  *
  * Env:
+ *   SCAN_SERVER_HOST  HTTP address to bind       (default 127.0.0.1)
  *   SCAN_SERVER_PORT  HTTP port to listen on      (default 3311)
  *   CLAMD_HOST        clamd host                  (default 127.0.0.1)
  *   CLAMD_PORT        clamd port                  (default 3310)
@@ -25,14 +27,15 @@
  *                     200 {"ok":true,"clamd":"PONG"} | 503 {"ok":false,...}
  *
  * /healthz is deliberately unauthenticated (the container healthcheck carries
- * no API key) and strictly read-only. It is reachable only on the private
- * Compose network — the home stack publishes this port on loopback solely for
- * local verification, and never publicly.
+ * no API key) and strictly read-only. Local development and the in-app Oracle
+ * wrapper bind loopback. The separate home Compose service explicitly binds
+ * 0.0.0.0 for its private network; never publish this port publicly.
  */
 
 import { createServer } from "node:http";
 import net from "node:net";
 
+const HOST = process.env.SCAN_SERVER_HOST || "127.0.0.1";
 const PORT = Number(process.env.SCAN_SERVER_PORT ?? 3311);
 const CLAMD_HOST = process.env.CLAMD_HOST ?? "127.0.0.1";
 const CLAMD_PORT = Number(process.env.CLAMD_PORT ?? 3310);
@@ -155,9 +158,10 @@ const server = createServer((req, res) => {
   });
 });
 
-server.listen(PORT, process.env.SCAN_SERVER_HOST || "0.0.0.0", () => {
+server.listen(PORT, HOST, () => {
+  const address = server.address();
   console.log(
-    `scan server listening on :${PORT} -> clamd ${CLAMD_HOST}:${CLAMD_PORT}`,
+    `scan server listening on ${address.address}:${address.port} -> clamd ${CLAMD_HOST}:${CLAMD_PORT}`,
   );
-  console.log(`point the app at it with SCAN_ENDPOINT=http://127.0.0.1:${PORT}`);
+  console.log(`point the app at it with SCAN_ENDPOINT=http://127.0.0.1:${address.port}`);
 });
