@@ -2,8 +2,9 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import next from 'next';
 import sharp from 'sharp';
-import { validateCloudRuntime, cloudRequestPolicy, createWorkSlot } from './cloud-runtime-policy.mjs';
+import { validateCloudRuntime } from './cloud-runtime-policy.mjs';
 import { createMemoryEvidence } from './cloud-memory.mjs';
+import { createCloudRequestHandler } from './cloud-http-handler.mjs';
 
 const errors = validateCloudRuntime(process.env);
 if (errors.length) { console.error('Cloud configuration refused:', errors.join('; ')); process.exit(1); }
@@ -25,33 +26,12 @@ process.env.__NEXT_PRIVATE_ORIGIN = `http://127.0.0.1:${port}`;
 const app = next({ dev: false, hostname, port });
 const handle = app.getRequestHandler();
 await app.prepare();
-const slot = createWorkSlot();
 const memoryEvidence = createMemoryEvidence();
-const server = createServer({ maxHeaderSize: 16384, requestTimeout: 60000, headersTimeout: 10000, keepAliveTimeout: 5000 }, async (req, res) => {
-  const policy = cloudRequestPolicy(req.method ?? '', req.url ?? '/', req.headers);
-  const release = policy.status === 200 && policy.exclusive ? slot.take() : undefined;
-  const status = policy.status !== 200 ? policy.status : release === null ? 503 : 200;
-  if (status !== 200) {
-    res.writeHead(status, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store', Connection: 'close', ...(status === 503 ? { 'Retry-After': '30' } : {}) });
-    res.end(status === 503 ? 'Another upload or export is in progress. Retry shortly.' : 'Request refused by the small-pilot request limit.');
-    return;
-  }
-  const finishMemory = release ? memoryEvidence.beginExclusive() : undefined;
-  const releaseWork = () => { release?.(); finishMemory?.(); };
-  let completed = false; let closed = false;
-  const finish = () => { closed = true; if (completed) releaseWork(); };
-  res.once('finish', finish); res.once('close', finish);
-  try { await handle(req, res); }
-  catch {
-    console.error('Cloud request failed.');
-    if (!res.headersSent) { res.writeHead(500, { 'Cache-Control': 'no-store' }); res.end('Request failed.'); }
-    else res.destroy();
-  } finally {
-    completed = true;
-    // Client disconnect alone does not release while a scan/action still runs.
-    if (closed || res.writableFinished || res.destroyed) releaseWork();
-  }
-});
+const server = createServer({ maxHeaderSize: 16384, requestTimeout: 60000, headersTimeout: 10000, keepAliveTimeout: 5000 },
+  createCloudRequestHandler(handle, {
+    beginExclusive: () => memoryEvidence.beginExclusive(),
+    onError: () => console.error('Cloud request failed.'),
+  }));
 server.maxRequestsPerSocket = 100;
 server.listen(port, hostname, () => {
   console.log(`Cloud pilot listening on port ${port}`);
