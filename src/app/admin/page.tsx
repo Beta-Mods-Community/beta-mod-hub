@@ -39,7 +39,7 @@ export default async function AdminPage() {
     <main className="site-container max-w-4xl flex-1 py-10 sm:py-12">
       <div className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight text-text">
-          Pilot control
+          Site administration
         </h1>
         <p className="mt-2 text-sm leading-6 text-muted">
           Signed in as {viewer.email ?? viewer.userId}. Manage upload access and
@@ -62,12 +62,12 @@ export default async function AdminPage() {
           }`}
         >
           {uploadsEnabled
-            ? "Open — approved uploaders can add builds, screenshots and report attachments."
-            : "Disabled — every new upload is refused right now."}
+            ? "Enabled. Approved accounts can upload builds, screenshots and report attachments."
+            : "Paused. New file uploads are blocked."}
         </p>
         <p className="mt-1 text-sm leading-6 text-muted">
-          The switch takes effect on the next request. Builds already stored
-          stay listed and keep downloading.
+          This takes effect on the next upload request. Existing builds remain
+          available to download.
         </p>
         <UploadSwitchForm enabled={uploadsEnabled} />
       </section>
@@ -81,8 +81,8 @@ export default async function AdminPage() {
 
         {!usage ? (
           <p className="text-sm leading-6 text-red-400">
-            Usage is unknown, so uploads are being refused. That is the
-            fail-closed behaviour, not a bug — check the database connection.
+            Uploads are paused because storage usage could not be checked.
+            Check the database connection.
           </p>
         ) : (
           <>
@@ -97,7 +97,7 @@ export default async function AdminPage() {
               </div>
               <div>
                 <dt className="text-xs text-muted">
-                  Reserved (in flight)
+                  Reserved for uploads
                 </dt>
                 <dd className="text-xl font-semibold text-text">
                   {formatBytes(usage.reservedBytes)}
@@ -136,7 +136,7 @@ export default async function AdminPage() {
                       {row.displayName ?? row.userId}
                       {row.reservedBytes > 0 && (
                         <span className="ml-2 text-xs text-amber-400">
-                          +{formatBytes(row.reservedBytes)} in flight
+                          +{formatBytes(row.reservedBytes)} reserved
                         </span>
                       )}
                     </span>
@@ -167,7 +167,7 @@ export default async function AdminPage() {
         <p className="text-sm leading-6 text-muted">
           {limits.mode === "on"
             ? `${approved.length} of ${limits.maxApprovedUploaders} upload approvals are in use, including any approved owner account. Approval is required for builds, screenshots and report attachments.`
-            : "Pilot mode is OFF — the allowlist is not consulted, and every mod owner can upload."}
+            : "Pilot mode is off. Uploads do not require approval."}
         </p>
         {limits.mode === "on" && <p className="mt-2 text-sm leading-6 text-muted">
           Ask each invited tester to sign up and verify their email first, then
@@ -207,9 +207,9 @@ export default async function AdminPage() {
           </ul>
         ) : (
           <p className="mt-4 text-sm text-muted">
-            Nobody is approved yet
+            No accounts have upload approval yet
             {limits.mode === "on"
-              ? ", so nobody can upload. That is the intended starting state."
+              ? ", so new file uploads are blocked."
               : "."}
           </p>
         )}

@@ -56,7 +56,7 @@ export default function ProfileForm({
           name="bio"
           rows={4}
           defaultValue={initial?.bio}
-          placeholder="Short bio — who you are, what you test."
+          placeholder="Games you play, mods you make, or what you like testing."
           className={inputClass}
           aria-invalid={Boolean(state?.errors?.bio)}
           aria-describedby={state?.errors?.bio ? `${prefix}-bio-error` : undefined}
@@ -75,7 +75,7 @@ export default function ProfileForm({
           name="avatarUrl"
           type="url"
           defaultValue={initial?.avatarUrl ?? ""}
-          placeholder="https://…/avatar.png (optional)"
+          placeholder="https://example.com/avatar.png (optional)"
           className={inputClass}
           aria-invalid={Boolean(state?.errors?.avatarUrl)}
           aria-describedby={state?.errors?.avatarUrl ? `${prefix}-avatar-url-error` : undefined}

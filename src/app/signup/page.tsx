@@ -18,7 +18,7 @@ export default async function SignupPage() {
           Create your account
         </h1>
         <p className="mb-6 text-sm text-[var(--text-soft)]">
-          Post betas, test builds, and vote on readiness.
+          Test mods, report bugs, or post your own beta.
         </p>
         <SignupForm />
         <p className="mt-6 text-center text-sm text-[var(--muted)]">

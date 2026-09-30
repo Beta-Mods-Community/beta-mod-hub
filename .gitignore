@@ -59,3 +59,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Private working notes and historical investigation records
+/.local-notes/
+/AGENTS.md

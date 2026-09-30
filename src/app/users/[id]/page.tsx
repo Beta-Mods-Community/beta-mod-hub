@@ -135,8 +135,8 @@ export default async function UserProfilePage({
         </dl>
 
         <p className="mt-4 border-t border-[var(--line)] pt-4 text-xs leading-5 text-[var(--muted)]">
-          Reputation is derived from testing history — authors use it to judge
-          how much a ready/not-ready vote is worth. Tester reputation score:{" "}
+          Reputation is calculated from mods tested, votes, and bug reports.
+          Score:{" "}
           <span className="font-semibold text-[var(--text-soft)]">
             {reputation} ({tier})
           </span>
@@ -155,7 +155,7 @@ export default async function UserProfilePage({
 
         {mods.length === 0 ? (
           <p className="text-sm text-muted">
-            No beta mods authored yet.
+            No beta mods posted yet.
           </p>
         ) : (
           <ul className="divide-y divide-[var(--line)]">
@@ -190,7 +190,7 @@ export default async function UserProfilePage({
 
         {tested.length === 0 ? (
           <p className="text-sm text-muted">
-            No ready votes cast yet.
+            No build votes yet.
           </p>
         ) : (
           <ul className="divide-y divide-[var(--line)]">
@@ -219,7 +219,7 @@ export default async function UserProfilePage({
                       : `Retest ${mod.currentBuildVersion ?? "needed"}`}
                   </span>
                   <span className="text-xs text-[var(--muted)]">
-                    {mod.total > 0 ? `${mod.ready}/${mod.total} ready` : "Awaiting current-build verdicts"}
+                    {mod.total > 0 ? `${mod.ready}/${mod.total} ready` : "No votes on the latest build"}
                   </span>
                 </div>
               </li>

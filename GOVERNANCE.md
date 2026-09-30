@@ -1,16 +1,16 @@
 # Beta Mods governance
 
-Beta Mods aims to become a community-run project shaped by mod authors and testers. This document describes how work is handled now and how responsibility can be shared as the project grows. It does not claim that a community council or voting system already exists.
+The goal is for authors and testers to help shape and run Beta Mods. For now, the owner makes the final decisions and is responsible for the site. There is no community council or formal voting system yet.
 
-The project currently uses one private application repository. New contributor invitations are paused until operational access and backup exposure have been separated and verified. No organization role, read-only access model, protected branch, or enforced approval rule should be inferred from this document.
+The app has one private repository, [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub). Backups run separately in the owner-only `Beta-Mods/betamods-ops` repository. Access settings have been checked and private forks are enabled. The owner can invite approved contributors; nobody has been invited yet. See [Repository setup](REPOSITORY-SETUP.md).
 
 ## Decisions today
 
-The project owner remains accountable for merges, releases, moderation policy, operating costs, and the live service. Community members can propose changes in Discord, or through Issues and pull requests once access is approved. The owner should explain substantive decisions, including why a proposal is deferred or declined.
+Suggest changes in Discord, or through Issues and pull requests once access is approved. The owner handles merges, releases, moderation, costs, and hosting, and should explain why larger proposals are accepted, deferred, or declined.
 
-Once code access is available, small fixes can go directly to a pull request. Significant changes to user workflows, privacy, architecture, costs, or community rules should begin with a proposal shared with the relevant community, describing the problem, options, tradeoffs, and a way to evaluate the result. Gather feedback from the people affected, record the decision, and revisit it when evidence changes.
+Small fixes can go straight to a pull request. Discuss larger changes first, especially changes to privacy, costs, moderation, or how people use the site. Explain the problem and tradeoffs, ask the people affected, and record the decision. Revisit it if the result does not work.
 
-Community feedback should shape the project, but popularity alone does not override security, privacy, legal obligations, or sustainable operating limits. Emergency security work can be handled privately, followed by an appropriate public explanation once disclosure is safe.
+Community preferences matter, but changes still need to protect users and stay affordable. Security fixes may need private discussion until it is safe to explain them.
 
 ## Ways to help
 
@@ -20,22 +20,22 @@ Community feedback should shape the project, but popularity alone does not overr
 - Suggest testing standards and moderation practices.
 - Help maintain components consistently over time.
 
-No technical background is required to offer useful feedback. Disagree about ideas without attacking people, and keep private information out of public discussions.
+You do not need to code to help. Keep disagreements about the work and leave private information out of discussions.
 
 ## Becoming a maintainer
 
-Maintainer access is earned through consistent, careful contributions and respectful collaboration, not bought or granted automatically with a pull request. The owner may invite a contributor into a defined role after discussing its scope and responsibilities with them.
+As people contribute regularly, the owner may invite them to maintain a part of the project. Agree on the work and access involved before granting permissions.
 
-Choose the least access needed, but first verify what the actual GitHub account and repository configuration can enforce. A read role, when available, can still expose repository history and Actions artifacts. Neither a private repository nor branch protection alone provides sufficient separation for backup data. Hosting, billing, storage, production secrets, user data, and site administration require separate explicit authorization. Responsibilities and access should be reduced or removed when no longer needed.
+Grant only the access needed and check what GitHub actually enforces. Read access can expose history and Actions artifacts, so branch protection alone does not protect backup data. Hosting, billing, storage, secrets, user data, and site administration need separate permission. Remove access when it is no longer needed.
 
-As more maintainers participate, the community can propose a clearer shared decision process. Any change should identify who can decide what, how disagreements are resolved, and who remains responsible for security and service operations. Until such a process is adopted, no informal poll transfers that accountability.
+With more maintainers, we can agree on shared decision-making. That agreement should say who decides what, how disputes are resolved, and who handles security and hosting. Until then, the owner remains responsible; an informal poll does not transfer that responsibility.
 
 ## Source code and hosted content
 
-No open-source license has been adopted. Access is private and by permission; it does not authorize republication of the code, redistribution of uploaded mods, or disclosure of user data. Existing third-party licenses and authors' permissions remain unchanged. Contributors should submit material they have the right to share for incorporation into Beta Mods, and clarify restrictions before submission. No copyright transfer or separate contributor license agreement is established by this document.
+No open-source license has been adopted. Repository access does not permit republication of the code, redistribution of mods, or disclosure of user data. Dependencies and uploaded mods keep their existing licenses and permissions. Submit only work you have the right to contribute for use in Beta Mods, and explain restrictions first. This guide does not transfer copyright or create a separate contributor license agreement.
 
-Application changes belong in this one repository, not a separate community edition or a manually synchronized app mirror. The intended workflow is branch, pull request, owner review and testing, then an owner-controlled merge and deployment decision. Do not push directly to `main` or run production actions without explicit authorization. The documentation describes that policy; it does not certify that remote enforcement or operational separation is complete.
+Submit app changes from a private fork and branch through a pull request to this repository. The owner reviews and tests the work before merging or deploying. Private-fork Actions are disabled, so the owner tests reviewed changes locally or manually runs checks on an owner-controlled branch. Do not merge just to trigger tests. Branch protection is unavailable on the current Free plan, so review and merge decisions remain manual. Do not push directly to upstream `main` or run production commands without permission.
 
 ## Concerns and changes to this document
 
-Use an Issue to propose a governance change. For a private conduct concern, contact `admin.betamods@gmail.com`; for a vulnerability, follow [Security reporting](SECURITY.md). Maintainers should avoid resolving disputes solely through unexplained deletion or private decisions when a safe public explanation is possible.
+Suggest changes to these rules in Discord or an Issue. Send private conduct concerns to `admin.betamods@gmail.com` and vulnerabilities through [Security reporting](SECURITY.md). Explain moderation and project decisions when doing so will not expose someone else's private information.

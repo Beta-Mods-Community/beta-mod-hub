@@ -41,7 +41,7 @@ export default async function BrowsePage({
       <header>
         <h1 className="text-3xl font-semibold tracking-tight text-text">Browse beta mods</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-          Find a build to test and help an author get it ready for release.
+          Find beta builds by game, name, or tag.
         </p>
       </header>
 
@@ -107,7 +107,7 @@ export default async function BrowsePage({
             <p className="mt-2 max-w-lg text-sm leading-6 text-muted">
               {hasFilters
                 ? "Try a different name, choose another game, or reset the filters to see all active betas."
-                : "New projects will appear here when authors post them. Have a mod ready for testing? Use Post a beta to get started."}
+                : "Beta mods will appear here when authors post them."}
             </p>
           </div>
         </section>

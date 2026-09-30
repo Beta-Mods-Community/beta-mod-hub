@@ -13,7 +13,7 @@ concurrency:
 jobs:
   compare:
     if: >-
-      github.repository == 'Beta-Mods/beta-mod-hub' &&
+      github.repository == 'Beta-Mods-Community/beta-mod-hub' &&
       github.event.repository.private == true &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'workflow_dispatch'

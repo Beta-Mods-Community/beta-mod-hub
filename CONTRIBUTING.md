@@ -1,23 +1,23 @@
 # Contributing to Beta Mods
 
-Help make mod testing useful and approachable. You can report a bug, suggest a workflow, improve accessibility, edit documentation, or test a proposed change. Discord feedback does not require access to the code or live service operations.
+You can help with bug reports, design, accessibility, documentation, testing, or code. Use Discord for feedback if you do not have repository access.
 
-This is the project's existing private repository and sole application codebase. Code access is intended for invited contributors, but new invitations remain on hold until operational access and backup exposure have been separated and verified. The workflow below is the agreed direction, not evidence that GitHub roles or branch protections are already configured.
+The private [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub) repository is the only app codebase. Backups run in the owner-only `Beta-Mods/betamods-ops` repository. Access settings have been checked and private forks are enabled. The owner can invite approved contributors, but nobody has been invited yet. See [Repository setup](REPOSITORY-SETUP.md).
 
 ## Discuss and submit a change
 
-1. Discuss substantial changes in Discord, or search and open an Issue when you have authorized access. Describe the user problem, not just the implementation.
-2. Once the owner has configured your access, clone the authorized repository and create a focused branch from its current `main`. Use a private fork only if the owner explicitly approves that arrangement. Do not create a public mirror or another independently maintained app copy.
-3. Make a small, reviewable change. Preserve unrelated work and add tests for changed behavior.
-4. Run the applicable checks below. Record failures or checks you could not run honestly.
-5. Open a pull request explaining the problem, solution, verification, and any migration or operational impact. Include before and after screenshots for visible UI changes, using synthetic data.
-6. Respond to review. The owner reviews the change and its checks before deciding whether to merge and deploy it.
+1. Discuss larger changes in Discord or an Issue before building them. Explain the problem you want to solve.
+2. Once invited, create a private fork of `Beta-Mods-Community/beta-mod-hub`, clone it, and branch from `main`. The upstream repository remains the app's source of truth. Do not make a public mirror or maintain an independent app copy.
+3. Keep the change focused, leave unrelated work alone, and add tests for changed behavior.
+4. Run the relevant checks below. Note anything that failed or could not run.
+5. Open a pull request with a short explanation, test results, and any database or deployment changes. For UI work, include before and after screenshots with test data.
+6. Respond to review. The owner decides when the change can be merged and deployed.
 
-Do not push directly to `main`, trigger deployment or backup workflows, or change cloud settings without explicit owner authorization. Repository access must not be treated as permission to use production credentials, data, or administrative controls. The credential-free contributor workflow does not inject service secrets, but that does not establish isolation from other workflow history or artifacts in the repository. That access review is still required.
+Do not push directly to upstream `main`, run deployment or backup workflows, or change cloud settings without the owner's permission. Contributor CI uses no service credentials. The current Free plan does not provide branch protection for this private repository; the owner must review and test each change before merging. Source access does not include the operations repository or production services.
 
 ## Basic setup and checks
 
-Use Node.js 22, npm, and a fresh checkout. Run `npm ci`, then `npm run dev -- --hostname 127.0.0.1`. With no database configured, public empty states are available but database-backed actions are not.
+Use Node.js 22 and a fresh checkout. Run `npm ci`, then `npm run dev -- --hostname 127.0.0.1`. Without a database, you can work on the layout and empty states but cannot use account or upload actions.
 
 Run these checks without private environment files or inherited service credentials:
 
@@ -31,11 +31,19 @@ npm run build
 
 On PowerShell, use `npm.cmd` instead of `npm` when the script shim is blocked. If a preview is already using `.next`, the existing `BETAMODS_BUILD_CHECK=1` environment setting builds into `.next-check`; otherwise use a separate clean checkout for validation.
 
-The first command generates Next.js route types for a fresh checkout. The default unit suite and a successful build do not establish that a hosted upload, email delivery, or database migration works. The contributor workflow configuration also builds the bounded cloud profile without service credentials; this is a build check, not a deployment test or proof that required-check enforcement is enabled.
+The first command generates Next.js route types. The CI workflow also builds the cloud profile without service credentials. These checks do not test live uploads, email delivery, or database migrations.
+
+## How pull requests are tested
+
+Actions for private-fork pull requests are intentionally disabled at the organization level. Opening a pull request will not automatically run its code, even though the workflow lists a pull-request trigger.
+
+The owner first reviews the diff, including dependencies, scripts, and workflow changes. They can then fetch the reviewed branch into a clean local checkout and run the checks above without private environment files or service credentials. Alternatively, they can push the reviewed revision to an owner-controlled branch and manually dispatch the contributor-check workflow for that branch.
+
+Record the tested commit and results on the pull request before merging. Do not merge into `main` just to trigger checks. The workflow also runs on pushes to `main`, but that is not a substitute for pre-merge testing. GitHub's default Actions token is read-only and cannot create or approve pull requests; the owner remains responsible for the merge decision.
 
 ## Database backed development
 
-Use a disposable PostgreSQL database containing only your development data. PostgreSQL 18 matches the hosted pilot. Local PostgreSQL is sufficient; a production or maintainer-owned cloud account is not required.
+Use a disposable PostgreSQL database with your own test data. PostgreSQL 18 matches the pilot. You do not need a maintainer's database or cloud account.
 
 1. Create a new empty database and a development-only database user.
 2. Inspect `schema.sql`, then apply it once to that empty database using your PostgreSQL client. It contains the current schema, including constraints and indexes, and is not a reset script to run over existing data.
@@ -51,11 +59,11 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 
 Save the result only in your private local configuration. Do not paste it into a report or commit it.
 
-For an existing development database, inspect the SQL under `db/migrations` and apply the applicable changes after backing up your data. Do not repeatedly apply `schema.sql` to a populated database. The existing `scripts/apply-migrations.mjs` runner reads `.env.local` and requires a distinct `.env.production` comparison endpoint before applying migrations. It does not initialize an empty database. Do not invent a comparison value to bypass its guard or ask for production credentials; use the fresh local schema workflow above if your setup does not meet that guard. Migration proposals need a rehearsal against disposable data.
+For an existing development database, back it up and review the relevant SQL in `db/migrations`. Do not apply `schema.sql` over populated tables. `scripts/apply-migrations.mjs` reads `.env.local` and requires a distinct `.env.production` comparison endpoint; it does not initialize an empty database. Do not invent a comparison value or request production credentials to get past that check. Use the fresh local setup above instead. Test migration changes against disposable data before submitting them.
 
 ## Test uploads locally
 
-Uploads intentionally refuse to work without a real scanner. Install ClamAV for your operating system, update its signatures with `freshclam`, and run `clamd` on loopback. Do not expose its TCP port to your network or the internet.
+Uploads need a real scanner. Install ClamAV, update its signatures with `freshclam`, and run `clamd` on loopback. Do not expose its TCP port to your network or the internet.
 
 In `.env.local`, configure the app and wrapper together:
 
@@ -78,11 +86,11 @@ node --env-file=.env.local scripts/scan-server.mjs
 
 Node loads the file explicitly for this command. Keep `SCAN_SERVER_HOST=127.0.0.1` so the wrapper is not exposed to the LAN. No container is needed.
 
-Restart the app after changing configuration. A successful `GET http://127.0.0.1:3311/healthz` means the wrapper can reach `clamd`, not that an upload has completed. Test with a tiny archive you created yourself and inspect both the stored file and the application's result. Do not disable security software to run a fixture, use real malware, or bypass the scan to make a test pass.
+Restart the app after changing settings. `GET http://127.0.0.1:3311/healthz` checks that the wrapper can reach `clamd`; it does not test an upload. Upload a tiny archive you made yourself and check the stored file and app result. Do not disable security software, use real malware, or bypass scanning to make a test pass.
 
 ## Integration and operational checks
 
-The complete tests and operational tools remain in this repository. They serve different purposes:
+These commands have different requirements:
 
 | Command | Scope |
 | --- | --- |
@@ -93,26 +101,26 @@ The complete tests and operational tools remain in this repository. They serve d
 | `npm run e2e:feedback` | Feedback workflow and fixtures against a development database |
 | `npm run smoke:prod` | Operator smoke checks; review its target and options before any use |
 
-Only the credential-free unit, lint, route-type, typecheck, and build checks belong in contributor CI. Integration, end-to-end, provider probes, backup/restore, and live-service checks are separate and must not receive production secrets through a contributor pull request.
+Contributor CI runs unit tests, lint, route type generation, typecheck, and builds without service credentials. Database, end-to-end, provider, backup, and restore tests run separately. Never give a contributor pull request production secrets.
 
-Read each target script before running it. Several suites depend on `.env.local`, a distinct production-comparison endpoint, and seeded demo records. The upload suite requires a running app and scanner and can temporarily change upload controls. Use only an owner-approved isolated environment, matching storage-driver settings, and disposable data. Some suites skip or refuse to run when prerequisites are missing. Do not weaken guards to get a green result.
+Read each script before running it. Several suites need `.env.local`, a separate production-comparison endpoint, and seeded demo records. The upload suite needs a running app and scanner and can temporarily change upload controls. Use only an approved isolated environment with disposable data and matching storage settings. If a suite skips or refuses to run, report it rather than weakening the guard.
 
-In your pull request, identify checks run, the local environment and storage driver, skipped or failed checks, and whether fixtures were cleaned up. Do not report an unrun integration suite as passed or use the hosted pilot as your test backend. The existing operator runbooks are not permission for contributors to execute their production actions.
+Report which checks ran, the environment and storage driver, any failures or skips, and whether test data was cleaned up. Do not use the live pilot as a test backend. Reading an operator guide does not grant permission to run its production commands.
 
 ## Code and review expectations
 
-- Read `AGENTS.md` and the relevant product spec before making changes. For Next.js behavior, use the version-matched documentation shipped with the installed dependency.
+- Read the relevant product spec section before making changes. For Next.js behavior, use the version-matched documentation shipped with the installed dependency.
 - Keep schema definitions and SQL consistent. Describe migration, rollback, and data-preservation consequences in the pull request.
 - Enforce permissions on the server. Hiding a button is not authorization.
 - Preserve quarantine, scan, and final-storage boundaries. Missing scans, unknown quota state, and provider failures must not publish files.
-- Treat pilot limits and provider billing controls as safety boundaries. Do not raise them as an incidental fix.
+- Do not raise upload, storage, or billing limits as a shortcut around a bug.
 - Use existing visual patterns, semantic HTML, keyboard access, and field-level error associations. Test narrow viewports and empty states.
 - Do not automate the Nexus website. New Nexus API work needs a verified API contract and must not claim unfinished OAuth support works.
-- Keep dependencies and generated assets purposeful. Explain their licensing and provenance. Do not include real mod binaries or private screenshots as test fixtures.
+- Explain why new dependencies or assets are needed and record their source and license. Do not use real mod binaries or private screenshots as test fixtures.
 - Review your diff and staged files before submission. Do not commit environment files, access codes, mail previews, backups, database dumps, or generated user content.
 
 ## Community conduct and licensing
 
-Discuss the work respectfully and explain disagreements with evidence. Do not harass contributors, reveal personal information, or use issue threads to pursue someone. Contact `admin.betamods@gmail.com` privately about conduct concerns or use the process in [Security](SECURITY.md) for vulnerabilities.
+Keep criticism about the work, not the person. Do not harass contributors or share personal information. Send conduct concerns to `admin.betamods@gmail.com`; follow [Security](SECURITY.md) for vulnerabilities.
 
-No open-source license has been adopted. Contribute only material you have the right to share, with the understanding that the owner may review and incorporate your proposed change into Beta Mods. Clarify any restrictions before submission. This document does not establish a separate contributor license agreement or transfer copyright ownership. It does not authorize public redistribution of the private repository. Authors' uploaded mods and third-party dependencies retain their own permissions and licenses.
+No open-source license has been adopted. Submit only material you have the right to contribute for use in Beta Mods, and explain any restrictions before submitting it. This guide does not create a separate contributor license agreement, transfer copyright, or permit public redistribution of the repository. Uploaded mods and dependencies keep their own licenses and permissions.

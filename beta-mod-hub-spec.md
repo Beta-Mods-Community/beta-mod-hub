@@ -1,6 +1,6 @@
 # Beta Mod Hub — Build Spec
 
-Hand this file to Codex as the starting brief. It covers what to build and why. Treat "Explicit non-goals" and "Nexus Integration" as hard constraints — everything else is a reasonable default that can flex.
+This specification describes the product, its requirements and its design constraints. "Explicit non-goals" and "Nexus Integration" define project boundaries; implementation details may evolve through review.
 
 ## What this is
 

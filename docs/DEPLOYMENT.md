@@ -1,12 +1,14 @@
-# Deployment configuration and responsibilities
+# Deployment settings
 
-This is a configuration overview for the existing private application repository, not a one-click deployment or permission to change the live service. Runtime code, operational scripts, and preserved deployment targets remain together in this sole app codebase. The owner controls deployment; contributor changes must be reviewed and tested before an authorized release.
+This guide explains local and cloud settings. It is not permission to change the live service. The owner reviews changes and decides when to deploy them.
 
-New repository invitations are on hold until access to privileged workflows, operational history, and backup artifacts has been separated and verified. The credential-free contributor CI does not prove that this broader separation or branch protection is complete. Existing hosting and backup operations must not be interrupted as part of documentation or contributor setup.
+The app repository is [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub). Nightly backups run in the owner-only `Beta-Mods/betamods-ops` repository; the restore rehearsal recovered all 19 tables. The app repository's old backup secrets and backup runs have been removed. Access settings have been checked and private forks are enabled. The owner can invite approved contributors; nobody has been invited yet. See [Repository setup](../REPOSITORY-SETUP.md).
+
+Private-fork Actions are disabled. The owner reviews changes before running local tests or manually dispatching checks on an owner-controlled branch. Do not merge into `main` just to run checks. The Free plan does not enforce private-repository branch protection, so the owner must check results before merging or deploying. Repository access changes do not by themselves deploy a new app revision.
 
 ## Local development profile
 
-Start with the included `env.example` and [Contributing](../CONTRIBUTING.md). With no database URL, the app supports UI and empty-state work only. A complete local workflow needs a dedicated PostgreSQL database, local file storage, and a real ClamAV daemon and scan wrapper. No hosted provider account or container platform is required.
+Start with `env.example` and [Contributing](../CONTRIBUTING.md). Without a database URL, you can work on the UI and empty states. A full local setup needs PostgreSQL, local file storage, ClamAV, and the scan wrapper. It does not need Docker or provider accounts.
 
 | Setting | Local purpose |
 | --- | --- |
@@ -23,9 +25,9 @@ Keep `CLOUD_PILOT=off`, bind the app and wrapper to loopback, and never expose m
 
 ## Bounded cloud profile
 
-The included `start:cloud` launcher is deliberately specific. It expects a Node.js 22 production host, a Neon pooled database URL, a dedicated private Supabase S3 bucket, Transloadit scanning, and Resend email delivery. It is not a generic adapter for arbitrary providers.
+`start:cloud` expects Node.js 22, a Neon pooled database URL, a dedicated private Supabase S3 bucket, Transloadit, and Resend. It will not accept an arbitrary replacement provider without code changes.
 
-An operator must supply server-side configuration privately:
+Set these in the host's private environment settings:
 
 | Configuration group | Required settings |
 | --- | --- |
@@ -39,9 +41,9 @@ An operator must supply server-side configuration privately:
 
 Set `CLOUD_PILOT=on` at build time as well as runtime. Build with `npm run build`, then start with `npm run start:cloud`; the launcher checks for the matching build. On Linux, `MALLOC_ARENA_MAX=2` must be present before Node starts. Remove `AUTH_ALLOW_UNVERIFIED_LOCAL` entirely and do not carry over mail-preview settings. The runtime receives settings from the host environment, not by automatically loading a private configuration file.
 
-The bounded profile currently restricts files to 8 MiB, ZIP contents to 32 MiB expanded and 256 entries, images to 4,194,304 pixels, and promotion-package input to 32 MiB. It also enforces pilot storage, uploader, request, and scan-budget limits. The launcher bounds incoming request bodies and concurrent work. Raising limits is an architecture and resource-planning change, not an incidental environment tweak.
+The cloud profile limits files to 8 MiB, expanded ZIP contents to 32 MiB and 256 entries, images to 4,194,304 pixels, and release-package input to 32 MiB. Storage, uploaders, requests, and scan usage have separate limits. The launcher also limits request bodies and concurrent work. Review memory and cost requirements before proposing higher limits; do not raise them to get around a failed upload.
 
-Object-storage keys are server-only. Use a dedicated project and a private bucket because these credentials can have broad access within their project. Do not place them in browser code or variables prefixed with `NEXT_PUBLIC_`.
+Storage keys stay on the server. Use a dedicated project and private bucket because these keys can access more than one bucket within a project. Never put them in browser code or `NEXT_PUBLIC_` variables.
 
 ## Before exposing any deployment
 
@@ -49,9 +51,9 @@ Object-storage keys are server-only. Use a dedicated project and a private bucke
 - Configure HTTPS, verified email delivery, stable secrets, account verification, and least-privilege administrator access.
 - Confirm clean uploads, scanner failure handling, authorized downloads, and denial of private files to other accounts in an isolated test environment.
 - Check the host's actual memory, request, storage, and billing limits. Application caps and budget estimates are not a promise of zero provider charges.
-- Establish encrypted backups, retention, restore rehearsals, logging, updates, and incident ownership outside the credential-free contributor workflow. Verify access separation before inviting collaborators.
+- Set up encrypted backups, retention, restore tests, logs, updates, and someone responsible for incidents. Keep backup access separate from contributor CI.
 - Record the deployed revision and any unverified cases. A successful build or unit suite is not evidence that provider integration or disaster recovery works.
 
-The existing `DEPLOY-CLOUD.md` describes the current hosted profile. `DEPLOY-HOME.md`, `compose.home.yml`, `DEPLOY.md`, and `compose.oracle.yml` preserve earlier alternatives; their presence is not approval to switch hosting or connect contributor machines to production. Operational scripts and integration/end-to-end tests remain in the repository but are excluded from contributor CI.
+Use `DEPLOY-CLOUD.md` for the current hosted setup. `DEPLOY-HOME.md`, `compose.home.yml`, `DEPLOY.md`, and `compose.oracle.yml` cover older alternatives, not the live site. Do not switch targets or connect a development machine to production without permission. Integration, end-to-end, and production scripts run separately from contributor CI.
 
-Anyone authorized to operate an instance is responsible for its security, availability, costs, privacy practices, and permission to host uploaded content. Repository access is not an open-source license or deployment authorization. Do not use the live pilot or its users as a development test environment.
+Whoever runs an instance is responsible for its security, availability, costs, privacy, and permission to host its content. Repository access is not an open-source license or permission to deploy. Do not use the live pilot as a development test environment.

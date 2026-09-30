@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       <p>The site uses a session cookie to keep you signed in. Following a link to another website or loading an external profile avatar sends a request to that provider. Downloads use temporary signed storage URLs; anyone you share one with can use it until it expires.</p>
       {isCloudPilot() && <p>This private pilot also uses a one-day access cookie. The shared tester code is an invitation gate, not a replacement for your personal account or permission checks.</p>}
       <h2 className="text-lg font-semibold">Access, correction, and deletion</h2>
-      <p>You can edit your profile and remove your own active mod listings. Contact the administrator for account-data access, correction, or deletion requests. Backup copies may remain until their retention period ends; the current backup runbook uses 14 days.</p>
+      <p>You can edit your profile and remove your own active mod listings. Contact the administrator for account-data access, correction, or deletion requests. {isCloudPilot() ? "Cloud backup copies may remain for up to 90 days. Older copies are normally removed sooner, keeping the newest verified backup and the previous verified copy." : "Backup copies may remain until their retention period ends; the local backup runbook uses 14 days."}</p>
       <Link href="/contact" className="text-[var(--accent)] underline">Contact the administrator</Link>
     </div>
   </main>;

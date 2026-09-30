@@ -1,6 +1,6 @@
 # Beta Mods architecture
 
-This document describes the existing private application repository. It remains the sole codebase for the site, including its runtime, artwork, complete tests, and operational tooling. Application source, hosted user data, and permission to operate the live service are separate concerns.
+The app, artwork, tests, and deployment tools live in [Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub). The repository is private. Hosted user data and credentials are not part of the source code, and source access does not grant permission to operate the live site.
 
 ## Application structure
 
@@ -11,20 +11,20 @@ This document describes the existing private application repository. It remains 
 | `lib` | Account policy, authorization, catalog queries, feedback, uploads, scanning, storage, and promotion packages |
 | `db` and `schema.sql` | Drizzle schema modules, SQL schema, and migrations |
 | `scripts/scan-server.mjs` | Local HTTP wrapper for a real ClamAV daemon |
-| `scripts/cloud-*.mjs` | Bounded Node runtime and request policy for the cloud pilot |
+| `scripts/cloud-*.mjs` | Cloud runtime, request limits, and cloud operations tools |
 | `tests/*.test.ts` | Unit and policy tests that do not require live services |
 | `tests/integration` | Database-backed tests with isolated development prerequisites |
 | Other `scripts` and deployment files | End-to-end checks, operator tools, backups, and preserved alternative hosting configurations |
 
-Next.js serves the UI and server-side application logic. PostgreSQL stores accounts, mod metadata, build references, feedback, quota reservations, and moderation state. File bytes are separate from database records: local development uses private filesystem storage, while the cloud profile uses private S3-compatible storage.
+Next.js serves the pages and server-side actions. PostgreSQL stores accounts, mod details, build references, feedback, quota reservations, and moderation state. Files are stored separately, either on the local filesystem or in private S3-compatible storage.
 
 ## Accounts and access
 
-The current working sign-in flow uses email and passwords, verification, and recovery. Sessions are signed; account suspension and session-version checks can invalidate access. Administrative access is assigned by known account UUID, not an email string supplied at sign-up.
+Accounts use email and passwords, with verification and recovery. Sessions are signed. Suspension and session-version checks can revoke access. Administrators are identified by account UUID, not an email entered at sign-up.
 
-The hosted pilot's shared invitation code is an additional site-wide gate. It is not an account, a mod-specific download password, or permission to administer or upload. File uploads can require separate pilot approval. Private report attachments have their own authorization rules.
+The pilot access code unlocks the site, not an account or a particular mod. It does not grant admin or upload permissions. File uploads need separate approval in pilot mode, and private report attachments have their own access checks.
 
-Author-controlled download codes, unlisted betas, and individual tester invitations are proposals. Nexus authentication and API clients include unfinished integration work and must not be presented as validated live features.
+Per-mod download codes, unlisted betas, and individual invitations are not built yet. Nexus authentication and API integration are unfinished.
 
 ## Upload and download boundaries
 
@@ -36,22 +36,24 @@ Uploads follow this sequence:
 4. Store the accepted file in final storage and record its reference.
 5. Serve only authorized final files, never quarantine paths.
 
-Quota checks, missing credentials, scanner failures, and uncertain scan results must fail closed. Image processing and archive checks impose additional resource limits in the bounded cloud profile. A scanner passing a file reduces risk; it is not a guarantee that the file is harmless or that a mod behaves safely in a game.
+If quota checks fail, credentials are missing, or the scan result is uncertain, the upload must stop. Cloud image and archive checks also limit memory and processing work. A clean scan does not guarantee that a file is harmless or that a mod will behave safely in a game.
 
-The local driver serves from private server-side storage through app routes. Object-storage drivers issue short-lived signed URLs after application checks. Keep buckets private and never use public object URLs as an authorization shortcut.
+Local files are served through app routes. Object-storage drivers issue short-lived signed URLs after access checks. Buckets must stay private.
 
 ## Feedback and release packages
 
-Bug reports and readiness votes are tied to the build tested. A new build does not inherit a previous version's readiness signal. Profiles and reputation summarize participation; the source contains the current calculation and its tests.
+Bug reports and readiness votes belong to the build tested. A new build starts a new readiness tally. Profiles show testing history and reputation; the calculation and its tests are in the source.
 
-An owner can generate a release package from the latest scanned build, description, requirements, and scanned media. It contains text for manual Nexus publication and a requirements checklist. Authors review the generated BBCode and publish themselves, then record the final Nexus URL. The application does not automate Nexus's website or create a Nexus release on the author's behalf.
+Authors can export the latest scanned build, description, requirements, and scanned media as a release package. They review the BBCode, use the requirements checklist, and publish on Nexus themselves, then add the Nexus URL to the beta page. The app does not automate Nexus's website or publish for the author.
 
 ## Repository and operational access
 
-Application source stays in this one private repository. No separate contributor app edition, artwork substitution, or manually mirrored source tree is required. Hosted database contents, uploaded files, and secret values do not belong in tracked source.
+There is one app codebase. Hosted database contents, uploads, and secrets must not be committed.
 
-Operational workflows, history, and retained backup artifacts require their own access review. New invitations are on hold until their separation has been completed and verified. The contributor workflow configuration runs without provider credentials, but that does not certify that all other repository access is safe or that branch protection is configured.
+Backups run nightly in the owner-only `Beta-Mods/betamods-ops` repository, not a second app copy. Restore has been rehearsed, and old backup secrets and runs have been removed from the app repository. Access settings are verified and private forks are enabled. The owner can invite approved contributors; nobody has been invited yet. See [Repository setup](../REPOSITORY-SETUP.md).
 
-Integration and live-provider checks remain available as separate, potentially mutating tools; they are not included in the credential-free contributor CI. A pull request is not permission to run an operator script, migrate a database, or deploy.
+Private-fork pull requests do not run Actions automatically. The owner reviews changes, then tests locally or dispatches checks on an owner-controlled branch before merging. The current Free plan lacks private-repository branch protection, so review and merge decisions are manual. The default Actions token is read-only and cannot create or approve pull requests.
 
-See [Deployment](DEPLOYMENT.md) for configuration profiles and [Contributing](../CONTRIBUTING.md) for isolated local setup and verification requirements. No open-source license has been adopted, and repository access does not grant permission to republish its code or assets.
+Integration and provider tests can change data and run separately from contributor CI. A pull request is not permission to run production scripts, migrate a database, or deploy.
+
+See [Deployment](DEPLOYMENT.md) for settings and [Contributing](../CONTRIBUTING.md) for local setup and tests. No open-source license has been adopted; ask before republishing code or assets.

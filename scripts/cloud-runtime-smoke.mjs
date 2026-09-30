@@ -142,7 +142,7 @@ async function parentMain() {
     await check('GET /pilot-access is available without caching', async () => {
       const response = await getResponse('/pilot-access');
       assert.equal(response.status, 200); assert.match(String(response.headers['cache-control']), /no-store/);
-      assert.match(response.text, /Private tester pilot/);
+      assert.match(response.text, /Private beta/);
     });
     for (const url of ['/files/synthetic', '/media/synthetic', '/attachments/synthetic', '/mods/synthetic', '/login', '/signup']) {
       await check(`Unauthenticated GET ${url} requires the pilot gate`, async () => {

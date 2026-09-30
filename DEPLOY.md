@@ -1,21 +1,18 @@
-# Deploy runbook (Oracle fallback) — betamods.com
+# Oracle fallback deployment
 
-> **This is the fallback target, not the plan.** Oracle deployment was abandoned:
-> Ampere A1 capacity never became available, and the tenancy is now locked out
-> by a lost MFA enrollment. These files are kept intact so the option stays
-> open — do not delete them.
->
-> Production now runs on the home-hosting stack: **this Windows PC behind a
-> Cloudflare Tunnel**. See **`DEPLOY-HOME.md`** and `compose.home.yml`.
->
-> The two targets use separate Compose project names (`betamods` vs
-> `betamods-home`) and separate env files (`.env.production` vs `.env.home`),
-> so their volumes never collide — but they share one Neon `main` branch, so
-> only point one of them at it at a time.
+This is a preserved alternative, not the current live service. The active
+cloud-only pilot is documented in [DEPLOY-CLOUD.md](DEPLOY-CLOUD.md).
+[DEPLOY-HOME.md](DEPLOY-HOME.md) describes another inactive alternative.
+Do not switch hosting, change DNS or create resources without owner approval.
 
-Production uses hard free-tier resources: **Oracle Cloud Always Free** for the
-web app and scanner, **Neon Free** for Postgres, and **Cloudflare Free** for
-DNS. No paid Railway service or usage-billed R2 storage is required.
+The Oracle and home targets use separate Compose project names (`betamods`
+and `betamods-home`) and environment files (`.env.production` and `.env.home`).
+Their volumes are separate, but a shared database must not be used by both
+targets at once. Confirm the intended branch before any write.
+
+The instructions below describe the Oracle/Neon/Cloudflare fallback design.
+Capacity and free-tier conditions must be rechecked before a future deployment;
+the presence of this runbook is not a cost or availability guarantee.
 
 ## Topology
 
@@ -162,10 +159,9 @@ After the smoke check passes:
 Production and local development share one Neon project but must never point at
 the same branch after launch.
 
-**Creating the `dev` branch is a dashboard step** (Neon console -> project ->
-Branches -> Create branch) — the agent does not have that account access and
-must not change the database arrangement for it. Leave it for the repo owner
-or Codex.
+**Creating the `dev` branch requires an authorized operator** (Neon console ->
+project -> Branches -> Create branch). Verify the project and branch before
+changing the database arrangement; repository access alone is not permission.
 
 - `main` branch = **production**. Its pooled connection string lives only in
   the VM's `.env.production`. Never print or commit it.

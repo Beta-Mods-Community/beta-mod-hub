@@ -85,9 +85,9 @@ export default function BugReportForm({
           aria-invalid={Boolean(state?.errors?.severity)}
           aria-describedby={state?.errors?.severity ? `${prefix}-severity-error` : undefined}
         >
-          <option value="minor">Minor — cosmetic or edge case</option>
-          <option value="major">Major — broken feature or workaround-able</option>
-          <option value="blocking">Blocking — can&apos;t play/test properly</option>
+          <option value="minor">Minor: cosmetic or occasional problem</option>
+          <option value="major">Major: a feature is broken</option>
+          <option value="blocking">Blocking: prevents playing or testing</option>
         </select>
         {state?.errors?.severity && (
           <p id={`${prefix}-severity-error`} className={errorClass}>{state.errors.severity.join(", ")}</p>

@@ -127,7 +127,7 @@ export default async function BetaModPage({
           <div>
             <p className="text-sm font-semibold text-emerald-200">Released on Nexus</p>
             <p className="mt-1 text-xs leading-5 text-emerald-100/70">
-              Testing is closed here. This page remains as the beta record.
+              Testing is closed. This beta page is kept for reference.
             </p>
           </div>
           {mod.nexusUrl && (

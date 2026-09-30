@@ -1,74 +1,54 @@
-# Private community repository setup
+# Repository access
 
-The existing `beta-mod-hub` repository is the only application codebase.
-The local preview and the live Render pilot run revisions of this project,
-with separate configuration and data. Do not create a public edition, source
-export, application mirror, or a second independently edited app repository.
+[Beta-Mods-Community/beta-mod-hub](https://github.com/Beta-Mods-Community/beta-mod-hub)
+is the private application repository. Local development and the live Render
+site use this codebase with separate settings and databases.
 
-## Access model
+## Community contributions
 
-Source collaboration is private and invitation-only. No open-source license
-has been adopted. The source repository is not a distribution of uploaded mods,
-user data, production credentials, or backups.
+The Beta-Mods account owns the organization. Contributors are invited to this
+repository as outside collaborators with **Read** access. They can create a
+private fork in their personal GitHub account and submit pull requests, but
+cannot push or merge into this repository. Private forking is enabled.
 
-GitHub personal private repositories grant collaborators write access. The
-intended setup transfers this same repository into an owner-controlled Free
-organization so selected contributors can receive Read access, fork privately,
-and submit pull requests without pushing or merging upstream. Only explicitly
-trusted maintainers receive write access. Private branch protection is not
-available on Free; do not describe CODEOWNERS or CI as an enforced merge gate.
+Only the owner or an explicitly appointed maintainer merges changes. GitHub
+Free does not provide branch protection for this private repository, so CI
+and CODEOWNERS help with review but do not enforce approval requirements.
 
-An organization transfer preserves the repository and its history. It is not
-a second application repository. Keep it private and verify the Render GitHub
-connection after the transfer. Do not invite contributors before operational
-separation is verified.
+No contributors have been invited yet. Ask interested community members for
+their GitHub usernames, confirm who should have access, and invite them with
+the Read role. The repository link returns 404 for people without access.
 
-## Backup separation
+The source is not publicly licensed. See [GOVERNANCE.md](GOVERNANCE.md) for
+contribution and reuse terms. Access to source does not grant rights to
+uploaded mods or access to production data.
 
-The planned private `Beta-Mods/betamods-ops` repository contains backup tooling
-only: its workflow, four scripts, tests and minimal dependencies. It must not
-contain a copy of the website. Access stays with the owner. Application source
-access never implies access to this repository or production services.
+## Production and backups
 
-Complete the cutover in this order:
+Render runs the existing `betamods-pilot` service. Automatic deployment and PR
+previews remain off. Deploy only a reviewed revision; contributor checks run
+without production credentials or database access. Fork pull-request workflows
+are disabled. The owner checks reviewed changes locally or runs the workflow
+on a reviewed branch before merging; a fork cannot start upstream jobs.
 
-1. Validate the operations package offline and create its private repository.
-2. Configure only the existing backup credentials and required repository
-   variables. Do not copy application/session/mail/scanner credentials.
-3. Run a manual backup, download the retained encrypted artifact, and verify
-   decryption, object hashes and restoration into a disposable database.
-4. Enable the new schedule, then disable the old schedule. Account for artifact
-   usage across both repositories while they overlap.
-5. Preserve verified recovery copies before retiring old backup artifacts and
-   logs. Remove backup credentials from the application repository. Merely
-   removing a workflow file does not remove secrets or retained artifacts.
-6. Remove the application's active backup tooling after the new job is proven.
-   Its Git history remains intact. Historical code without credentials is not
-   a second maintained operations package.
+[Beta-Mods/betamods-ops](https://github.com/Beta-Mods/betamods-ops) is a separate
+private, owner-only repository for backup scripts and their tests. It does not
+contain another copy of the application. Nightly backups are enabled there,
+and two retained archives passed decryption, file-hash and disposable
+database restore checks.
 
-Do not remove working backups before their replacement passes verification.
-Do not claim separation from local files alone: repository settings, retained
-artifacts, logs, secrets, variables, installed apps and deploy keys need review.
+The application's old backup job is disabled. Its four backup secrets and four
+backup runs, including retained artifacts, have been removed. Both older
+encrypted archives were preserved outside Git before removal. Recovery keys
+remain private; never give them to source contributors.
 
-## Release workflow
+## Current status
 
-Contributors propose changes against this repository. Maintainers review code,
-dependency and workflow changes, run credential-free CI, and merge accepted
-changes. Production remains owner-controlled. Deploy a reviewed revision of
-this same repository; there is no manual copying of application code between
-repositories. Never give PR workflows production secrets or auto-deploy private
-forks. Database-backed and upload tests use isolated development resources,
-not the live pilot.
+As of September 30, 2026, the existing repository has been transferred without
+changing its history or making it public. There is no public mirror or second
+maintained application repository. The abandoned local community draft and
+internal investigation notes are outside the tracked source tree.
 
-## Current transition status
-
-September 30, 2026: the duplicated public-source plan is retired. The exporter
-and substitute community artwork/templates have been removed from the active
-tree; original site artwork and all application tests remain intact. Previously
-prepared work is recoverable in Git history. The sibling community draft is
-not a supported working project.
-
-GitHub access changes, operations cutover and contributor invitations are not
-complete merely because this document exists. Record their verified state here
-after each step. Until then the current private repository, live deployment
-and working backup schedule remain the authoritative setup.
+The owner is the only person with repository access. Invite contributors only
+after confirming their GitHub usernames and intended Read access. Record the
+deployed revision in Render; a merge alone does not update the live site.

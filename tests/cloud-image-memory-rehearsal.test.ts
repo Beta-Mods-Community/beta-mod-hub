@@ -47,6 +47,8 @@ test("manifest pins the exact three full4MP inputs and bounded canonical outputs
 test("manual Linux workflow enforces the real resource boundary without credentials or provider network", () => {
   const source = readFileSync(path.join(process.cwd(), ".github/workflows/cloud-image-memory.yml"), "utf8");
   assert.match(source, /workflow_dispatch:/);
+  assert.match(source, /github\.repository == 'Beta-Mods-Community\/beta-mod-hub'/);
+  assert.match(source, /github\.event\.repository\.private == true/);
   assert.doesNotMatch(source, /\b(?:schedule|pull_request|push):|secrets\.|upload-artifact|download-artifact/);
   assert.match(source, /permissions:\s+contents: read/);
   assert.match(source, /timeout-minutes: 15/);

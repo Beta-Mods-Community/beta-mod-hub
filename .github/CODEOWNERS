@@ -1,2 +1,2 @@
-# Review routing is enforced only when repository branch protection requires it.
+# Routes review requests to maintainer; does not enforce approval on GitHub Free private repos.
 * @Beta-Mods
