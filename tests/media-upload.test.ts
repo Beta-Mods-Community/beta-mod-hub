@@ -110,10 +110,35 @@ describe("media quarantine and quota lifecycle", () => {
     assert.deepEqual(calls.slice(-2), ["remove-final", "retain"]);
     assert.ok(!calls.includes("release"));
   });
-  it("checks cleanup after a PUT error because an ambiguous PUT may have succeeded", async () => {
+  it("retains the charge after an unacknowledged PUT even when cleanup succeeds", async () => {
     const { calls, deps, input } = harness({ store: async () => { throw new Error("network lost"); } });
     await assert.rejects(processMediaUpload(input, deps));
-    assert.deepEqual(calls.slice(-2), ["remove-final", "release"]);
+    assert.deepEqual(calls.slice(-2), ["remove-final", "retain"]);
+    assert.ok(!calls.includes("release"));
+    assert.ok(!calls.includes("publish"));
+  });
+  it("keeps a late remote PUT charged when it completes after cleanup's DELETE", async () => {
+    let remoteObjectExists = false;
+    let completeRemotePut: (() => void) | undefined;
+    const { calls, deps, input } = harness({
+      store: async () => {
+        // A client-side abort is not proof that the provider cancelled its PUT.
+        completeRemotePut = () => { remoteObjectExists = true; };
+        throw new Error("client deadline exceeded");
+      },
+      removeStored: async () => {
+        calls.push("remove-final");
+        remoteObjectExists = false;
+      },
+    });
+    await assert.rejects(processMediaUpload(input, deps), /client deadline/);
+    assert.equal(remoteObjectExists, false, "the early DELETE succeeded");
+    assert.ok(completeRemotePut);
+    completeRemotePut();
+    assert.equal(remoteObjectExists, true, "the provider then completes the in-flight PUT");
+    assert.deepEqual(calls.slice(-2), ["remove-final", "retain"]);
+    assert.ok(!calls.includes("release"));
+    assert.ok(!calls.includes("publish"));
   });
   it("does not delete an image if the transaction committed before its acknowledgement was lost", async () => {
     const { calls, deps, input } = harness({}, true);

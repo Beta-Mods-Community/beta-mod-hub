@@ -59,6 +59,7 @@ export async function submitBugReport(_state: BugReportFormState, formData: Form
   let quarantineKey: string | null = null;
   let finalKey: string | null = null;
   let storageAttempted = false;
+  let storageCompleted = false;
   let commitAttempted = false;
   try {
     if (file) {
@@ -84,6 +85,7 @@ export async function submitBugReport(_state: BugReportFormState, formData: Form
       finalKey = storageKey(`attachments/${reportId}/${randomUUID()}`, file.name);
       storageAttempted = true;
       await promoteQuarantine(quarantineKey, finalKey);
+      storageCompleted = true;
     }
     const storedKey = finalKey;
     const heldId = reservationId;
@@ -122,7 +124,9 @@ export async function submitBugReport(_state: BugReportFormState, formData: Form
       if (storageAttempted && finalKey) {
         try { await deleteStored(finalKey); } catch { removed = false; }
       }
-      if (reservationId && removed) await releaseReservation(reservationId);
+      // A failed/aborted PUT may finish after cleanup's successful DELETE.
+      // Only acknowledged storage followed by deletion proves safe release.
+      if (reservationId && removed && (!storageAttempted || storageCompleted)) await releaseReservation(reservationId);
       else if (reservationId) await retainReservationForCleanup(reservationId);
       return { message: mutationMessage(error) };
     }

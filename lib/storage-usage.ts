@@ -137,7 +137,9 @@ export type ReservationResult =
  * Take a byte reservation for an upload that is about to start.
  *
  * Returns the reservation id, which the caller MUST either settle
- * (markReservationStored) or release. Anything else leaks capacity.
+ * (markReservationStored) or release after confirming no final object remains.
+ * An interrupted upload stays charged until its storage outcome is reconciled;
+ * age alone cannot prove that a remote PUT never completed.
  *
  * Every rejection is a deliberate refusal: including when the ledger itself
  * cannot be read, because a cap that cannot be evaluated is not a cap.
@@ -165,7 +167,6 @@ export async function reserveStorage(input: {
 
   const { limits } = input;
   const windowStart = new Date(Date.now() - limits.windowMinutes * 60_000);
-  const staleBefore = new Date(Date.now() - limits.reservationTtlMinutes * 60_000);
   // Released rows are only history; a week of it is plenty for the rate limit
   // to work, and the table stays small enough to scan.
   const historyBefore = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -177,16 +178,10 @@ export async function reserveStorage(input: {
         sql`select pg_advisory_xact_lock(${RESERVATION_LOCK_KEY}::bigint)`,
       );
 
-      // 2. Reclaim first, so a crashed request cannot hold the cap hostage
-      //    forever and abandoned rows do not skew the totals.
-      await tx
-        .delete(storageReservations)
-        .where(
-          and(
-            eq(storageReservations.state, "held"),
-            lt(storageReservations.createdAt, staleBefore),
-          ),
-        );
+      // 2. Prune only released history. A crash may happen after a successful
+      //    remote PUT but before settlement, so stale held rows MUST remain
+      //    charged. Operators must reconcile final storage before explicitly
+      //    releasing them. The legacy reservation TTL setting is ignored.
       await tx
         .delete(storageReservations)
         .where(
@@ -321,9 +316,10 @@ export async function retainReservationForCleanup(reservationId: string): Promis
 }
 
 /**
- * Give the bytes back after a failed, blocked or abandoned upload. The row stays
- * as attempt history (which the rate limit counts) but stops counting against
- * the caps.
+ * Give bytes back only when the caller knows that no final object remains (no
+ * PUT was attempted, or deletion was confirmed). An abandoned/unknown upload
+ * must first be reconciled, never released solely because it is old. The row
+ * stays as attempt history but stops counting against the byte caps.
  */
 export async function releaseReservation(
   reservationId: string,

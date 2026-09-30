@@ -414,6 +414,33 @@ Encryption protects leaked artifacts, not an attacker who controls both the
 repository's workflows and its secrets. Do not rotate/delete the backup key
 without preserving the key for retained snapshots.
 
+## Interrupted uploads and storage recovery
+
+Held reservations do not expire automatically. The legacy
+`PILOT_RESERVATION_TTL_MINUTES` setting is accepted for compatibility but no
+longer frees capacity. A restart can occur after a successful remote upload
+but before the database records its result; forgetting that charge would let
+the real bucket exceed the application cap. Stale held bytes deliberately
+continue to consume both the account and global budgets.
+
+If an interrupted upload leaves held or unlinked storage, pause new uploads
+and reconcile the private bucket, settled file references and ledger. Do not
+blindly delete reservation rows, increase caps or assume an old request wrote
+nothing. Release a charge only after its storage outcome is confirmed and any
+unreferenced object has been removed with explicit approval. A failed or timed
+out PUT can finish remotely after a cleanup DELETE, so it remains charged even
+when that immediate DELETE succeeded. A later inventory/reconciliation must
+establish the final outcome. Backup drift failures are an operator alert, not
+automatic permission to delete data. No automatic cloud repair is configured.
+
+Cloud S3 operations have a 30-second overall deadline (including response
+streams and the entire inventory traversal), a 5-second connection timeout,
+and one SDK attempt. Cancellation aborts the request and destroys an active
+response stream. Uncertain writes/deletes retain their charge; unreadable
+exports fail closed. The non-cloud storage targets keep their previous timeout
+behavior. These bounds prevent an indefinitely stalled provider request from
+holding the cloud pilot's single mutation/export slot.
+
 ## Required before sharing a Discord link
 
 - Account/permission gates above completed without cards, paid plans or broad

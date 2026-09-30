@@ -379,11 +379,17 @@ describeDb("storage ledger (integration)", () => {
     );
   });
 
-  it("reclaims a reservation abandoned by a dead request", async () => {
-    // Simulates the crash case: a 'held' row older than the TTL must not be a
-    // permanent tax on the pilot's budget.
+  it("keeps aged held bytes charged until explicit verified release", async () => {
+    // A dead request may have completed a remote PUT before losing its process.
+    // Age cannot distinguish that from an upload which never reached storage.
     const userId = await makeUser("stale");
-    const opts = limits({ maxTotalBytes: 1000, reservationTtlMinutes: 60 });
+    const otherUserId = await makeUser("stale-other");
+    const beforeUsage = await ledger.getStorageUsage();
+    assert.ok(beforeUsage);
+    const opts = limits({ maxBytesPerTester: 1000, uploadsPerWindow: 1, reservationTtlMinutes: 1 });
+    // Earlier cases may have settled their own fixtures: include those too,
+    // so only the aged hold can consume this test's exact 1000-byte budget.
+    opts.maxTotalBytes = beforeUsage.totalBytes + 1000;
 
     const [row] = await db!
       .insert(schema.storageReservations)
@@ -391,20 +397,35 @@ describeDb("storage ledger (integration)", () => {
         userId,
         bytes: 1000,
         state: "held",
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
       })
       .returning({ id: schema.storageReservations.id });
-    assert.equal(await heldBytes(), 1000);
+    try {
+      assert.equal(await heldBytes(userId), 1000);
+      const globalBlocked = await ledger.reserveStorage({ userId: otherUserId, bytes: 1, limits: opts });
+      assert.equal(globalBlocked.ok, false, "old held bytes still consume the global cap");
+      if (!globalBlocked.ok) assert.equal(globalBlocked.reason, "global-cap");
+      const ownerBlocked = await ledger.reserveStorage({ userId, bytes: 1, limits: opts });
+      assert.equal(ownerBlocked.ok, false, "old held bytes still consume the owner's cap");
+      if (!ownerBlocked.ok) assert.equal(ownerBlocked.reason, "tester-cap");
 
-    const result = await ledger.reserveStorage({ userId, bytes: 1, limits: opts });
-    assert.equal(result.ok, true, "the stale hold was reclaimed");
+      const [retained] = await db!.select().from(schema.storageReservations)
+        .where(eq(schema.storageReservations.id, row.id));
+      assert.equal(retained?.state, "held");
+      assert.equal(retained?.bytes, 1000);
+      assert.equal((await ledger.getStorageUsage())?.totalBytes, beforeUsage.totalBytes + 1000);
 
-    if (result.ok) await ledger.releaseReservation(result.reservationId);
-    const gone = await db!
-      .select({ id: schema.storageReservations.id })
-      .from(schema.storageReservations)
-      .where(eq(schema.storageReservations.id, row.id));
-    assert.equal(gone.length, 0);
+      // This fixture never writes an object, so its absence is known. A real
+      // interrupted upload needs a storage/DB reconciliation before this call.
+      await ledger.releaseReservation(row.id);
+      assert.equal(await heldBytes(userId), 0);
+      const afterRelease = await ledger.reserveStorage({ userId, bytes: 1000, limits: opts });
+      assert.equal(afterRelease.ok, true, "explicit safe release restores the full capacity");
+      if (afterRelease.ok) await ledger.releaseReservation(afterRelease.reservationId);
+    } finally {
+      // Only this known object-free fixture is released, even after failure.
+      await ledger.releaseReservation(row.id);
+    }
   });
 
   it("treats the allowlist as closed until an account is approved", async () => {

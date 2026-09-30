@@ -31,7 +31,12 @@ export type R2StoreOptions = {
   sign?: PresignFn;
   /** When set, reads are counted while streaming and writes are bounded. */
   maxMaterializedBytes?: number;
+  /** Entire operation deadline, including GET bodies and every inventory page. */
+  operationTimeoutMs?: number;
 };
+
+export const CLOUD_STORAGE_OPERATION_TIMEOUT_MS = 30_000;
+export const CLOUD_STORAGE_CONNECT_TIMEOUT_MS = 5_000;
 
 export type R2Store = {
   put(key: string, data: Uint8Array, contentType?: string): Promise<void>;
@@ -64,8 +69,67 @@ function contentDisposition(filename: string): string {
 
 type BoundedBody = AsyncIterable<Uint8Array> & { destroy?: () => void };
 
+type StorageDeadline = {
+  signal: AbortSignal;
+  assertActive(): void;
+  trackBody(body: unknown): void;
+};
+
+/**
+ * A deadline must cancel the work, not just stop awaiting it. The signal aborts
+ * the SDK's actual HTTP request; destroying a returned Node stream also covers
+ * a server that sends headers and then never finishes its body. The rejection
+ * races that cancellation only so a broken transport cannot keep a caller's
+ * mutation slot forever. Late responses are destroyed before they can be read.
+ */
+async function withStorageDeadline<T>(
+  timeoutMs: number | undefined,
+  work: (deadline?: StorageDeadline) => Promise<T>,
+): Promise<T> {
+  if (timeoutMs === undefined) return work();
+  const controller = new AbortController();
+  const expiresAt = performance.now() + timeoutMs;
+  const error = new Error("Object storage operation timed out");
+  let body: BoundedBody | undefined;
+  let rejectTimeout!: (reason: Error) => void;
+  const expired = new Promise<never>((_resolve, reject) => { rejectTimeout = reject; });
+  const cancel = () => {
+    if (controller.signal.aborted) return;
+    controller.abort(error);
+    try { body?.destroy?.(); } catch { /* Still reject if the transport cleanup fails. */ }
+    rejectTimeout(error);
+  };
+  const assertActive = () => {
+    // Also check elapsed time between pages/chunks: immediately resolved
+    // promises must not starve the timer and extend an inventory indefinitely.
+    if (performance.now() >= expiresAt) cancel();
+    if (controller.signal.aborted) throw error;
+  };
+  const deadline: StorageDeadline = {
+    signal: controller.signal,
+    assertActive,
+    trackBody(value) {
+      body = value as BoundedBody;
+      // This is a Node server driver. Refuse a non-cancellable body instead of
+      // leaving an arbitrary iterator/transform running after its deadline.
+      if (typeof body?.destroy !== "function") {
+        controller.abort();
+        throw new Error("Object storage did not provide a cancellable stream");
+      }
+      if (controller.signal.aborted) body.destroy();
+      assertActive();
+    },
+  };
+  const timer = setTimeout(cancel, timeoutMs);
+  try {
+    return await Promise.race([work(deadline), expired]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Never call transformToByteArray on an untrusted-size cloud object. */
-async function readBoundedBody(body: unknown, maxBytes: number): Promise<Uint8Array> {
+async function readBoundedBody(body: unknown, maxBytes: number, deadline?: StorageDeadline): Promise<Uint8Array> {
   const stream = body as BoundedBody;
   if (typeof stream[Symbol.asyncIterator] !== "function") {
     stream.destroy?.();
@@ -75,6 +139,7 @@ async function readBoundedBody(body: unknown, maxBytes: number): Promise<Uint8Ar
   let total = 0;
   try {
     for await (const chunk of stream) {
+      deadline?.assertActive();
       if (!(chunk instanceof Uint8Array) || chunk.byteLength > maxBytes - total) {
         throw new Error("Stored object exceeds the cloud pilot read limit");
       }
@@ -93,6 +158,7 @@ export function createR2Store({
   bucket,
   sign = getSignedUrl,
   maxMaterializedBytes,
+  operationTimeoutMs,
 }: R2StoreOptions): R2Store {
   if (!bucket) {
     throw new Error("Object storage requires STORAGE_BUCKET");
@@ -100,39 +166,52 @@ export function createR2Store({
   if (maxMaterializedBytes !== undefined && (!Number.isSafeInteger(maxMaterializedBytes) || maxMaterializedBytes <= 0)) {
     throw new Error("Object storage read limit must be a positive safe integer");
   }
+  if (operationTimeoutMs !== undefined && (!Number.isSafeInteger(operationTimeoutMs) || operationTimeoutMs <= 0 || operationTimeoutMs > 2_147_483_647)) {
+    throw new Error("Object storage timeout must be a positive timer-safe integer");
+  }
 
   return {
     async put(key, data, contentType) {
       if (maxMaterializedBytes !== undefined && data.byteLength > maxMaterializedBytes) {
         throw new Error("Object exceeds the cloud pilot storage limit");
       }
-      await client.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: key,
-          Body: data,
-          ContentLength: data.byteLength,
-          ...(contentType ? { ContentType: contentType } : {}),
-        }),
-      );
+      await withStorageDeadline(operationTimeoutMs, async (deadline) => {
+        await client.send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            Body: data,
+            ContentLength: data.byteLength,
+            ...(contentType ? { ContentType: contentType } : {}),
+          }),
+          deadline ? { abortSignal: deadline.signal } : undefined,
+        );
+        deadline?.assertActive();
+      });
     },
 
     async get(key) {
       try {
-        const out = await client.send(
-          new GetObjectCommand({ Bucket: bucket, Key: key }),
-        );
-        if (!out.Body) return null;
-        if (maxMaterializedBytes !== undefined && out.ContentLength !== undefined && (
-          !Number.isSafeInteger(out.ContentLength) || out.ContentLength < 0 || out.ContentLength > maxMaterializedBytes
-        )) {
-          (out.Body as unknown as BoundedBody).destroy?.();
-          return null;
-        }
-        const data = maxMaterializedBytes === undefined
-          ? await out.Body.transformToByteArray()
-          : await readBoundedBody(out.Body, maxMaterializedBytes);
-        return { data, size: data.byteLength };
+        return await withStorageDeadline(operationTimeoutMs, async (deadline) => {
+          const out = await client.send(
+            new GetObjectCommand({ Bucket: bucket, Key: key }),
+            deadline ? { abortSignal: deadline.signal } : undefined,
+          );
+          if (out.Body) deadline?.trackBody(out.Body);
+          deadline?.assertActive();
+          if (!out.Body) return null;
+          if (maxMaterializedBytes !== undefined && out.ContentLength !== undefined && (
+            !Number.isSafeInteger(out.ContentLength) || out.ContentLength < 0 || out.ContentLength > maxMaterializedBytes
+          )) {
+            (out.Body as unknown as BoundedBody).destroy?.();
+            return null;
+          }
+          const data = maxMaterializedBytes === undefined
+            ? await out.Body.transformToByteArray()
+            : await readBoundedBody(out.Body, maxMaterializedBytes, deadline);
+          deadline?.assertActive();
+          return { data, size: data.byteLength };
+        });
       } catch {
         // A missing or unreadable object is "not found" to callers, exactly as
         // the local driver's missing file is. Never surfaces an S3 error string
@@ -142,7 +221,13 @@ export function createR2Store({
     },
 
     async remove(key) {
-      await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+      // A timeout is uncertain deletion, never success: callers must retain
+      // the object's reservation until a later cleanup can confirm removal.
+      await withStorageDeadline(operationTimeoutMs, async (deadline) => {
+        await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }),
+          deadline ? { abortSignal: deadline.signal } : undefined);
+        deadline?.assertActive();
+      });
     },
 
     async presignDownload(key, { filename, contentType, inline, expiresIn }) {
@@ -162,23 +247,28 @@ export function createR2Store({
     },
 
     async inventory() {
-      const objects: Array<{ key: string; size: number }> = [];
-      let continuationToken: string | undefined;
-      do {
-        const page = await client.send(
-          new ListObjectsV2Command({
-            Bucket: bucket,
-            ContinuationToken: continuationToken,
-          }),
-        );
-        for (const item of page.Contents ?? []) {
-          if (item.Key) objects.push({ key: item.Key, size: Number(item.Size ?? 0) });
-        }
-        continuationToken = page.IsTruncated
-          ? page.NextContinuationToken
-          : undefined;
-      } while (continuationToken);
-      return objects;
+      return withStorageDeadline(operationTimeoutMs, async (deadline) => {
+        const objects: Array<{ key: string; size: number }> = [];
+        let continuationToken: string | undefined;
+        do {
+          deadline?.assertActive();
+          const page = await client.send(
+            new ListObjectsV2Command({
+              Bucket: bucket,
+              ContinuationToken: continuationToken,
+            }),
+            deadline ? { abortSignal: deadline.signal } : undefined,
+          );
+          deadline?.assertActive();
+          for (const item of page.Contents ?? []) {
+            if (item.Key) objects.push({ key: item.Key, size: Number(item.Size ?? 0) });
+          }
+          continuationToken = page.IsTruncated
+            ? page.NextContinuationToken
+            : undefined;
+        } while (continuationToken);
+        return objects;
+      });
     },
   };
 }

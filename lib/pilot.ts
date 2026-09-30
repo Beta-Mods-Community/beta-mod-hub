@@ -50,7 +50,8 @@ export type PilotLimits = {
   windowMinutes: number;
   /** How long a presigned download URL stays valid. */
   downloadUrlTtlSeconds: number;
-  /** Abandoned reservations older than this are reclaimed. */
+  /** @deprecated Compatibility-only setting. Held charges never expire by age;
+   * storage must be reconciled before an interrupted upload can be released. */
   reservationTtlMinutes: number;
 };
 

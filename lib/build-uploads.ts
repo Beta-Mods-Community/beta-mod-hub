@@ -48,8 +48,8 @@ import {
  * Capacity is claimed BEFORE any bytes are stored, from a database ledger
  * (see lib/storage-usage.ts). That ordering is deliberate: a cap checked after
  * the upload would already have spent the storage it was meant to prevent.
- * Every exit path from here either settles the reservation against the new
- * build row or releases it, so a failed or blocked upload costs no capacity.
+ * Confirmed failures release capacity; uncertain remote writes and interrupted
+ * requests stay charged until their final storage outcome can be reconciled.
  */
 export async function uploadBuild(
   state: BuildUploadFormState,
@@ -128,6 +128,7 @@ export async function uploadBuild(
   const buildId = randomUUID();
   const finalKey = storageKey(`builds/${buildId}`, file.name);
   let storageAttempted = false;
+  let storageCompleted = false;
 
   try {
     sweepStaleQuarantine();
@@ -169,9 +170,10 @@ export async function uploadBuild(
     // 3. Promote — only clean files reach final storage (R2 in production).
     storageAttempted = true;
     await promoteQuarantine(quarantineKey, finalKey);
+    storageCompleted = true;
 
-    // 4. Record the build, then settle the reservation against it. If either
-    //    step fails the catch below releases the bytes and removes the object.
+    // 4. Record the build and settle its reservation atomically. On failure,
+    //    cleanup releases bytes only when the storage outcome is confirmed.
     const { versionLabel, changelog } = validatedFields.data;
     await db.transaction(async tx => {
       const currentMod = await lockModForMutation(tx, betaModId);
@@ -206,7 +208,9 @@ export async function uploadBuild(
       if (storageAttempted) {
         try { await deleteStored(finalKey); } catch { removed = false; }
       }
-      if (removed) await releaseReservation(reservationId);
+      // An aborted/unacknowledged PUT can finish remotely after our DELETE.
+      // Keep its charge until reconciliation, even when that DELETE succeeds.
+      if (removed && (!storageAttempted || storageCompleted)) await releaseReservation(reservationId);
       else await retainReservationForCleanup(reservationId);
       return { message: mutationMessage(error) };
     }

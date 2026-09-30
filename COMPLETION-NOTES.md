@@ -434,3 +434,37 @@ hosting dependency was added.
 
 The pilot remains gated. These backups close that setup item, not the remaining
 hosted rejection/permission/password-reset and memory-boundary launch checks.
+
+### Restart and storage timeout hardening (Sep 30 UTC)
+
+The next launch review found that the old reservation TTL could forget a
+successful remote PUT if the process died before database settlement. Held
+reservations now remain charged regardless of age; only released history is
+pruned. Builds, private attachments and media also retain capacity after an
+unacknowledged PUT even if an immediate DELETE succeeds, because a late remote
+write can race that cleanup. No new schema or automatic destructive repair.
+
+Cloud S3 operations now have a 30-second deadline covering the request and
+response body/all inventory pages, real transport abort/stream destruction,
+5-second connection timeout and one SDK attempt. Noncloud timeouts unchanged.
+Fault tests include a stalled body, ignored cancellation with late response,
+pagination timer starvation and a late PUT after successful DELETE.
+
+- 289/289 unit tests, typecheck, lint and diff checks pass.
+- 12/12 storage-ledger integration checks pass on the recorded isolated dev
+  endpoint, checked distinct from both production and cloud before running.
+  The aged-hold regression proves global/account caps stay charged and an
+  explicit release of a known object-free test fixture restores capacity.
+- Hosted read checks confirm health, anonymous gate redirects, forged-cookie
+  refusal, secure normal gate-cookie issuance and 404 for an existing private
+  attachment without an account session. Non-admin /admin returns a streamed
+  redirect home with no admin controls; an initial test incorrectly expected
+  an HTTP redirect to /login and was corrected after inspecting requireAdmin.
+- Owner account remains verified and signed in. No owner password reset, new
+  account, hosted malware fixture, cloud data mutation or quota bypass occurred.
+- Docker independently reproduced its Windows sailor-ingest.sock rename error.
+  Cloud health stayed OK. No reset, deletion, uninstall or security changes.
+
+Deployment of this patch is tracked separately below; successful local tests
+alone do not imply the hosted revision changed. Remaining hosted checks are
+still pending and the pilot stays private.

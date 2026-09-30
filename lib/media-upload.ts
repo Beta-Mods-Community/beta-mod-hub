@@ -46,6 +46,7 @@ export async function processMediaUpload(input: {
   let originalKey: string | undefined;
   let imageKey: string | undefined;
   let attemptedStore = false;
+  let storageCompleted = false;
   let published = false;
   let publishing = false;
   let commitUnknown = false;
@@ -65,6 +66,7 @@ export async function processMediaUpload(input: {
     assertClean(await deps.scan(image.data));
     attemptedStore = true;
     await deps.store(imageKey, finalKey, { contentType: image.mime });
+    storageCompleted = true;
     publishing = true;
     await input.publish({ id, objectKey: finalKey, sizeBytes: image.data.byteLength, width: image.width, height: image.height, mimeType: image.mime });
     published = true;
@@ -88,7 +90,9 @@ export async function processMediaUpload(input: {
           try { await deps.removeStored(finalKey); removed = true; }
           catch { console.error("[media] Stored-object cleanup failed; quota retained", finalKey); }
         }
-        if (removed) await input.releaseReservation();
+        // A timed-out PUT may finish remotely after a successful DELETE.
+        // Unacknowledged storage remains charged until reconciled.
+        if (removed && (!attemptedStore || storageCompleted)) await input.releaseReservation();
         else await input.retainReservation();
       }
     }

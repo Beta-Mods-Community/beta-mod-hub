@@ -15,7 +15,7 @@ import path from "node:path";
 
 import { S3Client } from "@aws-sdk/client-s3";
 
-import { createR2Store, type R2Store } from "./storage-r2";
+import { CLOUD_STORAGE_CONNECT_TIMEOUT_MS, CLOUD_STORAGE_OPERATION_TIMEOUT_MS, createR2Store, type R2Store } from "./storage-r2";
 import { CLOUD_PILOT_READ_LIMIT_BYTES, isCloudPilot } from "./pilot";
 import { objectStorageConfig, readStorageDriver } from "./storage-config";
 
@@ -59,9 +59,22 @@ let r2: R2Store | null = null;
 function getR2(): R2Store {
   if (!r2) {
     r2 = createR2Store({
-      client: new S3Client(objectStorageConfig()),
+      client: new S3Client({
+        ...objectStorageConfig(),
+        ...(isCloudPilot() ? {
+          // The outer deadline also covers SDK/body processing and pagination;
+          // transport timeouts close stalled sockets, with no retry extension.
+          maxAttempts: 1,
+          requestHandler: {
+            connectionTimeout: CLOUD_STORAGE_CONNECT_TIMEOUT_MS,
+            requestTimeout: CLOUD_STORAGE_OPERATION_TIMEOUT_MS,
+            throwOnRequestTimeout: true,
+          },
+        } : {}),
+      }),
       bucket,
       maxMaterializedBytes,
+      operationTimeoutMs: isCloudPilot() ? CLOUD_STORAGE_OPERATION_TIMEOUT_MS : undefined,
     });
   }
   return r2;
@@ -163,10 +176,10 @@ export async function promoteQuarantine(
   const data = readFileSync(abs);
 
   if (isObjectStorage) {
-    // Upload first, then drop the local copy. If the PUT fails the exception
-    // propagates, the caller releases the reservation, and the quarantine file
-    // is deleted by the caller's error path. The caller also removes a remote
-    // object if a later publication step fails, retaining its ledger charge
+    // Upload first, then drop the local copy. A failed PUT propagates so the
+    // caller can clean quarantine and attempt remote cleanup. An unacknowledged
+    // PUT remains charged even if DELETE succeeds: it might finish remotely
+    // after that cleanup. Later publication failures likewise retain the charge
     // when removal cannot be confirmed.
     await getR2().put(finalKey, data, options?.contentType);
     rmSync(abs, { force: true });
