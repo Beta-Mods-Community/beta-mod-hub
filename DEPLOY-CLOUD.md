@@ -294,15 +294,29 @@ R2 bootstrap keys and tunnel tokens. `APP_URL` is the exact eventual HTTPS origi
 | Instance | Free; no payment method, no persistent disk |
 | Repository | `Beta-Mods/beta-mod-hub`, reviewed deployment revision |
 | Build command | `npm ci --include=dev && npm run build` |
-| Start command | `APP_URL="$RENDER_EXTERNAL_URL" npm run start:cloud` |
+| Start command | `MALLOC_ARENA_MAX=2 APP_URL="$RENDER_EXTERNAL_URL" npm run start:cloud` |
 | Health path | `/api/health` |
 | Port | Render-supplied `PORT`; launcher default 10000 |
 
 Render sets `RENDER_EXTERNAL_URL` to the service's assigned HTTPS origin. The
 start command passes that value into `APP_URL` before loading the application;
 this avoids guessing a hostname during first creation. If a custom domain is
-later approved, set its exact `APP_URL` and return to `npm run start:cloud`.
+later approved, set its exact `APP_URL` and use `MALLOC_ARENA_MAX=2 npm run start:cloud`.
 [Render default environment variables](https://render.com/docs/environment-variables).
+
+The allocator setting above is a **prepared follow-up, not a deployment or
+memory-safety claim**: review the bounded Linux comparison before rollout, and
+set the Render start command before deploying the corresponding startup guard.
+On the Linux cloud target the launcher refuses to start unless
+`MALLOC_ARENA_MAX=2` is already present. Export it through the start command or
+host environment **before Node starts**, never through application JavaScript
+or a later-loaded `.env` file. The check validates configuration, not glibc's
+internal allocator state. Limiting allocator arenas may reduce retained native
+memory at a concurrency/performance cost; it is not a memory limit or proof
+that uploads fit 512 MiB. Actual repeated hosted uploads still need validation.
+The package command remains cross-platform; local preview, Oracle, build
+commands, image quality and upload/pixel caps are unchanged. The synthetic
+runtime rehearsal passes the value in the spawned child's initial environment.
 
 `CLOUD_PILOT=on` must be present during **both build and runtime**. The launcher
 checks the built manifest for the 9mb form limit and refuses a mismatched build.

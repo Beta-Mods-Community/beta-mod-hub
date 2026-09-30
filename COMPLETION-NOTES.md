@@ -692,3 +692,22 @@ comparison observed a lower peak with explicit cleanup (293.6 MB vs 326.0 MB);
 this is not proof of Linux allocator behavior or whole-host memory safety.
 No encoding quality, pixel or file cap changed. Linux comparison and actual
 Render retesting remain required before claiming the memory failure fixed.
+
+### Linux allocator comparison (Sep 30, 01:21 CDT)
+
+Private manual workflow run `36677688324`, job `109766146624`, on commit
+`6679bbb` reproduced the memory failure with the current decoder (including
+explicit cleanup): the default glibc allocator was OOM-killed, exit 137, on
+the second image. With `MALLOC_ARENA_MAX=2` present before Node startup, all six
+decodes passed with identical canonical SHA256 hashes and zero outbound
+attempts. The candidate exited 0, OOMKilled=false, with cgroup peak 447,868,928
+bytes out of 536,870,912. Process peak RSS was 491,442,176 bytes.
+
+Both variants used Node 22.23.3, glibc 2.36, Sharp 0.35.5/libvips 8.18.7,
+three exact hosted originals cycled twice, 128 MiB of touched synthetic resident
+overhead, no container network or provider credentials, and a real 512 MiB
+memory limit with no swap. This is decoder-allocation evidence, not a substitute
+for full hosted uploads/scans/exports. The Render start command was saved as
+`MALLOC_ARENA_MAX=2 APP_URL="$RENDER_EXTERNAL_URL" npm run start:cloud`; no plan,
+caps, DNS, credentials or PC hosting changed. Deployment and hosted retesting
+are the next step; no invitations are authorized yet.

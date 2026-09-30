@@ -7,6 +7,7 @@ import { validateBuildArchive } from "../lib/build-upload-policy";
 
 const env = {
   NODE_ENV: 'production' as const, CLOUD_PILOT: 'on', PILOT_MODE: 'on', STORAGE_DRIVER: 's3', SCAN_DRIVER: 'transloadit', AUTH_MAIL_MODE: 'resend',
+  MALLOC_ARENA_MAX: '2',
   DATABASE_URL: 'postgresql://user:example@ep-example-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require',
   SESSION_SECRET: 's'.repeat(32), PILOT_ACCESS_KEY: 'p'.repeat(32), ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
   APP_URL: 'https://example.onrender.com', STORAGE_ENDPOINT: 'https://example.supabase.co/storage/v1/s3',
@@ -19,14 +20,30 @@ it('pilot gate preserves verification links without permitting an external redir
   for (const path of ['//evil.example', 'https://evil.example', '/\\evil.example', '/pilot-access', null]) assert.equal(safePilotReturnTo(path), '/');
 });
 it('cloud startup requires all safety controls, private storage and HTTPS email', () => {
-  assert.deepEqual(validateCloudRuntime(env), []);
+  assert.deepEqual(validateCloudRuntime(env, 'linux'), []);
   for (const key of Object.keys(env)) {
     if (key === 'TRANSLOADIT_SIGNATURE_ALGORITHM') continue;
-    assert.ok(validateCloudRuntime({ ...env, [key]: '' }).length, key);
+    assert.ok(validateCloudRuntime({ ...env, [key]: '' }, 'linux').length, key);
   }
   assert.ok(validateCloudRuntime({ ...env, AUTH_ALLOW_UNVERIFIED_LOCAL: 'true' }).length);
   assert.ok(validateCloudRuntime({ ...env, APP_URL: 'http://example.com' }).length);
   assert.ok(validateCloudRuntime({ ...env, STORAGE_ENDPOINT: 'https://evil.example/storage/v1/s3' }).length);
+});
+it('Linux cloud startup refuses missing or altered allocator configuration without setting it late', () => {
+  for (const value of [undefined, '', '0', '1', '4', ' 2', '2 ']) {
+    const supplied = Object.freeze({ ...env, MALLOC_ARENA_MAX: value });
+    assert.match(validateCloudRuntime(supplied, 'linux').join('; '), /MALLOC_ARENA_MAX must be 2 before starting Node/);
+    assert.equal(supplied.MALLOC_ARENA_MAX, value);
+  }
+  assert.deepEqual(validateCloudRuntime(Object.freeze({ ...env }), 'linux'), []);
+});
+it('non-Linux cloud rehearsals keep every existing safety requirement without a glibc-only guard', () => {
+  for (const platform of ['win32', 'darwin'] as const) {
+    assert.deepEqual(validateCloudRuntime({ ...env, MALLOC_ARENA_MAX: undefined }, platform), []);
+    assert.ok(validateCloudRuntime({ ...env, MALLOC_ARENA_MAX: undefined, CLOUD_PILOT: '' }, platform).length);
+    assert.ok(validateCloudRuntime({ ...env, MALLOC_ARENA_MAX: undefined, STORAGE_DRIVER: 'local' }, platform).length);
+    assert.ok(validateCloudRuntime({ ...env, MALLOC_ARENA_MAX: undefined, AUTH_ALLOW_UNVERIFIED_LOCAL: 'true' }, platform).length);
+  }
 });
 it('cloud safety controls use the same flag aliases as quota enforcement', () => {
   for (const flag of ['on', 'true', '1', 'yes', 'enabled']) assert.equal(cloudPilotEnabled({ CLOUD_PILOT: flag }), true);

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
-import { cloudRequestPolicy, createWorkSlot } from "../scripts/cloud-runtime-policy.mjs";
+import { createCloudRequestHandler } from "../scripts/cloud-http-handler.mjs";
 
 // Execute the actual launcher with inert dependencies: no listener, .env reads,
 // database, provider calls or application sessions are involved in these tests.
@@ -19,7 +19,7 @@ async function startLauncher(overrides: Record<string, string> = {}) {
     process: fakeProcess,
     console: { log() {}, error() {} },
     readFile: async () => JSON.stringify({ config: { experimental: { serverActions: { bodySizeLimit: "9mb" } } } }),
-    validateCloudRuntime: () => [], cloudRequestPolicy, createWorkSlot,
+    validateCloudRuntime: () => [], createCloudRequestHandler,
     createMemoryEvidence: () => ({ startup() {}, beginExclusive: () => () => {} }),
     sharp: { concurrency() {}, cache() {} },
     next: () => {

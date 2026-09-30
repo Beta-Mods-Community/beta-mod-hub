@@ -68,6 +68,8 @@ function syntheticEnvironment() {
   }
   return Object.assign(env, {
     NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1', __NEXT_PROCESSED_ENV: 'true',
+    // This environment is passed to spawn, before the child Node starts.
+    MALLOC_ARENA_MAX: '2',
     BETAMODS_BUILD_CHECK: '1', PORT: String(port), BIND_HOST: hostname,
     CLOUD_PILOT: 'on', PILOT_MODE: 'on', STORAGE_DRIVER: 's3', SCAN_DRIVER: 'transloadit', AUTH_MAIL_MODE: 'resend',
     DATABASE_URL: 'postgresql://synthetic:unused@ep-rehearsal-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require',

@@ -1,7 +1,7 @@
 export const MAX_BODY_BYTES = 9 * 1024 * 1024;
 
 /** Validates names only in errors: never echo a connection string or secret. */
-export function validateCloudRuntime(env) {
+export function validateCloudRuntime(env, platform = process.platform) {
   const required = ['DATABASE_URL', 'SESSION_SECRET', 'PILOT_ACCESS_KEY', 'APP_URL',
     'ENCRYPTION_KEY', 'STORAGE_ENDPOINT', 'STORAGE_REGION', 'STORAGE_BUCKET',
     'STORAGE_ACCESS_KEY', 'STORAGE_SECRET_KEY', 'TRANSLOADIT_KEY', 'TRANSLOADIT_SECRET',
@@ -10,6 +10,9 @@ export function validateCloudRuntime(env) {
   for (const [key, value] of Object.entries({ CLOUD_PILOT: 'on', PILOT_MODE: 'on', STORAGE_DRIVER: 's3', SCAN_DRIVER: 'transloadit', AUTH_MAIL_MODE: 'resend', NODE_ENV: 'production' })) {
     if (env[key] !== value) errors.push(`${key} must be ${value}`);
   }
+  // Configure the Linux host/start command before Node starts. Assigning this
+  // inside the launcher is too late to configure the process allocator.
+  if (platform === 'linux' && env.MALLOC_ARENA_MAX !== '2') errors.push('MALLOC_ARENA_MAX must be 2 before starting Node on the Linux cloud target');
   if ((env.SESSION_SECRET?.length ?? 0) < 32 || (env.PILOT_ACCESS_KEY?.length ?? 0) < 32) errors.push('Session and pilot secrets must have at least 32 characters');
   if (Buffer.from(env.ENCRYPTION_KEY ?? '', 'base64').length !== 32) errors.push('ENCRYPTION_KEY must encode 32 bytes');
   if (!['sha256', 'sha384'].includes(env.TRANSLOADIT_SIGNATURE_ALGORITHM ?? 'sha384')) errors.push('Unsupported Transloadit signature algorithm');
