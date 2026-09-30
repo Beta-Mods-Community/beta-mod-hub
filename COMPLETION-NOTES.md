@@ -818,7 +818,8 @@ Render documents its automatic Cloudflare-backed protection and lists
 `support@render.com` for questions: https://render.com/docs/ddos-protection .
 The next legitimate step is provider investigation using the service ID, exact
 UTC time, POST path, 5,090,772-byte synthetic WebP size and 403/text-html result,
-without secrets, cookies or the image itself. No provider message has been sent.
+without secrets, cookies or the image itself. At this checkpoint no provider
+message had been sent; see the later support escalation below.
 The exact-32-MiB hosted export and one-byte-over check remain blocked, not passed.
 Hosted malware rejection remains unverified because the earlier local antivirus
 block must not be bypassed; idle cold-start remains inconclusive. No Discord
@@ -829,3 +830,32 @@ reservations, 63,426,540 bytes, zero drift and zero held rows; scan usage remain
 399 MiB. No reservation exists after the over-pixel attempt at 07:07:58.781.
 The export fixture remains alpha with one build/three images for the unresolved
 check; the repeated-image fixture is abandoned with its two clean images intact.
+
+### Upload refusal correlation and support escalation (Sep 30, 04:12 CDT)
+
+The existing Render dashboard support conversation was escalated to a human
+engineer. No human response or confirmed cause has been received yet.
+
+Diagnostic-only revision `decb03c` deployed as `dep-daud1vu0tbcc73ev79c0`, live
+at 09:07:40 UTC (instance `cv6cx`). Failed responses now record bounded validated
+CF-Ray, response type, redirect status and final same-origin status. Request
+arguments, promise/response identity and transport remain untouched; no bodies,
+URLs, cookies or secrets are read or recorded. Ten focused tests, typecheck,
+lint and isolated cloud production build pass. This is not an upload fix.
+
+One unchanged normal-form reproduction of image 4 (5,090,772 bytes) at
+**2026-09-30T09:08:49.008Z** returned **403 / text/html**, `redirected=false`,
+`responseType=basic`, `finalSameOrigin=true`, and CF-Ray
+`a43215a61cf7f0ad-DFW`. The actual service Application logs, Last hour view,
+included this timestamp but showed no corresponding upload admission record.
+CF-Ray is a correlation identifier, not proof Cloudflare generated the response.
+
+The timestamp, identifier, path, size and bounded response metadata were sent
+and visibly confirmed in the existing Render support conversation. No file,
+cookie, credential, HAR or response body was sent. No further upload retry or
+security workaround was attempted. The previous 07:28 storage audit was not
+rerun after this reproduction, so it is not presented as a current audit.
+
+Full upload readiness remains blocked pending identification/resolution of the
+403 and completion of the outstanding hosted checks above. Free plan, malware
+scanning, access controls, caps, website DNS and local preview are unchanged.
