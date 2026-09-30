@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "./db";
@@ -218,5 +219,9 @@ export async function uploadBuild(
     if (quarantineKey) deleteQuarantine(quarantineKey);
   }
 
+  revalidatePath(`/mods/${betaModId}`);
+  revalidatePath("/browse");
+  revalidatePath("/");
+  revalidatePath("/dashboard");
   redirect(`/mods/${betaModId}`);
 }

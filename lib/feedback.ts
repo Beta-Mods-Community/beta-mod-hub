@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "./db";
 import { verifySession } from "./dal";
@@ -21,6 +22,13 @@ import { scanUpload } from "./scan";
 
 function feedbackLocation(modId: string, error?: string) {
   return `/mods/${modId}${error ? `?feedback=${encodeURIComponent(error)}` : ""}#bugs`;
+}
+
+function refreshFeedback(modId: string) {
+  revalidatePath(`/mods/${modId}`);
+  revalidatePath("/browse");
+  revalidatePath("/");
+  revalidatePath("/dashboard");
 }
 
 /** One report, optionally one private scanned log/save attachment. */
@@ -133,6 +141,7 @@ export async function submitBugReport(_state: BugReportFormState, formData: Form
   } finally {
     if (quarantineKey) deleteQuarantine(quarantineKey);
   }
+  refreshFeedback(betaModId);
   redirect(feedbackLocation(betaModId));
 }
 
@@ -146,6 +155,7 @@ export async function voteReady(betaModId: string, displayedBuildId: string, isR
       await db.transaction(tx => recordBuildVote(tx, { betaModId, displayedBuildId, testerId: session.userId, isReady }));
     } catch (error) { errorMessage = mutationMessage(error); }
   }
+  if (!errorMessage) refreshFeedback(betaModId);
   redirect(`/mods/${betaModId}${errorMessage ? `?feedback=${encodeURIComponent(errorMessage)}` : ""}#testing`);
 }
 
@@ -175,6 +185,7 @@ export async function respondToBugReport(formData: FormData) {
       });
     } catch (error) { errorMessage = mutationMessage(error); }
   }
+  if (!errorMessage) refreshFeedback(report.betaModId);
   redirect(feedbackLocation(report.betaModId, errorMessage ?? undefined));
 }
 
@@ -204,6 +215,7 @@ export async function retestBugReport(formData: FormData) {
       });
     } catch (error) { errorMessage = mutationMessage(error); }
   }
+  if (!errorMessage) refreshFeedback(report.betaModId);
   redirect(feedbackLocation(report.betaModId, errorMessage ?? undefined));
 }
 
@@ -227,6 +239,7 @@ export async function deleteBugAttachment(formData: FormData) {
       });
     } catch (error) { errorMessage = mutationMessage(error); }
   }
+  if (!errorMessage) refreshFeedback(row.attachment.betaModId);
   redirect(feedbackLocation(row.attachment.betaModId, errorMessage ?? undefined));
 }
 
