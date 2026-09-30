@@ -1,6 +1,7 @@
 # App service image (Next.js + scan-server HTTP wrapper).
 #
-# This image serves both deployment targets; only the compose file differs.
+# Used by the optional Oracle and home Compose targets. The hosted cloud pilot
+# runs native Node.js with start:cloud, not this image.
 #
 #   service: app (this Dockerfile)
 #     SCAN_ENDPOINT=http://localhost:3311
@@ -38,6 +39,8 @@ COPY --from=build /app/.next ./.next
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/next.config.ts ./next.config.ts
+# next.config.ts imports the shared cloud-mode predicate at startup.
+COPY --from=build /app/lib/pilot.ts ./lib/pilot.ts
 COPY --from=build /app/public ./public
 
 # Start the scan wrapper (background) + the Next server (main process).

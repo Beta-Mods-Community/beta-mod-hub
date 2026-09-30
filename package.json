@@ -2,6 +2,9 @@
   "name": "beta-mod-hub",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -46,6 +49,11 @@
     "tailwind-merge": "^3.7.0",
     "yauzl": "^3.4.0",
     "zod": "^4.6.5"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
+    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

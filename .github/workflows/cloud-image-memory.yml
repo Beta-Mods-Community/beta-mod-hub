@@ -14,7 +14,6 @@ jobs:
   compare:
     if: >-
       github.repository == 'Beta-Mods-Community/beta-mod-hub' &&
-      github.event.repository.private == true &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
@@ -32,7 +31,7 @@ jobs:
           package-manager-cache: false
       - name: Install locked dependencies outside the measured containers
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Generate the exact three hosted originals without credentials
+      - name: Generate fixed image fixtures without credentials
         run: >-
           env -i PATH="$PATH" CLOUD_PILOT=on
           node --conditions=react-server --import tsx
@@ -68,7 +67,7 @@ jobs:
             docker rm --force "$container" >/dev/null
             if [[ "$variant" == arena2 && ( "$code" != 0 || "$oom" != false ) ]]; then candidate_failed=1; fi
           done
-          echo 'This compares decoder allocation only; it does not validate hosted uploads or authorize launch.'
+          echo 'This measures decoder allocation only, not the full upload pipeline.'
           exit "$candidate_failed"
       - name: Remove only the two disposable benchmark containers
         if: always()

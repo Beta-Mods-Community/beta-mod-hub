@@ -5,10 +5,21 @@
 .git
 .gitignore
 
+# Private operator notes, credentials and backup artifacts.
+.local-notes
+.release-audit
+backups
+*.pem
+*.key
+*.p12
+*.pfx
+*.bmbak
+
 node_modules
 data
 .next
 .next-check
+*.tsbuildinfo
 github-recovery-codes.txt
 npm-debug.log*
 

@@ -28,7 +28,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: '1'
       BETAMODS_BUILD_CHECK: '1'
     steps:
-      # Official action release commits, also used by the private operations CI.
+      # Pin action releases so dependency updates remain reviewable.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
