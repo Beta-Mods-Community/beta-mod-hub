@@ -416,6 +416,11 @@ without preserving the key for retained snapshots.
 
 ## Interrupted uploads and storage recovery
 
+These safeguards are deployed at `60c5bd2`, Render deployment
+`dep-dau90kegekts73dff3u0` (1m55s, build and startup passed). Post-deploy health
+and actual private-bucket inventory reads passed. Fault tests are mocked or
+against isolated dev data, not evidence of a live provider interruption test.
+
 Held reservations do not expire automatically. The legacy
 `PILOT_RESERVATION_TTL_MINUTES` setting is accepted for compatibility but no
 longer frees capacity. A restart can occur after a successful remote upload

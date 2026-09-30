@@ -465,6 +465,10 @@ pagination timer starvation and a late PUT after successful DELETE.
 - Docker independently reproduced its Windows sailor-ingest.sock rename error.
   Cloud health stayed OK. No reset, deletion, uninstall or security changes.
 
-Deployment of this patch is tracked separately below; successful local tests
-alone do not imply the hosted revision changed. Remaining hosted checks are
-still pending and the pilot stays private.
+Commit `60c5bd2` is pushed and live on the same Render Free service. Deployment
+`dep-dau90kegekts73dff3u0` passed its real Linux production build and startup in
+1m55s. Post-deploy health returned 200/ok; the signed-in admin page successfully
+read the private bucket through the new S3 deadline path (four objects, 20 MiB,
+100 MiB cap, zero held). This is not a fresh upload/export or interruption test.
+Remaining hosted checks are still pending and the pilot stays private. No new
+credentials, migration, plan, custom DNS or local-preview change was made.
