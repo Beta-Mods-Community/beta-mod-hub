@@ -463,6 +463,28 @@ temporary listing is archived. See `COMPLETION-NOTES.md` for the exact evidence
 and the browser-blocked authenticated attachment check, which is not a pass.
 The five archive-policy rejects are not evidence of hosted malware rejection.
 
+Sep 30 follow-up: a normal Render service restart completed at 00:07:31 CDT
+on the unchanged deployed app revision. The owner remained signed in afterward.
+Startup RSS was 145,801,216 bytes, Linux cgroup current/peak 114,749,440 bytes,
+and the cgroup limit 536,870,912 bytes. This is an idle restart, not a mid-scan
+interruption or an idle autosleep/cold-start rehearsal.
+
+`node scripts/cloud-export-rehearsal.mjs` now exercises the real package
+algorithm offline: two exact 32 MiB accounted inputs succeed with all four
+payload hashes checked; one byte over fails; temporary outputs are removed.
+The subprocess inherits no provider credentials and attempts no network calls.
+This is not hosted Next/S3 integration or proof of Render's boundary memory.
+
+The owner reported a file download during the manual private-attachment check.
+The request's browser/account and downloaded file have not yet been identified:
+Chrome is signed into the permitted owner, while the in-app browser has the
+unrelated QA account. Read-only cloud data checks confirm the QA account is
+neither reporter nor owner of the clean diagnostic attachment and the report/mod
+association is consistent. The deployed authorization code is unchanged and
+requires that relationship before reading/signing storage. Treat this as an
+unresolved release blocker, not a proven authorization failure or a pass.
+Do not bypass the browser block or extract sessions to complete the test.
+
 - Account/permission gates above completed without cards, paid plans or broad
   unrelated-repository access; no production DB mutation.
 - Correct isolated schema verified; pilot owner can sign up, receive/consume

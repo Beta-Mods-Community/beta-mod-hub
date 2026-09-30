@@ -547,3 +547,37 @@ rejection, scanner/DB failure injection, decompression-size violations,
 authenticated private-attachment direct denial, or the remaining resource
 checks. No deployed application code, paid plan, DNS, quota, approval or local
 preview setting changed. The pilot remains private.
+
+### Idle restart and exact offline export boundary (Sep 30 CDT)
+
+The unchanged Render service was restarted through its normal dashboard.
+Instance `k6b96` reported a successful startup at 00:07:31 CDT: RSS 145,801,216
+bytes; cgroup current/peak 114,749,440 bytes; limit 536,870,912 bytes. The owner
+account remained signed in and email-verified afterward. No upload was active
+and the ledger had zero held bytes. This closes an ordinary restart check only,
+not mid-scan interruption or autosleep cold-start behavior. No plan, command,
+credential, cap or application code was changed.
+
+Added a bounded offline export rehearsal and three regression tests. A fresh
+credential-free subprocess with a 256 MiB JS heap runs the real package builder
+against synthetic, temp-only sources. Two exact 33,554,432-byte accounted inputs
+succeed, all four source hashes match the ZIP entries, and one byte over is
+refused. Network attempts are zero and temporary output cleanup is verified.
+The root rerun's Windows process peak RSS was 151,425,024 bytes; Linux cgroup
+counters are unavailable locally. These are algorithm checks, not hosted route,
+S3 or scanner evidence. The focused export/memory suite passed 19/19 tests.
+
+The post-restart owner export download attempt timed out in browser tooling;
+no resulting path or bytes were confirmed. Do not count it as success or infer
+a server failure from the tool timeout. The prior smaller hosted export remains
+separate evidence.
+
+The owner then reported a file download during the manual QA private-attachment
+check. Browser/account and filename remain unconfirmed: Chrome's owner account
+is permitted, while the separate in-app QA account is not. A pinned read-only
+cloud DB query confirms `diagnostic.log` is clean, its report/mod association is
+consistent, and QA is neither owner nor reporter. Review found no cross-request
+session cache or authorization difference between deployed `60c5bd2` and HEAD;
+authorization runs before signing/reading storage. This is still an unresolved
+release blocker, not a confirmed leak and not a permission-check pass. Browser
+security blocks were not bypassed and no cookies or signed URLs were extracted.
