@@ -2,17 +2,15 @@ import * as z from "zod";
 import { AccountEmailSchema, PasswordSchema } from "./account-validation";
 
 /**
- * Form schemas and state shapes for the local email+password auth flow.
- * Replaced/augmented by Nexus SSO in phase 3; these stay for the pre-SSO
- * fallback accounts.
+ * Shared validation and form state for accounts, listings, and feedback.
  */
 
 export const SignupFormSchema = z.object({
   displayName: z
     .string()
+    .trim()
     .min(2, { error: "Name must be at least 2 characters long." })
-    .max(40, { error: "Name must be 40 characters or fewer." })
-    .trim(),
+    .max(40, { error: "Name must be 40 characters or fewer." }),
   email: AccountEmailSchema,
   password: PasswordSchema,
 });
@@ -43,14 +41,14 @@ export const BetaModStatusForm = z.enum(["alpha", "beta", "rc", "abandoned"]);
 export const BetaModFormSchema = z.object({
   title: z
     .string()
+    .trim()
     .min(3, { error: "Title must be at least 3 characters long." })
-    .max(80, { error: "Title must be 80 characters or fewer." })
-    .trim(),
+    .max(80, { error: "Title must be 80 characters or fewer." }),
   game: z
     .string()
+    .trim()
     .min(1, { error: "Enter the game this mod is for." })
-    .max(60, { error: "Game name must be 60 characters or fewer." })
-    .trim(),
+    .max(60, { error: "Game name must be 60 characters or fewer." }),
   tags: z
     .string()
     .max(200, { error: "Keep tags under 200 characters." })
@@ -72,9 +70,9 @@ export type BetaModFormState =
 export const BuildUploadFormSchema = z.object({
   versionLabel: z
     .string()
+    .trim()
     .min(1, { error: "Add a version label (e.g. 0.1 or Beta 2)." })
-    .max(40, { error: "Version label must be 40 characters or fewer." })
-    .trim(),
+    .max(40, { error: "Version label must be 40 characters or fewer." }),
   changelog: z
     .string()
     .max(5000, { error: "Changelog must be 5,000 characters or fewer." })
@@ -96,9 +94,9 @@ export const BugReportFormSchema = z.object({
   severity: z.enum(["minor", "major", "blocking"]),
   description: z
     .string()
+    .trim()
     .min(10, { error: "Describe the bug — at least 10 characters." })
-    .max(4000, { error: "Description must be 4,000 characters or fewer." })
-    .trim(),
+    .max(4000, { error: "Description must be 4,000 characters or fewer." }),
   reproSteps: z
     .string()
     .max(2000, { error: "Repro steps must be 2,000 characters or fewer." })
@@ -121,9 +119,9 @@ export const PromotionConfirmSchema = z.object({
 export const RequirementFormSchema = z.object({
   nexusModName: z
     .string()
+    .trim()
     .min(1, { error: "Enter the required mod's name." })
-    .max(120, { error: "Requirement name must be 120 characters or fewer." })
-    .trim(),
+    .max(120, { error: "Requirement name must be 120 characters or fewer." }),
   nexusModUrl: z
     .string()
     .trim()
@@ -137,9 +135,9 @@ export const RequirementFormSchema = z.object({
 export const ProfileFormSchema = z.object({
   displayName: z
     .string()
+    .trim()
     .min(2, { error: "Name must be at least 2 characters long." })
-    .max(40, { error: "Name must be 40 characters or fewer." })
-    .trim(),
+    .max(40, { error: "Name must be 40 characters or fewer." }),
   bio: z
     .string()
     .max(1000, { error: "Bio must be 1,000 characters or fewer." })

@@ -1,7 +1,100 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { BugReportFormSchema, ProfileFormSchema } from "../lib/definitions";
+import {
+  BetaModFormSchema,
+  BugReportFormSchema,
+  BuildUploadFormSchema,
+  ProfileFormSchema,
+  RequirementFormSchema,
+  SignupFormSchema,
+} from "../lib/definitions";
+
+const requiredTextCases = [
+  {
+    name: "signup display name",
+    schema: SignupFormSchema,
+    input: { displayName: "Tester", email: "tester@example.test", password: "fixture-password-only" },
+    field: "displayName", min: 2, max: 40,
+  },
+  {
+    name: "profile display name",
+    schema: ProfileFormSchema,
+    input: { displayName: "Tester", bio: "", avatarUrl: "" },
+    field: "displayName", min: 2, max: 40,
+  },
+  {
+    name: "mod title",
+    schema: BetaModFormSchema,
+    input: { title: "Test mod", game: "Skyrim", tags: "", description: "", status: "beta" },
+    field: "title", min: 3, max: 80,
+  },
+  {
+    name: "game name",
+    schema: BetaModFormSchema,
+    input: { title: "Test mod", game: "Skyrim", tags: "", description: "", status: "beta" },
+    field: "game", min: 1, max: 60,
+  },
+  {
+    name: "requirement name",
+    schema: RequirementFormSchema,
+    input: { nexusModName: "Required mod", nexusModUrl: "" },
+    field: "nexusModName", min: 1, max: 120,
+  },
+  {
+    name: "build version",
+    schema: BuildUploadFormSchema,
+    input: { versionLabel: "0.1", changelog: "" },
+    field: "versionLabel", min: 1, max: 40,
+  },
+  {
+    name: "bug description",
+    schema: BugReportFormSchema,
+    input: {
+      buildId: "018fef4c-54f8-7f16-8c35-4c83f18b47df",
+      severity: "major",
+      description: "The menu freezes after selecting a background.",
+      reproSteps: "",
+    },
+    field: "description", min: 10, max: 4000,
+  },
+];
+
+for (const { name, schema, input, field, min, max } of requiredTextCases) {
+  describe(`Required text: ${name}`, () => {
+    it("rejects whitespace-only input with an error on the field", () => {
+      for (const value of ["", " ".repeat(min), "\t\r\n", "\u00a0\u2003".repeat(min)]) {
+        const result = schema.safeParse({ ...input, [field]: value });
+        assert.equal(result.success, false);
+        if (!result.success) {
+          assert.ok(result.error.issues.some((issue) => issue.path[0] === field));
+        }
+      }
+    });
+
+    it("does not count surrounding whitespace toward the minimum", () => {
+      const result = schema.safeParse({ ...input, [field]: `  ${"x".repeat(min - 1)}  ` });
+      assert.equal(result.success, false);
+    });
+
+    it("accepts and trims text at the minimum and maximum lengths", () => {
+      for (const length of [min, max]) {
+        const value = "x".repeat(length);
+        const result = schema.safeParse({ ...input, [field]: ` \t${value}\n ` });
+        assert.equal(result.success, true);
+        if (result.success) {
+          const data: Record<string, unknown> = result.data;
+          assert.equal(data[field], value);
+        }
+      }
+    });
+
+    it("rejects text beyond the maximum after trimming", () => {
+      const result = schema.safeParse({ ...input, [field]: ` ${"x".repeat(max + 1)} ` });
+      assert.equal(result.success, false);
+    });
+  });
+}
 
 describe("BugReportFormSchema", () => {
   const validReport = {
