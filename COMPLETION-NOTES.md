@@ -782,3 +782,17 @@ link. Exactly one original scan was charged (3 MiB), no canonical scan. The
 07:09:50 read-only audit confirms all 10 objects/reference rows/stored ledger
 entries match 63,426,540 bytes, zero drift and zero held reservations; total
 scan allowance used is 399 MiB. No attempt history or limit was reset.
+
+The admission-diagnostic build `ec324bb` deployed successfully as
+`dep-daubdj6k1f9s73b5h5p0` at 07:15:55 UTC (instance `66sbg`). It adds bounded
+numeric-status/method/body-length logging only, with no request URLs, bodies,
+credentials or file names. Nineteen focused tests, lint and typecheck pass.
+The same fourth image still returned the generic browser error, with no
+corresponding admission-start/refusal record in the refreshed app logs.
+As a control, archiving the completed repeated-image fixture through its
+normal owner form at 07:17:49 logged an accepted 1,470-byte POST and a 653 ms
+completion. This supports an upstream/request-transport hypothesis but does
+not establish an HTTP status or root cause. No fourth-image retry is counted
+as a successful test. The two-image memory-check listing is now archived;
+its files were not deleted. A browser response-metadata diagnostic is being
+prepared to distinguish an upstream refusal from an application response.

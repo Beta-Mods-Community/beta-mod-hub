@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Footer from "@/components/footer";
 import Header from "@/components/header";
+import { isCloudPilot } from "@lib/pilot";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,6 +38,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-cloud-pilot={isCloudPilot() ? "on" : undefined}
       className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
