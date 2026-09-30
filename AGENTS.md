@@ -61,7 +61,8 @@ prepared; the Free Render service is live behind its private pilot gate and
 server credentials are private. The verified owner has approved admin/uploader
 access. Real clean build, image, private-log and export checks pass, with
 measured bounded-host memory. Hosted rejection/recovery, remaining permission
-checks and backup/restore verification remain pending. See the
+checks remain pending. Initial encrypted backup/download/restore rehearsals
+have passed on GitHub-hosted runners, and nightly backups are enabled. See the
 deployment document's checkpoint: repository code is not proof of a deployed,
 tested or memory-safe host.
 

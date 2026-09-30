@@ -398,3 +398,39 @@ reservation or charge; protection unchanged. Hosted rejection remains unverified
   full export boundary and off-PC backup/restore. Backup proposal requires
   approval to reduce total storage to 100 MiB and grant private GitHub Actions
   access to dedicated backup credentials. Nothing scheduled or granted yet.
+
+### Approved encrypted off-PC backups — complete
+
+The owner approved the 100 MiB total cloud cap and dedicated backup credentials
+in the private GitHub repository. Commit `62bc4fa` adds the bounded encrypted
+backup core, fault tests, workflow and retention safeguards; existing hosting
+targets remain unchanged. No card, paid resource, custom website DNS or PC
+hosting dependency was added.
+
+- Dedicated `betamods_backup` SQL role: SELECT only on permanent public data,
+  no object ownership/memberships/CREATE/write, read-only transaction default.
+  Existing inherited TEMP permission retained; PUBLIC/other roles unchanged.
+- Separate Supabase S3 key `betamods-pilot-backup`; full access confined to the
+  dedicated project, as disclosed/approved. Four backup secrets saved in private
+  GitHub Actions settings and gitignored `.env.backup.local`; none printed.
+- GitHub Free account had unused included quotas and $0 Stop-usage budgets for
+  Actions and Packages. These remain unchanged. Workflow uses standard Linux,
+  10-minute timeout, no cache, private/main guards and bounded two-copy retention.
+- Runs `36667662564` (49s) and `36667786194` (1m10s) both succeeded: actual
+  encrypted artifacts uploaded, downloaded, authenticated, four object hashes
+  checked, and all 19 tables restored into fresh disposable PostgreSQL 18.
+  Live DB/bucket were never restored over. Two initial copies retained.
+- `CLOUD_BACKUPS_ENABLED=true` saved/verified; nightly schedule 07:23 UTC.
+  Schedule has not fired yet; manual dispatch ran the same verified job.
+- Render deploy `dep-dau8nfflot8c73a4nbo0` succeeded (1m40s); admin UI confirms
+  20 MiB of 100 MiB total, no held bytes, health 200/ok. Per-file cap still 8 MiB.
+- 271/271 unit, lint and typecheck pass. Local isolated build hit EPERM on an
+  old OneDrive `.next-check` cache entry; no cache/preview deletion. Real Render
+  Linux production build passed. Secret-value scan passed before commit/push.
+- Backup plaintext exists only in private temporary runner files; encrypted
+  artifacts require the independent backup key. Owner recovery copies must stay
+  private. Runtime secrets are not embedded in data snapshots. A replacement
+  cloud cutover still needs explicit review/approval, never automatic overwrite.
+
+The pilot remains gated. These backups close that setup item, not the remaining
+hosted rejection/permission/password-reset and memory-boundary launch checks.

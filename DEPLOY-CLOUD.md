@@ -136,9 +136,10 @@ The owner approved lowering total pilot storage to 100 MiB and storing two
 encrypted full snapshots in the private repository's GitHub Actions artifacts.
 Dedicated read-only Neon and project-wide Supabase backup credentials are
 approved for GitHub Actions; Supabase's S3 key is full-access within the
-dedicated project, not read-only. Setup and the first actual restore rehearsal
-are in progress; do not confuse approval with a completed backup. The existing
-Windows/R2 backup scripts are not this target's backup system.
+dedicated project, not read-only. Both initial GitHub-hosted backups and their
+downloaded-artifact restore rehearsals have now passed; nightly scheduling is
+enabled. The existing Windows/R2 backup scripts are not this target's backup
+system. Detailed evidence is below.
 
 ## Selected target
 
@@ -328,11 +329,31 @@ a scan request and **do not prove scanner, storage or email availability**.
 
 ## Encrypted off-PC backups
 
+**Live checkpoint (Sep 29 CDT / Sep 30 UTC):** commit `62bc4fa` is pushed and
+deployed on Render (`dep-dau8nfflot8c73a4nbo0`, 1m40s). The real admin page shows
+20 MiB stored of a 100 MiB cap and zero held reservations; `/api/health` returns
+`{"ok":true}`. GitHub runs `36667662564` (49s) and `36667786194` (1m10s) both
+completed successfully on this revision. Each downloaded the actual encrypted
+artifact, authenticated all four objects and restored all 19 tables into an
+empty disposable PostgreSQL 18 database. Source Neon/Supabase data were never
+overwritten. Two initial recovery copies are retained; the first encrypted
+payload was 21,181,134 bytes for 21,128,942 bytes of objects plus DB/metadata.
+Repository variable `CLOUD_BACKUPS_ENABLED=true` is saved and verified.
+
+271/271 unit tests, lint and typecheck passed. Local isolated build encountered
+an EPERM lock on an old `.next-check` OneDrive cache entry; that cache and the
+preview were left untouched. The real Render Linux production build succeeded
+and the deployed site is healthy. Private-value scanning found no prepared
+cloud/backup credential values in staged changes. The nightly trigger itself
+has not fired yet; manual runs proved the same job, including artifact transfer
+and restoration. Third-copy pruning is covered by unit tests, not a live third
+run at this checkpoint.
+
 The approved backup workflow is `.github/workflows/cloud-backup.yml`, running
 on standard GitHub-hosted Ubuntu, never the owner's PC. Manual dispatch is for
-the first rehearsal; the nightly 07:23 UTC schedule also requires repository
-variable `CLOUD_BACKUPS_ENABLED=true`. Do not enable it before a downloaded
-artifact passes the actual restore rehearsal. A 10-minute job timeout, no
+rehearsal; the nightly 07:23 UTC schedule requires repository variable
+`CLOUD_BACKUPS_ENABLED=true`, enabled after the first successful downloaded
+artifact restore. A 10-minute job timeout, no
 dependency cache and one non-cancelling workflow concurrency group bound usage.
 
 Four private repository secrets are required: `BACKUP_DATABASE_URL`,
@@ -411,14 +432,17 @@ without preserving the key for retained snapshots.
 - Measure actual Render memory through worst permitted upload/image/export,
   concurrent request refusal, cold start and mid-scan restart. Pass on the real
   512 MB instance before claiming it fits.
-- Backup/restore and orphan reconciliation rehearsed for this target. Existing
-  home scripts are not automatically validated for Supabase. Retain original
-  source archives; no object-versioning/recovery guarantee is being made.
+- Backup/restore and orphan reconciliation rehearsed for this target: the two
+  initial encrypted artifact download/restores passed as detailed above. Real
+  disaster cutover to replacement cloud services remains a separately approved
+  operation. Retain original source archives; no object-versioning or uptime
+  guarantee is being made.
 - Inspect provider dashboards and app budgets; verify no payment method or
   automatic overage option was introduced. Record the reviewed revision and
   evidence. Only then share the host URL privately; custom website DNS can wait.
 
 Deployment, real owner verification and the bounded clean-file checks above
-are verified; the remaining rejection, permission, recovery, memory and
-backup/restore gates are still pending. If a quota is hit, pause uploads or wait for reset;
+are verified, as are the initial encrypted backup/restore rehearsals. The
+remaining hosted rejection, permission, password recovery and memory gates
+are still pending. If a quota is hit, pause uploads or wait for reset;
 do not weaken scanning, increase cloud caps, add a card or switch to paid compute.
