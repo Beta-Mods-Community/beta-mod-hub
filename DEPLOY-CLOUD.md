@@ -454,6 +454,15 @@ has session version 1, and no reset token remains. The new password was entered
 only by the owner. Other-user permissions and remaining hosted rejection and
 resource-boundary checks below remain separate, unfinished gates.
 
+Subsequent hosted checks passed for ordinary-account admin and owner-edit
+denial, plus five harmless invalid-ZIP cases: malformed metadata, encryption
+flags, nested archives, checksum mismatch and unsafe paths. The latter left
+zero builds on the temporary listing, zero held bytes, unchanged private
+storage and unchanged scan budget; five upload attempts remain counted. The
+temporary listing is archived. See `COMPLETION-NOTES.md` for the exact evidence
+and the browser-blocked authenticated attachment check, which is not a pass.
+The five archive-policy rejects are not evidence of hosted malware rejection.
+
 - Account/permission gates above completed without cards, paid plans or broad
   unrelated-repository access; no production DB mutation.
 - Correct isolated schema verified; pilot owner can sign up, receive/consume

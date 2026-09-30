@@ -484,3 +484,66 @@ active and verified, `session_version=1`, and zero reset-password tokens remain.
 No password/hash/cookie/token was read, printed, minted or changed by the agent.
 This closes the real email/reset/sign-out gate, not the separate second-tester
 attachment denial, hosted rejection/restart or full export boundary checks.
+
+### Ordinary tester account and permission checks
+
+With explicit owner approval, created `admin.betamods+qa@gmail.com` through
+the hosted signup form with a generated password kept out of chat and Git.
+No administrator or uploader permission was granted. Its separate in-app
+browser session shows the QA email on `/account`; email verification remains
+pending. The owner's Chrome session is separate and was confirmed signed in
+again after password recovery.
+
+- The authenticated QA account's `/admin` navigation redirected to the home
+  page without admin controls.
+- The existing, non-hidden, abandoned system-test listing renders for QA.
+  Its private diagnostic attachment link and owner controls are absent.
+- Direct navigation to that listing's `/edit` redirects to its detail page
+  without an edit form. The GET authorization paths checked here do not use
+  email verification as an earlier gate, so these are meaningful non-admin
+  and non-owner checks despite the QA address not yet being verified.
+- Direct private-attachment navigation was blocked by the browser with
+  `ERR_BLOCKED_BY_CLIENT`, leaving the previous page visible. This is NOT
+  evidence of an application 404 or authorization pass. No alternative
+  transport, session extraction, protection change or retry was used to
+  work around it. Authenticated non-owner direct-download denial remains
+  unverified; prior gate-only 404 evidence is a separate check.
+
+No upload, listing mutation, role approval, quota change, schema migration,
+deployment, DNS or paid-service change occurred. The pilot remains gated.
+
+### Hosted archive-policy rejection checks
+
+The owner approved five harmless invalid-ZIP submissions and archiving the
+system test afterward. The previous archived listing correctly refused an
+attempt to reopen it through its edit form. It was left untouched. A separate
+temporary system-test listing (`1357385f-8a34-4aa4-ae01-8a153d3bd449`) was used
+instead, then archived with the results recorded in its description.
+
+All five browser submissions on the existing Render deployment produced the
+exact expected policy messages: malformed metadata, encryption flags, nested
+benign ZIP, checksum mismatch, and unsafe member path. Four fixtures were 184
+bytes each; the nested fixture was 304 bytes. They contain only generated text,
+no personal files, malware marker, compression bomb or security bypass.
+
+Read-only before/after audit of the exact isolated cloud database and private
+bucket confirmed zero builds on the new listing, one existing build overall,
+four stored objects totaling 21,128,942 bytes unchanged, and zero held bytes.
+Five new reservations (1,040 bytes total) were released normally. All five
+attempts remain counted in the hourly window; none was reset or refunded.
+The app's monthly managed-scan charge remained 138 estimated MiB, consistent
+with rejection before the scanner call. Hosted quarantine disk contents were
+not independently inspected; the deployed action's finally cleanup is not
+being represented as a new filesystem observation.
+
+New offline tooling `scripts/cloud-rejection-fixtures.mjs` validates all five
+expected rejects and one accepted baseline with the real archive validator
+before writing a fresh temporary fixture directory. The accepted baseline
+stays local. Five focused unit tests cover deterministic bounded fixtures,
+CLI restrictions and fail-before-write validation; no live mode exists.
+
+This closes those five hosted archive-policy cases, not hosted malware
+rejection, scanner/DB failure injection, decompression-size violations,
+authenticated private-attachment direct denial, or the remaining resource
+checks. No deployed application code, paid plan, DNS, quota, approval or local
+preview setting changed. The pilot remains private.
