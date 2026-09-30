@@ -1,27 +1,10 @@
 /**
- * Reputation scoring for testers (spec, Phase 4 "Polish").
+ * Derives reputation from distinct mods tested, build-scoped verdicts and
+ * bug reports. Scores are computed from history, not stored on the user.
  *
- * `reputation_score` is DERIVED from a tester's history — never stored raw.
- * The formula is deliberately skeptical of "always ready" voters: a tester
- * who votes ready on everything is rubber-stamping, and their ready votes
- * should carry almost no trust weight for an author deciding whether to ship.
- *
- * Inputs come from ReadySignal rows (one per mod tested) plus BugReport rows
- * the tester filed. Pure module — no imports — so it is unit-testable without
- * a database and reusable from both server components and server actions.
- *
- * Weighting reasoning:
- *  - Distinct mods tested — the volume of real testing. Every mod a tester
- *    engages with earns base credit.
- *  - Ready votes — a positive (but cheap) signal. Counted small.
- *  - Not-ready votes — the critical, hard signal. Counted larger than ready:
- *    saying "this is NOT ready" is how a beta actually improves.
- *  - Bug reports — structured, actionable feedback; weighted by severity so a
- *    blocking report (crash, save-corruption) is worth more than a minor nit.
- *  - Always-ready discount — once a tester has judged >= N mods and never once
- *    voted not-ready, their ready votes drop to a tiny fraction. The ceiling
- *    they can earn by rubber-stamping is far below what real critical testing
- *    earns, so the score stays meaningful to authors.
+ * Not-ready verdicts carry more weight than ready verdicts; bug-report weight
+ * depends on severity. After three distinct mods, testers with only ready
+ * verdicts receive a reduced ready-vote weight. See beta-mod-hub-spec.md.
  */
 
 export const REPUTATION = {
@@ -67,8 +50,7 @@ export function isAlwaysReady(history: ReputationHistory): boolean {
 }
 
 /**
- * The derived score. Keeps one decimal place so the always-ready discount is
- * visible without pretending the formula is laboratory-grade.
+ * Round the derived score to one decimal place for display.
  */
 export function computeReputation(history: ReputationHistory): number {
   const readyFactor = isAlwaysReady(history)
@@ -86,7 +68,7 @@ export function computeReputation(history: ReputationHistory): number {
   return Math.round(raw * 10) / 10;
 }
 
-/** Friendly tier label, mirroring how Nexus maps stats to vague-but-encouraging words. */
+/** Display label for a derived reputation score. */
 export function reputationTier(score: number): string {
   if (score <= 0) return "New Tester";
   if (score < 10) return "Active Tester";

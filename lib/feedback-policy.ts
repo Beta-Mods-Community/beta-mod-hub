@@ -1,10 +1,9 @@
 import * as z from "zod";
 
 export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
-// Text logs, ZIP archives and game-save formats only. Save formats are
-// deliberately narrow: .ess is a compiled plugin and .skse a loadable native
-// module — the author is invited to run whatever is uploaded, so ClamAV is not
-// a sufficient gate for executable-plugin formats and they are excluded.
+// Text logs, ZIP archives and selected game-save formats only. Skyrim .ess
+// saves and .skse cosaves are not currently supported as direct attachments.
+// This extension allowlist does not replace content checks or malware scans.
 export const ATTACHMENT_ACCEPT = ".txt,.log,.zip,.sav,.save,.fos,.json,.ini";
 const attachmentExtensions = new Set(ATTACHMENT_ACCEPT.split(","));
 

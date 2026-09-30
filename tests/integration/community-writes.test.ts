@@ -3,13 +3,12 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { and, eq, inArray } from "drizzle-orm";
-import { assertDevDatabase, readPrivateEnv } from "../../scripts/dev-database.mjs";
+import { readDevEnvironment } from "../../scripts/dev-database.mjs";
 
 const root = path.join(import.meta.dirname, "..", "..");
-const local = readPrivateEnv(root, ".env.local");
-const production = readPrivateEnv(root, ".env.production");
+let local: Record<string, string | undefined> = {};
 let safe = false;
-try { assertDevDatabase(local.DATABASE_URL, production.DATABASE_URL); safe = true; }
+try { local = readDevEnvironment(root); safe = true; }
 catch { /* Missing or production configuration never writes fixtures. */ }
 const describeDb = safe ? describe : describe.skip;
 type Db = typeof import("../../lib/db");

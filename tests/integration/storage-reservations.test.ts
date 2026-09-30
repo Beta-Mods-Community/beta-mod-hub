@@ -1,17 +1,14 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
+import { readDevEnvironment } from "../../scripts/dev-database.mjs";
 
 /**
  * The storage ledger, against a real Postgres.
  *
- * The pure policy in lib/pilot.ts is unit tested; what is NOT unit testable is
- * the property that matters most: that N simultaneous uploads cannot each see
- * the same free space and all proceed. That lives in the advisory lock and the
- * transaction around it, and the only honest way to test it is to run the
- * reservations concurrently and count the winners.
+ * Exercises advisory locks and transaction behavior with concurrent
+ * reservations, which cannot be checked by the pure pilot-policy unit tests.
  *
  * Runs against whatever DATABASE_URL is in .env.local, and refuses to run if
  * that turns out to be the production endpoint from .env.production. It writes
@@ -20,30 +17,13 @@ import { and, eq } from "drizzle-orm";
 
 const root = path.join(import.meta.dirname, "..", "..");
 
-function readEnv(file: string): string {
-  try {
-    return readFileSync(path.join(root, file), "utf8");
-  } catch {
-    return "";
-  }
-}
-
-const DATABASE_URL =
-  readEnv(".env.local").match(/^DATABASE_URL=(.+)$/m)?.[1]?.trim() ?? "";
-const PRODUCTION_URL =
-  readEnv(".env.production").match(/^DATABASE_URL=(.+)$/m)?.[1]?.trim() ?? "";
-
-// A loud skip beats writing test rows into the production branch.
-const isProduction = Boolean(DATABASE_URL) && DATABASE_URL === PRODUCTION_URL;
-const hasDb = Boolean(DATABASE_URL) && !isProduction;
-
-if (isProduction) {
-  console.warn(
-    "[storage-reservations] .env.local DATABASE_URL is the .env.production endpoint — skipping (it would write to production).",
-  );
-}
-
-const describeDb = hasDb ? describe : describe.skip;
+let DATABASE_URL = "";
+let safe = false;
+try {
+  DATABASE_URL = readDevEnvironment(root).DATABASE_URL;
+  safe = true;
+} catch { /* Missing or deployment configuration never writes fixtures. */ }
+const describeDb = safe ? describe : describe.skip;
 
 // Everything is pulled in inside before() rather than at the top level: the
 // modules read DATABASE_URL when they are first evaluated, and this project is
@@ -132,7 +112,7 @@ async function heldBytes(userId?: string): Promise<number> {
 
 describeDb("storage ledger (integration)", () => {
   before(async () => {
-    if (!hasDb) return;
+    if (!safe) return;
     // Set before the modules are evaluated: lib/db.ts reads the environment
     // once, when it is first imported.
     process.env.DATABASE_URL = DATABASE_URL;

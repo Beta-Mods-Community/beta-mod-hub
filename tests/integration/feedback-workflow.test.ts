@@ -1,19 +1,15 @@
 import assert from "node:assert/strict";
 import { before, after, describe, it } from "node:test";
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
+import { readDevEnvironment } from "../../scripts/dev-database.mjs";
 
 const root = path.join(import.meta.dirname, "..", "..");
-function envUrl(file: string) {
-  try { return readFileSync(path.join(root, file), "utf8").match(/^DATABASE_URL=(.+)$/m)?.[1]?.trim().replace(/^["']|["']$/g, "") ?? ""; }
-  catch { return ""; }
-}
-const devUrl = envUrl(".env.local");
-const prodUrl = envUrl(".env.production");
-function endpoint(value: string) { try { const url = new URL(value); return url.hostname.replace("-pooler", "") + url.pathname; } catch { return ""; } }
-const safeDev = !!devUrl && !!prodUrl && endpoint(devUrl) !== endpoint(prodUrl);
+let devUrl = "";
+let safeDev = false;
+try { devUrl = readDevEnvironment(root).DATABASE_URL; safeDev = true; }
+catch { /* Missing or deployment configuration never writes fixtures. */ }
 const describeDb = safeDev ? describe : describe.skip;
 let db: NonNullable<typeof import("../../lib/db")["db"]>;
 let client: NonNullable<typeof import("../../lib/db")["client"]>;

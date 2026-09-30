@@ -1,21 +1,19 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { readdir, readFile, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { eq, inArray, sql } from "drizzle-orm";
 import { newAccountToken, tokenDigest } from "../../lib/account-policy";
+import { readDevEnvironment } from "../../scripts/dev-database.mjs";
 
 const root = path.join(import.meta.dirname, "..", "..");
-function envFile(name: string) { try { return readFileSync(path.join(root, name), "utf8"); } catch { return ""; } }
-function value(raw: string, key: string) { return raw.match(new RegExp(`^${key}=(.+)$`, "m"))?.[1]?.trim().replace(/^['"]|['"]$/g, "") ?? ""; }
-function endpoint(raw: string) { try { const url = new URL(raw); return `${url.hostname.replace("-pooler", "")}${url.pathname}`; } catch { return ""; } }
-const dev = envFile(".env.local");
-const devUrl = value(dev, "DATABASE_URL");
-const prodUrl = value(envFile(".env.production"), "DATABASE_URL");
-const safe = Boolean(endpoint(devUrl)) && Boolean(endpoint(prodUrl)) && endpoint(devUrl) !== endpoint(prodUrl);
+let dev: Record<string, string | undefined> = {};
+let safe = false;
+try { dev = readDevEnvironment(root); safe = true; }
+catch { /* Missing or deployment configuration never writes fixtures. */ }
+const devUrl = dev.DATABASE_URL;
 const describeDb = safe ? describe : describe.skip;
 type Db = typeof import("../../lib/db");
 let database: NonNullable<Db["db"]>;
@@ -42,7 +40,7 @@ async function insertToken(purpose: "verify-email" | "reset-password", expired =
 
 describeDb("account security transactions (dev database)", () => {
   before(async () => {
-    Object.assign(process.env, { DATABASE_URL: devUrl, NODE_ENV: "development", APP_URL: "http://127.0.0.1:3000", AUTH_MAIL_MODE: "preview", SESSION_SECRET: value(dev, "SESSION_SECRET") });
+    Object.assign(process.env, { DATABASE_URL: devUrl, NODE_ENV: "development", APP_URL: "http://127.0.0.1:3000", AUTH_MAIL_MODE: "preview", SESSION_SECRET: dev.SESSION_SECRET });
     const databaseModule = await import("../../lib/db");
     database = databaseModule.db!;
     client = databaseModule.client;

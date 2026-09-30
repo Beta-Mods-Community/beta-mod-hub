@@ -1,4 +1,4 @@
-// End-to-end test of the Phase 4 profile flow against a running dev server.
+// End-to-end test of profile editing against a running dev server.
 //
 // Mirrors scripts/e2e-upload.mjs: drives the REAL server action (updateProfile)
 // over plain HTTP the way a no-JS browser would — fetch /profile/edit, take the
@@ -18,23 +18,16 @@
 // Prereqs: dev server on :3000, demo dataset seeded (scripts/seed-demo.mjs).
 //
 // Usage: node scripts/e2e-profile.mjs
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import postgres from "postgres";
 import { SignJWT } from "jose";
-import { assertDevDatabase, readPrivateEnv } from "./dev-database.mjs";
+import { readDevEnvironment } from "./dev-database.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-assertDevDatabase(readPrivateEnv(root, ".env.local").DATABASE_URL, readPrivateEnv(root, ".env.production").DATABASE_URL);
-const envRaw = readFileSync(path.join(root, ".env.local"), "utf8");
-const env = (key) => {
-  const m = envRaw.match(new RegExp(`^${key}=(.+)$`, "m"));
-  return m ? m[1].trim() : "";
-};
-
-const DATABASE_URL = env("DATABASE_URL");
-const SESSION_SECRET = env("SESSION_SECRET");
+const env = readDevEnvironment(root);
+const DATABASE_URL = env.DATABASE_URL;
+const SESSION_SECRET = env.SESSION_SECRET;
 const BASE = "http://localhost:3000";
 const DEMO_OWNER_EMAIL = "demo-owner@betamods.test";
 const DEMO_MOD_TITLE = "Demo: Emberwood Weapon Pack (Beta)";
@@ -50,6 +43,8 @@ const sql = postgres(DATABASE_URL, { max: 1 });
 const results = [];
 const check = (name, ok, extra = "") =>
   results.push(`${ok ? "PASS" : "FAIL"}  ${name}${extra ? `  (${extra})` : ""}`);
+let originalProfile;
+let profileChanged = false;
 
 async function mintSessionCookie(userId) {
   const token = await new SignJWT({ userId })
@@ -104,9 +99,10 @@ async function postProfileForm(
 }
 
 try {
-  const owner = await sql`select id from users where email = ${DEMO_OWNER_EMAIL} limit 1`;
+  const owner = await sql`select id, display_name, bio, avatar_url from users where email = ${DEMO_OWNER_EMAIL} limit 1`;
   const mod = await sql`select id from beta_mods where title = ${DEMO_MOD_TITLE} limit 1`;
   if (!owner[0] || !mod[0]) throw new Error("demo dataset missing — run scripts/seed-demo.mjs first");
+  originalProfile = owner[0];
   const ownerId = owner[0].id;
   const modId = mod[0].id;
   const profileUrl = `${BASE}/users/${ownerId}`;
@@ -147,6 +143,7 @@ try {
 
   // ---- 3. Update bio through the real form protocol ---------------------
   const profilePath = `/users/${ownerId}`;
+  profileChanged = true;
   const postRes = await postProfileForm(editUrl, cookie, fields, {
     displayName: TEST_DISPLAY_NAME,
     bio: TEST_BIO,
@@ -162,13 +159,11 @@ try {
   const afterHtml = await after.text();
   check("profile now shows updated bio", afterHtml.includes(TEST_BIO));
 
-  // ---- 4. Restore the previous bio (idempotent re-runs) -----------------
-  const prev =
-    await sql`select bio from users where id = ${ownerId} limit 1`;
+  // ---- 4. Restore the profile captured before the test edit -------------
   const restoreRes = await postProfileForm(editUrl, cookie, fields, {
-    displayName: TEST_DISPLAY_NAME,
-    bio: prev[0]?.bio ?? "",
-    avatarUrl: "",
+    displayName: originalProfile.display_name,
+    bio: originalProfile.bio ?? "",
+    avatarUrl: originalProfile.avatar_url ?? "",
   });
   check(
     "bio restore -> 303 redirect",
@@ -189,7 +184,19 @@ try {
   console.error("ERROR:", error.message);
   results.push("FAIL  run errored");
 } finally {
-  await sql.end();
+  try {
+    // Keep fixture state intact even if an HTTP assertion or restore fails.
+    // Direct cleanup also preserves nulls that form normalization may change.
+    if (profileChanged && originalProfile) {
+      await sql`
+        update users set display_name = ${originalProfile.display_name},
+          bio = ${originalProfile.bio}, avatar_url = ${originalProfile.avatar_url}
+        where id = ${originalProfile.id}
+      `;
+    }
+  } finally {
+    await sql.end();
+  }
 }
 
 console.log("\n--- e2e profile results ---");

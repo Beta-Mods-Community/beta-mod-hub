@@ -525,7 +525,7 @@ export const getMyBugReports = cache(async (userId: string) => {
     .limit(50);
 });
 
-// --- Profiles + reputation (Phase 4: richer profiles) ---
+// --- Profiles and reputation ---
 
 /** Public profile fields — deliberately excludes email/password/keys. */
 export const getUserProfile = cache(async (userId: string) => {

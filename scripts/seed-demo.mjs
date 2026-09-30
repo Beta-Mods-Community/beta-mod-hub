@@ -4,21 +4,14 @@
 // Browse feed while preserving its stable URL for integration/e2e checks.
 //
 // Usage: node scripts/seed-demo.mjs
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import postgres from "postgres";
+import { readDevEnvironment } from "./dev-database.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const envFile = readFileSync(path.join(root, ".env.local"), "utf8");
-const match = envFile.match(/^DATABASE_URL=(.+)$/m);
-
-if (!match) {
-  console.error("DATABASE_URL not found in .env.local");
-  process.exit(1);
-}
-
-const sql = postgres(match[1].trim(), { max: 1 });
+const env = readDevEnvironment(root);
+const sql = postgres(env.DATABASE_URL, { max: 1, prepare: false });
 
 const DEMO_TITLE = "Demo: Emberwood Weapon Pack (Beta)";
 
@@ -30,7 +23,7 @@ try {
 
   // Demo mod.
   const mods = await sql`
-    select id from beta_mods where title = ${DEMO_TITLE} limit 1
+    select id from beta_mods where title = ${DEMO_TITLE} and owner_id = ${owner.id} limit 1
   `;
   let modId = mods[0]?.id;
   if (!modId) {
@@ -71,7 +64,7 @@ try {
       "demo mod has no build; skipping build-scoped reports and verdicts",
     );
   } else {
-    // Bug reports — the title-scoped insert makes this idempotent enough.
+    // Reuse the same reports on repeated runs for this build and reporter.
     await insertReport(
       sql,
       modId,
@@ -128,7 +121,8 @@ async function insertReport(
 ) {
   const existing = await sql`
     select id from bug_reports
-    where beta_mod_id = ${modId} and description = ${description.slice(0, 200)}
+    where beta_mod_id = ${modId} and build_id = ${buildId}
+      and reporter_id = ${reporterId} and description = ${description}
     limit 1
   `;
   if (existing[0]) return;

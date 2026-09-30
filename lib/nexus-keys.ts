@@ -16,8 +16,8 @@ import { nexusLinks } from "../db/schema";
  * (32 random bytes). The module refuses to run without that var rather than
  * silently falling back to a weak dev key.
  *
- * Phase 3 scaffold. In production the SSO flow (lib/nexus-sso.ts) populates
- * this; nothing here has been validated against a live Nexus API yet.
+ * Used by the experimental SSO flow in lib/nexus-sso.ts. The Nexus integration
+ * has not been validated against the live API.
  */
 
 function getKey(): Buffer {

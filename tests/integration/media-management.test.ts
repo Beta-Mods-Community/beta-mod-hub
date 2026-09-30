@@ -1,22 +1,15 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { after, before, describe, it } from "node:test";
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
+import { readDevEnvironment } from "../../scripts/dev-database.mjs";
 
 const root = path.join(import.meta.dirname, "..", "..");
-function databaseUrl(filename: string) {
-  try { return readFileSync(path.join(root, filename), "utf8").match(/^DATABASE_URL=(.+)$/m)?.[1].trim().replace(/^['"]|['"]$/g, "") ?? ""; }
-  catch { return ""; }
-}
-function endpoint(value: string) {
-  try { const url = new URL(value); return `${url.hostname.replace("-pooler", "")}${url.pathname}`; }
-  catch { return ""; }
-}
-const devUrl = databaseUrl(".env.local");
-const prodUrl = databaseUrl(".env.production");
-const safe = Boolean(endpoint(devUrl)) && Boolean(endpoint(prodUrl)) && endpoint(devUrl) !== endpoint(prodUrl);
+let devUrl = "";
+let safe = false;
+try { devUrl = readDevEnvironment(root).DATABASE_URL; safe = true; }
+catch { /* Missing or deployment configuration never writes fixtures. */ }
 const describeDb = safe ? describe : describe.skip;
 type Db = typeof import("../../lib/db");
 let database: NonNullable<Db["db"]>;

@@ -1,29 +1,18 @@
 import "server-only";
+import { createHash } from "node:crypto";
 
 /**
- * Minimal client for Nexus API v1 read endpoints.
- *
- * STATUS: scaffold. Endpoint paths follow the public Nexus API v1 docs, but
- * nothing here has been validated against the live API. Per the spec's "Nexus
- * integration" rules, once the app is registered these response shapes and
- * rate limits get fixed to match reality (and this note gets replaced with
- * what was verified).
- *
- * Rules from the spec baked in here:
- *  - API only — no browser automation against nexusmods.com.
- *  - Rate-limit aware: reads are cached in-process and paced; 429s honor
- *    Retry-After.
- *  - Read calls are batched/cached — never hit the API per page load (the
- *    dashboard/browse pages must consume this cache, not raw calls).
- *  - Auth: per-user API key from `nexus_links` (see lib/nexus-keys.ts),
- *    never a shared app-wide key.
+ * Experimental Nexus API v1 read client. Live response shapes and limits
+ * still need verification before this integration is enabled for users.
+ * Requests use each user's credential, with a credential-isolated cache,
+ * request pacing and one retry after a 429 response.
  */
 
 export type NexusResult<T> =
   | { ok: true; data: T }
   | { ok: false; status: number | null; message: string };
 
-// --- Loose response shapes — lock these in against live responses later. ---
+// These response subsets still need validation against the live API.
 
 /** A game from GET /v1/games.json (subset of the real fields). */
 export type NexusGameSummary = {
@@ -75,7 +64,7 @@ async function rawGet(
     headers: {
       apikey: apiKey,
       Accept: "application/json",
-      "User-Agent": "beta-mod-hub (betamods.com) — API-only integration",
+      "User-Agent": "beta-mod-hub (betamods.com)",
     },
     cache: "no-store", // we hold our own read cache on top of the API
   });
@@ -91,17 +80,19 @@ async function rawGet(
   return { data: await res.json(), status: res.status };
 }
 
-/** Cached GET for public-ish read data (the same data for every user). */
+/** Cache per credential, including endpoints that return account details. */
 async function nexusGet<T>(path: string, apiKey: string): Promise<NexusResult<T>> {
   const now = Date.now();
-  const hit = cache.get(path);
+  // Hashing avoids retaining the plaintext credential in cache keys.
+  const cacheKey = `${createHash("sha256").update(apiKey).digest("hex")}:${path}`;
+  const hit = cache.get(cacheKey);
   if (hit && hit.expiresAt > now) {
     return { ok: true, data: hit.data as T };
   }
 
   try {
     const { data } = await rawGet(path, apiKey);
-    cache.set(path, { data, expiresAt: now + READ_TTL_MS });
+    cache.set(cacheKey, { data, expiresAt: now + READ_TTL_MS });
     return { ok: true, data: data as T };
   } catch (err) {
     return {

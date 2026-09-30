@@ -3,17 +3,14 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 
 /**
- * Nexus SSO scaffold (spec "Nexus integration" -> Auth).
+ * Experimental OAuth2 authorization-code flow for Nexus account linking.
  *
- * STATUS: NOT TESTED. This is a generic OAuth2 Authorization Code flow with
- * placeholder endpoints. Nothing here has been validated against Nexus's live
- * SSO — the authorize/token/userinfo URLs and the profile field names MUST be
- * confirmed against Nexus's OAuth/SSO documentation after the app is
- * registered with them (spec: "auth via SSO; register the app before real
- * users"). Until then the flow is disabled: /nexus-sso redirects to login
- * with `?nexus=unconfigured`, and local email+password remains the auth path.
+ * Live endpoints and profile fields have not been validated. Confirm them
+ * with Nexus after registration before enabling this flow. Missing required
+ * configuration keeps the login button hidden and redirects /nexus-sso to
+ * login with `?nexus=unconfigured`. Email/password login is independent.
  *
- * No credentials are invented here. All config comes from env vars:
+ * Required configuration:
  *   NEXUS_SSO_CLIENT_ID / NEXUS_SSO_CLIENT_SECRET  (from registration)
  *   NEXUS_SSO_REDIRECT_URI                          (this app's callback URL)
  *   NEXUS_SSO_AUTHORIZE_URL / NEXUS_SSO_TOKEN_URL / NEXUS_SSO_USERINFO_URL

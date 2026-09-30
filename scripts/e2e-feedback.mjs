@@ -1,8 +1,7 @@
 // Real HTTP server-action checks; disposable verified users on dev only.
 // This suite is DESTRUCTIVE (creates users, reports and storage objects, then
-// deletes them). It is deliberately pinned to .env.local — the *only* env file
-// it will ever read. When .env.home is pointed at the production branch for the
-// real deploy, the documented command must still be harmless.
+// deletes them). Runtime configuration comes only from .env.local. Deployment
+// env files are read only to exclude their endpoints before any connection.
 // Usage: E2E_STORAGE_DRIVER=r2 node scripts/e2e-feedback.mjs
 import { randomUUID } from "node:crypto";
 import { existsSync, unlinkSync } from "node:fs";
@@ -11,7 +10,7 @@ import path from "node:path";
 import postgres from "postgres";
 import { SignJWT } from "jose";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { assertDevDatabase, readPrivateEnv } from "./dev-database.mjs";
+import { readDevEnvironment } from "./dev-database.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const envFileName = process.env.E2E_ENV_FILE || ".env.local";
@@ -20,8 +19,7 @@ if (envFileName !== ".env.local") {
     `e2e-feedback is a destructive dev-only suite: E2E_ENV_FILE must be ".env.local", not "${envFileName}".`,
   );
 }
-const env = readPrivateEnv(root, envFileName);
-assertDevDatabase(env.DATABASE_URL, readPrivateEnv(root, ".env.production").DATABASE_URL);
+const env = readDevEnvironment(root);
 if (!env.SESSION_SECRET) throw new Error("Missing local session configuration.");
 const sql = postgres(env.DATABASE_URL, { max: 1, prepare: false });
 const driver = process.env.E2E_STORAGE_DRIVER || env.STORAGE_DRIVER || "local";

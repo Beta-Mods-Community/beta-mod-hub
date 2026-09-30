@@ -2,12 +2,11 @@
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
-import { assertDevDatabase, databaseEndpoint, readPrivateEnv } from "./dev-database.mjs";
+import { databaseEndpoint, readDevEnvironment, readPrivateEnv } from "./dev-database.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const local = readPrivateEnv(root, ".env.local");
+const local = readDevEnvironment(root);
 const home = readPrivateEnv(root, ".env.home");
-assertDevDatabase(local.DATABASE_URL, readPrivateEnv(root, ".env.production").DATABASE_URL);
 if (home.DATABASE_URL && databaseEndpoint(home.DATABASE_URL) !== databaseEndpoint(local.DATABASE_URL)) {
   throw new Error("The home environment no longer uses the dev database. Preview stopped to protect production.");
 }

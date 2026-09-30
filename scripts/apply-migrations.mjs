@@ -5,24 +5,21 @@
 // written to be re-runnable (guarded CREATE IF NOT EXISTS) so this script can
 // be run again on an already-migrated branch without ceremony.
 //
-// SAFETY: this writes DDL. It refuses to run if .env.local's DATABASE_URL is
-// the same endpoint as .env.production's — the production Neon main branch is
-// not this script's business. Migrate production deliberately, by hand, with
-// the SQL file in front of you.
+// This writes DDL only after verifying .env.local is separate from the known
+// production and cloud-pilot database endpoints. Deployment migrations are
+// a separate, explicitly authorized operation.
 //
 // Usage: node scripts/apply-migrations.mjs [--dry-run]
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import postgres from "postgres";
-import { assertDevDatabase, readPrivateEnv } from "./dev-database.mjs";
+import { readDevEnvironment } from "./dev-database.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dryRun = process.argv.includes("--dry-run");
 
-const DATABASE_URL = readPrivateEnv(root, ".env.local").DATABASE_URL;
-const PRODUCTION_URL = readPrivateEnv(root, ".env.production").DATABASE_URL;
-assertDevDatabase(DATABASE_URL, PRODUCTION_URL);
+const DATABASE_URL = readDevEnvironment(root).DATABASE_URL;
 
 const dir = path.join(root, "db", "migrations");
 const files = readdirSync(dir)

@@ -44,19 +44,18 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import postgres from "postgres";
 import { SignJWT } from "jose";
-import { assertDevDatabase, readPrivateEnv } from "./dev-database.mjs";
+import { readDevEnvironment, readPrivateEnv } from "./dev-database.mjs";
 import { captureUploadTestState, expectedUploadCheckCount, restoreUploadTestState } from "./e2e-upload-state.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const envFile = process.env.E2E_ENV_FILE || ".env.local";
-const envRaw = readFileSync(path.join(root, envFile), "utf8");
-const env = (key) => {
-  const m = envRaw.match(new RegExp(`^${key}=(.+)$`, "m"));
-  return m ? m[1].trim() : "";
-};
+if (envFile !== ".env.local") {
+  throw new Error("e2e-upload is a destructive dev-only suite: E2E_ENV_FILE must be .env.local.");
+}
+const localEnv = readDevEnvironment(root);
+const env = (key) => localEnv[key] || "";
 
 const DATABASE_URL = env("DATABASE_URL");
-assertDevDatabase(DATABASE_URL, readPrivateEnv(root, ".env.production").DATABASE_URL);
 const SESSION_SECRET = env("SESSION_SECRET");
 const STORAGE_DRIVER =
   process.env.E2E_STORAGE_DRIVER || env("STORAGE_DRIVER") || "local";

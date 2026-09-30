@@ -1,23 +1,25 @@
 // End-to-end check of the auth primitives the server actions use, against the
 // real .env.local config: bcrypt hashing/compare, a users insert into Neon,
-// and a jose session encrypt/decrypt round trip. Creates and then deletes a
-// throwaway test account, so the email stays available.
+// and a signed-session verification round trip. Uses a unique fixture account
+// in the isolated dev database and deletes only the row created by this run.
 //
 // Usage: node scripts/test-auth-flow.mjs
-import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import bcrypt from "bcryptjs";
 import postgres from "postgres";
 import { SignJWT, jwtVerify } from "jose";
+import { readDevEnvironment } from "./dev-database.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const envFile = readFileSync(path.join(root, ".env.local"), "utf8");
-const env = (key) => envFile.match(new RegExp(`^${key}=(.+)$`, "m"))?.[1].trim();
-const sql = postgres(env("DATABASE_URL"), { max: 4, prepare: false });
+const env = readDevEnvironment(root);
+if (!env.SESSION_SECRET) throw new Error("SESSION_SECRET is required in .env.local.");
+const sql = postgres(env.DATABASE_URL, { max: 1, prepare: false });
 
-const email = "e2e-auth-test@example.com";
-const password = "TestPass123!";
+const email = `e2e-auth-${randomUUID()}@betamods.test`;
+const password = randomUUID();
+let createdUserId;
 
 try {
   // 1. Signup path: hash + insert
@@ -29,7 +31,8 @@ try {
   `;
   const user = inserted[0];
   if (!user) throw new Error("user insert returned nothing");
-  console.log("signup insert OK:", user.email, "| id:", user.id);
+  createdUserId = user.id;
+  console.log("signup insert OK");
 
   // 2. Login path: fetch by email + compare
   const row = await sql`select password_hash from users where email = ${email}`;
@@ -41,8 +44,7 @@ try {
   console.log("login compare OK: correct matches, wrong password rejected");
 
   // 3. Session round trip (same secret the app uses)
-  const secret = env("SESSION_SECRET") ?? "dev-insecure-secret-change-me";
-  const key = new TextEncoder().encode(secret);
+  const key = new TextEncoder().encode(env.SESSION_SECRET);
   const token = await new SignJWT({ userId: user.id })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -50,19 +52,19 @@ try {
     .sign(key);
   const { payload } = await jwtVerify(token, key, { algorithms: ["HS256"] });
   if (payload.userId !== user.id) throw new Error("session payload mismatch");
-  const tampered = token.slice(0, -4) + "AAAA";
-  console.log("  orig tail:", JSON.stringify(token.slice(-12)), "| tampered tail:", JSON.stringify(tampered.slice(-12)));
-  console.log("  segments:", token.split(".").length, "vs", tampered.split(".").length);
+  const parts = token.split(".");
+  parts[2] = (parts[2][0] === "A" ? "B" : "A") + parts[2].slice(1);
+  const tampered = parts.join(".");
   const bad = await jwtVerify(tampered, key, { algorithms: ["HS256"] })
     .then(() => true)
-    .catch((e) => {
-      console.log("  reject reason:", e.code);
-      return false;
-    });
+    .catch(() => false);
   if (bad) throw new Error("tampered token was accepted");
   console.log("session round trip OK: valid token verifies, tampered token rejected");
 } finally {
-  await sql`delete from users where email = ${email}`;
-  await sql.end();
+  try {
+    if (createdUserId) await sql`delete from users where id = ${createdUserId}`;
+  } finally {
+    await sql.end();
+  }
 }
 console.log("test auth flow: PASS (test account cleaned up)");

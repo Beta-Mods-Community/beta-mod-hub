@@ -31,9 +31,8 @@ describe("private scanned attachment policy", () => {
   });
   it("caps attachment size and permits only supported diagnostic formats", () => {
     for (const name of ["crash.LOG", "save.sav", "save.fos", "details.zip", "config.ini"]) assert.equal(validateAttachment(name, 100), null);
-    // Loadable plugin formats are refused: the author is invited to run any
-    // uploaded attachment, so ClamAV alone is not a sufficient gate for them.
-    for (const name of ["save.ess", "plugin.skse", "mod.esm"]) assert.match(validateAttachment(name, 100) ?? "", /supported game save/);
+    // Direct Skyrim saves, SKSE cosaves and plugin files are not supported.
+    for (const name of ["save.ess", "save.skse", "mod.esm"]) assert.match(validateAttachment(name, 100) ?? "", /supported game save/);
     assert.equal(validateAttachment("log.txt", MAX_ATTACHMENT_BYTES), null);
     assert.match(validateAttachment("log.txt", MAX_ATTACHMENT_BYTES + 1)!, /20 MiB/);
     assert.match(validateAttachment("log.txt", 0)!, /non-empty/);
