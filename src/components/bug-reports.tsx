@@ -60,44 +60,63 @@ export default async function BugReports({ betaModId, builds, viewerId, isOwner,
   };
   return <section id="bugs" className="scroll-mt-24">
     <div className="flex flex-wrap items-end justify-between gap-3"><SectionHeading title="Bug reports" description="Problems testers found in a specific build, with severity, reproduction steps, and author responses. Attachments are private to the reporter and mod author." icon={Bug} /><span className="text-sm text-[var(--muted)]">{total} {hasFilters ? "matching " : ""}{total === 1 ? "report" : "reports"}</span></div>
-    {(total > 0 || hasFilters) && <form key={JSON.stringify([status ?? "", buildId ?? ""])} method="get" action={`/mods/${betaModId}#bugs`} className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+    {(total > 0 || hasFilters) && <form key={JSON.stringify([status ?? "", buildId ?? ""])} method="get" action={`/mods/${betaModId}#bugs`} className="mt-6 grid gap-4 rounded-lg bg-surface-soft p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
       <label className="text-xs font-medium">Status<select name="bugStatus" defaultValue={status ?? ""} className="field mt-1"><option value="">All statuses</option><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="fixed">Fixed</option></select></label>
       <label className="text-xs font-medium">Affected build<select name="bugBuild" defaultValue={buildId ?? ""} className="field mt-1"><option value="">All builds</option>{builds.map(build => <option key={build.id} value={build.id}>{build.versionLabel}</option>)}</select></label>
       <button className="button-secondary" type="submit">Filter reports</button>
     </form>}
     {hasFilters && <Link href={`/mods/${betaModId}#bugs`} className="mt-3 inline-block text-sm text-[var(--accent)] underline underline-offset-4">Clear filters</Link>}
-    <div className="mt-5 space-y-4">{reports.length === 0 ? <div className="text-sm leading-6 text-[var(--muted)]">
+    <div className="mt-6 space-y-5">{reports.length === 0 ? <div className="border-t border-line py-6 text-sm leading-6 text-muted">
       <p>{total > 0 ? "There are no reports on this page." : hasFilters ? "No reports match these filters." : "No bug reports yet."}</p>
       {total > 0 && <Link href={pageUrl(1)} className="mt-2 inline-block text-[var(--accent)] underline underline-offset-4">Go to the first page</Link>}
     </div> : reports.map(({ report, workflow, reporterName, buildVersion }) => {
       const history = reputation.get(report.reporterId);
       const reportAttachments = attachments.filter(attachment => attachment.reportId === report.id);
-      return <article id={`report-${report.id}`} key={report.id} className="scroll-mt-24 rounded-md border border-[var(--line)] bg-[var(--surface-soft)] p-4 sm:p-5">
-        <div className="flex flex-wrap items-center gap-2"><SeverityBadge severity={report.severity} /><ReportStatusBadge status={report.status} /><span className="text-xs text-[var(--muted)]">Build {buildVersion}</span></div>
-        <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6">{report.description}</p>
-        {report.reproSteps && <div className="mt-3"><h3 className="text-xs font-semibold text-[var(--muted)]">Steps to reproduce</h3><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{report.reproSteps}</p></div>}
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]"><Link href={`/users/${report.reporterId}`} className="text-[var(--text-soft)] hover:underline">{reporterName}</Link>{history && <ReputationBadge score={computeReputation(history)} />}<span>· {formatDate(report.createdAt)}</span></div>
+      return <article id={`report-${report.id}`} key={report.id} className="surface-section min-w-0 scroll-mt-24 p-5 sm:p-6">
+        <header className="border-b border-line pb-4">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <SeverityBadge severity={report.severity} />
+            <ReportStatusBadge status={report.status} />
+            <span className="min-w-0 break-words text-xs text-muted">Build {buildVersion}</span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted">
+            <Link href={`/users/${report.reporterId}`} className="min-w-0 break-words font-medium text-text-soft hover:underline">{reporterName}</Link>
+            {history && <ReputationBadge score={computeReputation(history)} />}
+            <span>· {formatDate(report.createdAt)}</span>
+          </div>
+        </header>
+        <p className="mt-5 whitespace-pre-wrap break-words text-sm leading-7 text-text">{report.description}</p>
+        {report.reproSteps && <div className="mt-5 rounded-md bg-surface-soft p-4">
+          <h3 className="text-xs font-semibold text-muted">Steps to reproduce</h3>
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-text-soft">{report.reproSteps}</p>
+        </div>}
         {reportAttachments.map(attachment => (
-          <div key={attachment.id} className="mt-3 flex flex-wrap items-start gap-3 rounded border border-[var(--line)] p-3">
+          <div key={attachment.id} className="mt-4 flex flex-wrap items-start gap-3 rounded-md border border-line bg-surface-soft p-3 sm:p-4">
             <PrivateAttachmentLink attachmentId={attachment.id} filename={attachment.filename} sizeLabel={formatBytes(attachment.sizeBytes)} />
             {!readOnly && <AttachmentRemoval attachmentId={attachment.id} filename={attachment.filename} />}
           </div>
         ))}
-        {workflow?.authorResponse && <div className="mt-4 border-l-2 border-[var(--accent)] pl-4"><p className="text-xs font-semibold">Author response{workflow.respondedAt ? ` · ${formatDate(workflow.respondedAt)}` : ""}</p><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--text-soft)]">{workflow.authorResponse}</p></div>}
+        {workflow?.authorResponse && <section className="mt-6 border-l-2 border-accent py-1 pl-4">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h3 className="text-sm font-semibold text-text">Author response</h3>
+            {workflow.respondedAt && <span className="text-xs text-muted">{formatDate(workflow.respondedAt)}</span>}
+          </div>
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-text-soft">{workflow.authorResponse}</p>
+        </section>}
         {workflow && <RetestNotice status={workflow.retestStatus} buildVersion={workflow.retestBuildId ? builds.find(build => build.id === workflow.retestBuildId)?.versionLabel ?? "unavailable" : undefined} notes={workflow.retestNotes} />}
-        {isOwner && !readOnly && <details className="mt-4 border-t border-[var(--line)] pt-3"><summary className="cursor-pointer text-sm font-semibold">Respond or update status</summary><form action={respondToBugReport} className="mt-3 space-y-3">
+        {isOwner && !readOnly && <details className="mt-5 border-t border-line pt-3"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-text">Respond or update status</summary><form action={respondToBugReport} className="mt-3 space-y-4">
           <input name="reportId" type="hidden" value={report.id} /><label className="block text-xs">Status<select name="status" defaultValue={report.status} className="field mt-1"><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="fixed">Fixed</option></select></label>
           <label className="block text-xs">Author response<textarea name="response" required minLength={5} maxLength={2000} rows={3} defaultValue={workflow?.authorResponse ?? ""} className="field mt-1" placeholder="Explain the cause, workaround, or fix." /></label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="requestRetest" />Ask the reporter to retest the latest build</label><p className="text-xs text-[var(--muted)]">Marking fixed also requests a retest.</p><button type="submit" className="button-secondary">Save response</button>
         </form></details>}
-        {viewerId === report.reporterId && !readOnly && builds.length > 0 && <details className="mt-4 border-t border-[var(--line)] pt-3"><summary className="cursor-pointer text-sm font-semibold">Record your retest</summary><form action={retestBugReport} className="mt-3 space-y-3">
+        {viewerId === report.reporterId && !readOnly && builds.length > 0 && <details className="mt-5 border-t border-line pt-3"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-text">Record your retest</summary><form action={retestBugReport} className="mt-3 space-y-4">
           <input type="hidden" name="reportId" value={report.id} /><label className="block text-xs">Build you retested<select name="buildId" defaultValue={builds[0]?.id} className="field mt-1">{builds.map(build => <option key={build.id} value={build.id}>{build.versionLabel}</option>)}</select></label>
           <label className="block text-xs">Result<select name="result" className="field mt-1"><option value="resolved">The issue is resolved</option><option value="still-present">The issue is still present</option></select></label>
           <label className="block text-xs">Retest notes (optional)<textarea name="notes" maxLength={2000} rows={3} className="field mt-1" /></label><button className="button-secondary" type="submit">Save retest</button>
         </form></details>}
       </article>;
     })}</div>
-    {(page > 1 || page * 20 < total) && <nav aria-label="Bug report pages" className="mt-5 flex items-center justify-between gap-4">{page > 1 ? <Link className="button-secondary" href={pageUrl(page - 1)}>Previous</Link> : <span />}<span className="text-xs text-[var(--muted)]">Page {page}</span>{page * 20 < total ? <Link className="button-secondary" href={pageUrl(page + 1)}>Next</Link> : <span />}</nav>}
-    {readOnly ? <p className="mt-5 border-t border-[var(--line)] pt-4 text-sm text-[var(--muted)]">This mod is read-only.</p> : builds.length === 0 ? <p className="mt-5 text-sm text-[var(--muted)]">Bug reporting opens after the first build is uploaded.</p> : viewerId ? <details className="mt-5 rounded-md border border-[var(--line)]"><summary className="cursor-pointer px-4 py-3 text-sm font-semibold">File a bug report</summary><div className="border-t border-[var(--line)] p-4"><BugReportForm betaModId={betaModId} builds={builds} cloudPilot={isCloudPilot()} uploadPermission={uploadPermission} /></div></details> : <p className="mt-5 text-sm"><Link className="text-[var(--accent)]" href="/login">Sign in</Link> to report a bug.</p>}
+    {(page > 1 || page * 20 < total) && <nav aria-label="Bug report pages" className="mt-6 flex items-center justify-between gap-4">{page > 1 ? <Link className="button-secondary" href={pageUrl(page - 1)}>Previous</Link> : <span />}<span className="text-xs text-muted">Page {page}</span>{page * 20 < total ? <Link className="button-secondary" href={pageUrl(page + 1)}>Next</Link> : <span />}</nav>}
+    {readOnly ? <p className="mt-6 border-t border-line pt-5 text-sm text-muted">This mod is read-only.</p> : builds.length === 0 ? <p className="mt-6 text-sm text-muted">Bug reporting opens after the first build is uploaded.</p> : viewerId ? <details className="surface-section mt-6"><summary className="min-h-11 cursor-pointer px-5 py-4 text-sm font-semibold text-text">File a bug report</summary><div className="border-t border-line p-5 sm:p-6"><BugReportForm betaModId={betaModId} builds={builds} cloudPilot={isCloudPilot()} uploadPermission={uploadPermission} /></div></details> : <p className="mt-6 text-sm"><Link className="text-accent" href="/login">Sign in</Link> to report a bug.</p>}
   </section>;
 }

@@ -13,7 +13,7 @@ export default function LoginForm() {
   const prefix = useId();
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form action={action} className="flex flex-col gap-5">
       <div>
         <label htmlFor={`${prefix}-email`} className={labelClass}>
           Email
@@ -53,16 +53,18 @@ export default function LoginForm() {
       </div>
 
       {state?.message && (
-        <p role="alert" className="text-sm text-rose-300">{state.message}</p>
+        <p role="alert" className="notice notice-error">{state.message}</p>
       )}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="button-primary mt-2"
-      >
-        {pending ? "Signing in…" : "Sign in"}
-      </button>
+      <div className="form-actions">
+        <button
+          type="submit"
+          disabled={pending}
+          className="button-primary w-full"
+        >
+          {pending ? "Signing in…" : "Sign in"}
+        </button>
+      </div>
     </form>
   );
 }

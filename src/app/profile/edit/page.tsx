@@ -12,12 +12,12 @@ export default async function EditProfilePage() {
   if (!user) notFound();
 
   return (
-    <main className="site-container w-full max-w-xl flex-1 py-10 sm:py-14">
+    <main className="site-container w-full max-w-xl flex-1 py-10 sm:py-12">
       <p className="eyebrow">Account</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-[var(--text)]">
+      <h1 className="page-title mt-3">
         Edit profile
       </h1>
-      <p className="mt-2 text-sm text-[var(--text-soft)]">
+      <p className="mt-2 text-sm leading-6 text-[var(--text-soft)]">
         Public info other testers and authors see.
       </p>
 

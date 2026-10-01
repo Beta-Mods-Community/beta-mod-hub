@@ -49,10 +49,10 @@ export default function BuildUploadForm({
       const error = file instanceof File ? validateBuildArchive(file.name, file.size, maxBytes, zipOnly) : "Choose an archive.";
       setFileError(error);
       if (error) event.preventDefault();
-    }} className="flex flex-col gap-4">
+    }} className="flex flex-col gap-5">
       <input type="hidden" name="betaModId" value={betaModId} />
 
-      <div>
+      <div className="min-w-0">
         <label htmlFor={`${prefix}-versionLabel`} className={labelClass}>
           Version label
         </label>
@@ -74,7 +74,7 @@ export default function BuildUploadForm({
         )}
       </div>
 
-      <div>
+      <div className="min-w-0">
         <label htmlFor={`${prefix}-changelog`} className={labelClass}>
           Changelog
         </label>
@@ -95,7 +95,7 @@ export default function BuildUploadForm({
         )}
       </div>
 
-      <div>
+      <div className="min-w-0 border-t border-line pt-5">
         <label htmlFor="build-file" className={labelClass}>
           Build file
         </label>
@@ -103,14 +103,15 @@ export default function BuildUploadForm({
           const file = event.target.files?.[0];
           setFileError(file ? validateBuildArchive(file.name, file.size, maxBytes, zipOnly) : null);
         }} className={inputClass} />
-        <p id={`${prefix}-build-file-help`} className="mt-1 text-xs text-[var(--muted)]">
-          {zipOnly ? "ZIP only, no encrypted or nested archives; up to 32 MiB expanded and 256 entries" : "ZIP, 7z, RAR, TAR, or TAR.GZ"}; max {formatBytes(maxBytes)}. Scanned for malware before it&apos;s stored
-          or shared.
-        </p>
-        {zipOnly && <p className="mt-1 text-xs text-[var(--muted)]">Files are sent privately to Transloadit for scanning. See our privacy notice before uploading confidential material.</p>}
+        <div id={`${prefix}-build-file-help`} className="mt-3 space-y-2 text-sm leading-6 text-[var(--muted)]">
+          <p className="font-medium text-text-soft">{zipOnly ? "ZIP only" : "ZIP, 7z, RAR, TAR, or TAR.GZ"} · Up to {formatBytes(maxBytes)}</p>
+          {zipOnly && <p>No encrypted or nested archives. Up to 32 MiB expanded and 256 entries.</p>}
+          <p>Scanned for malware before it&apos;s stored or shared.</p>
+        </div>
+        {zipOnly && <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Files are sent privately to Transloadit for scanning. See our privacy notice before uploading confidential material.</p>}
       </div>
 
-      {fileError && <p id={`${prefix}-build-file-error`} role="alert" className={errorClass}>{fileError}</p>}
+      {fileError && <p id={`${prefix}-build-file-error`} role="alert" className="notice notice-error">{fileError}</p>}
 
       {!pending && (
         <FormErrorSummary message={state?.message} fields={[
@@ -121,16 +122,18 @@ export default function BuildUploadForm({
         </FormErrorSummary>
       )}
 
-      <div>
-        <button
-          type="submit"
-          disabled={pending || !!fileError}
-          className="button-primary"
-        >
-          {pending ? "Upload in progress…" : "Upload build"}
-        </button>
+      <div className="space-y-4">
+        <div className="form-actions">
+          <button
+            type="submit"
+            disabled={pending || !!fileError}
+            className="button-primary w-full sm:w-auto"
+          >
+            {pending ? "Upload in progress…" : "Upload build"}
+          </button>
+        </div>
         <UploadStatus pending={pending} />
-        {!pending && <p className="mt-1.5 text-xs text-[var(--muted)]">The build appears after its scan passes. If a field needs correcting, select the file again before submitting.</p>}
+        {!pending && <p className="text-sm leading-6 text-[var(--muted)]">The build appears after its scan passes. If a field needs correcting, select the file again before submitting.</p>}
       </div>
     </form>
   );

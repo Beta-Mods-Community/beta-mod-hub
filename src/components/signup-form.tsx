@@ -13,7 +13,7 @@ export default function SignupForm() {
   const prefix = useId();
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form action={action} className="flex flex-col gap-5">
       <div>
         <label htmlFor={`${prefix}-displayName`} className={labelClass}>
           Display name
@@ -80,16 +80,18 @@ export default function SignupForm() {
       </div>
 
       {state?.message && (
-        <p role="alert" className="text-sm text-rose-300">{state.message}</p>
+        <p role="alert" className="notice notice-error">{state.message}</p>
       )}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="button-primary mt-2"
-      >
-        {pending ? "Creating account…" : "Create account"}
-      </button>
+      <div className="form-actions">
+        <button
+          type="submit"
+          disabled={pending}
+          className="button-primary w-full"
+        >
+          {pending ? "Creating account…" : "Create account"}
+        </button>
+      </div>
     </form>
   );
 }

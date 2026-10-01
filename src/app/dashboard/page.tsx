@@ -7,15 +7,14 @@ import {
   Clock3,
   FlaskConical,
   Layers,
-  RotateCcw,
   UserCheck,
 } from "lucide-react";
 
 import StatusBadge from "@/components/status-badge";
-import ContextHelp from "@/components/context-help";
 import SectionHeading from "@/components/section-heading";
 import SeverityBadge from "@/components/severity-badge";
 import ReportStatusBadge from "@/components/report-status-badge";
+import VerdictBadge from "@/components/verdict-badge";
 import {
   getFeedbackSummaryByModIds,
   getMyBugReports,
@@ -66,7 +65,7 @@ export default async function DashboardPage({
   return (
     <main className="site-container flex-1 py-10 sm:py-12">
       <header className="border-b border-line">
-        <h1 className="text-3xl font-semibold tracking-tight text-text">Dashboard</h1>
+        <h1 className="page-title">Dashboard</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
           Welcome back, {user?.displayName ?? "modder"}. Manage your mods and review your testing history.
         </p>
@@ -79,7 +78,7 @@ export default async function DashboardPage({
                 key={item.key}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`relative inline-flex items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
+                className={`relative inline-flex min-h-11 items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
                   active
                     ? "text-[var(--text)]"
                     : "text-[var(--muted)] hover:text-[var(--text)]"
@@ -154,6 +153,7 @@ function BuildingPanel({
           icon={<FlaskConical className="h-5 w-5" aria-hidden="true" />}
           title="No beta mods yet"
           description="Use Post a beta to create a mod page, upload a build, and invite testers. Your projects and their feedback will appear here."
+          action={{ href: "/mods/new", label: "Post a beta" }}
         />
       ) : (
         <div className="mt-5 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)]">
@@ -180,15 +180,15 @@ function BuildingPanel({
                       Updated {formatDate(mod.updatedAt)}
                     </span>
                   </div>
-                  <h3 className="mt-3 truncate text-lg font-semibold tracking-tight text-[var(--text)]">
+                  <h3 className="mt-3 text-lg font-semibold leading-7 tracking-tight text-[var(--text)]">
                     <Link
                       href={`/mods/${mod.id}`}
-                      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                      className="line-clamp-2 break-words hover:text-accent-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                     >
                       {mod.title}
                     </Link>
                   </h3>
-                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[var(--text-soft)]">
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[var(--text-soft)]">
                     <span className="inline-flex items-center gap-1.5">
                       <Bug className="h-3.5 w-3.5" aria-hidden="true" />
                       {signal?.openBugs ?? 0} open {signal?.openBugs === 1 ? "bug" : "bugs"}
@@ -201,11 +201,11 @@ function BuildingPanel({
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 sm:justify-end">
-                  <Link href={`/mods/${mod.id}/edit`} className="button-secondary">
+                <div className="flex items-center gap-4 border-t border-line pt-4 sm:justify-end sm:border-0 sm:pt-0">
+                  <Link href={`/mods/${mod.id}/edit`} className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-medium text-muted underline-offset-4 hover:text-text hover:underline">
                     Edit
                   </Link>
-                  <Link href={`/mods/${mod.id}`} className="button-secondary">
+                  <Link href={`/mods/${mod.id}`} className="button-primary">
                     Open
                     <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </Link>
@@ -247,31 +247,10 @@ function TestingPanel({
             <article key={mod.id} className="panel p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <StatusBadge status={mod.status} />
-                <ContextHelp
-                  title={!mod.isCurrentBuild ? "Retest needed" : mod.myVote ? "Ready" : "Not ready"}
-                  description={!mod.isCurrentBuild
-                    ? "Your vote applies to an earlier build and does not count toward the current build. Test the latest available build before submitting a new verdict."
-                    : mod.myVote
-                      ? "You marked the current build ready for release based on your testing. This is your verdict, not a guarantee of compatibility."
-                      : "You marked the current build as needing more work before release. A bug report can help the author understand what still needs fixing."}
-                  className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
-                    !mod.isCurrentBuild
-                      ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
-                      : mod.myVote
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                        : "border-red-500/30 bg-red-500/10 text-red-300"
-                  }`}
-                >
-                  {!mod.isCurrentBuild && <RotateCcw aria-hidden="true" focusable="false" className="h-3 w-3 shrink-0" strokeWidth={1.8} />}
-                  {mod.isCurrentBuild
-                    ? mod.myVote
-                      ? "Ready"
-                      : "Not ready"
-                    : "Retest needed"}
-                </ContextHelp>
+                <VerdictBadge isCurrentBuild={mod.isCurrentBuild} ready={mod.myVote} />
               </div>
-              <h3 className="mt-4 text-base font-semibold text-[var(--text)]">
-                <Link href={`/mods/${mod.id}`} className="hover:text-[var(--accent)]">
+              <h3 className="mt-4 text-lg font-semibold leading-7 text-[var(--text)]">
+                <Link href={`/mods/${mod.id}`} className="line-clamp-2 break-words hover:text-[var(--accent)]">
                   {mod.title}
                 </Link>
               </h3>
@@ -323,20 +302,21 @@ function TestingPanel({
                 <SeverityBadge severity={report.severity} />
                 <ReportStatusBadge status={report.status} />
                 {report.buildVersion && (
-                  <span className="rounded-sm bg-[var(--surface-raised)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-soft)]">
+                  <span className="rounded-sm bg-[var(--surface-raised)] px-2 py-0.5 text-xs font-medium text-[var(--text-soft)]">
                     build {report.buildVersion}
                   </span>
                 )}
                 <span className="text-xs text-[var(--muted)]">{formatDate(report.createdAt)}</span>
               </div>
-              <p className="mt-3 text-sm leading-6 text-[var(--text-soft)]">
+              <h3 className="mt-3 text-base font-semibold leading-6">
                 <Link
                   href={`/mods/${report.betaModId}`}
-                  className="font-semibold text-[var(--text)] hover:text-[var(--accent)]"
+                  className="line-clamp-2 break-words text-[var(--text)] hover:text-[var(--accent)]"
                 >
                   {report.modTitle}
                 </Link>
-                <span className="mx-2 text-[var(--muted)]">—</span>
+              </h3>
+              <p className="mt-2 break-words text-sm leading-6 text-[var(--text-soft)]">
                 {report.description.length > 180
                   ? `${report.description.slice(0, 180)}…`
                   : report.description}

@@ -28,54 +28,56 @@ export default function ProfileForm({
   const prefix = useId();
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
-      <div>
-        <label htmlFor={`${prefix}-display-name`} className={labelClass}>
-          Display name
-        </label>
-        <input
-          id={`${prefix}-display-name`}
-          name="displayName"
-          type="text"
-          defaultValue={initial?.displayName}
-          className={inputClass}
-          aria-invalid={Boolean(state?.errors?.displayName)}
-          aria-describedby={state?.errors?.displayName ? `${prefix}-display-name-error` : undefined}
-        />
-        {state?.errors?.displayName && (
-          <p id={`${prefix}-display-name-error`} className={errorClass}>{state.errors.displayName.join(", ")}</p>
-        )}
+    <form action={formAction} className="flex flex-col gap-6">
+      <div className="form-section">
+        <div>
+          <label htmlFor={`${prefix}-display-name`} className={labelClass}>
+            Display name
+          </label>
+          <input
+            id={`${prefix}-display-name`}
+            name="displayName"
+            type="text"
+            defaultValue={initial?.displayName}
+            className={inputClass}
+            aria-invalid={Boolean(state?.errors?.displayName)}
+            aria-describedby={state?.errors?.displayName ? `${prefix}-display-name-error` : undefined}
+          />
+          {state?.errors?.displayName && (
+            <p id={`${prefix}-display-name-error`} className={errorClass}>{state.errors.displayName.join(", ")}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor={`${prefix}-bio`} className={labelClass}>
+            Bio
+          </label>
+          <textarea
+            id={`${prefix}-bio`}
+            name="bio"
+            rows={4}
+            defaultValue={initial?.bio}
+            placeholder="Games you play, mods you make, or what you like testing."
+            className={inputClass}
+            aria-invalid={Boolean(state?.errors?.bio)}
+            aria-describedby={state?.errors?.bio ? `${prefix}-bio-error` : undefined}
+          />
+          {state?.errors?.bio && (
+            <p id={`${prefix}-bio-error`} className={errorClass}>{state.errors.bio.join(", ")}</p>
+          )}
+        </div>
       </div>
 
-      <div>
-        <label htmlFor={`${prefix}-bio`} className={labelClass}>
-          Bio
-        </label>
-        <textarea
-          id={`${prefix}-bio`}
-          name="bio"
-          rows={4}
-          defaultValue={initial?.bio}
-          placeholder="Games you play, mods you make, or what you like testing."
-          className={inputClass}
-          aria-invalid={Boolean(state?.errors?.bio)}
-          aria-describedby={state?.errors?.bio ? `${prefix}-bio-error` : undefined}
-        />
-        {state?.errors?.bio && (
-          <p id={`${prefix}-bio-error`} className={errorClass}>{state.errors.bio.join(", ")}</p>
-        )}
-      </div>
-
-      <div>
+      <div className="min-w-0 border-t border-line pt-6">
         <label htmlFor={`${prefix}-avatar-url`} className={labelClass}>
-          Avatar URL
+          Avatar URL <span className="font-normal text-muted">(optional)</span>
         </label>
         <input
           id={`${prefix}-avatar-url`}
           name="avatarUrl"
           type="url"
           defaultValue={initial?.avatarUrl ?? ""}
-          placeholder="https://example.com/avatar.png (optional)"
+          placeholder="https://example.com/avatar.png"
           className={inputClass}
           aria-invalid={Boolean(state?.errors?.avatarUrl)}
           aria-describedby={state?.errors?.avatarUrl ? `${prefix}-avatar-url-error` : undefined}
@@ -86,14 +88,14 @@ export default function ProfileForm({
       </div>
 
       {state?.message && (
-        <p role="alert" className="text-sm text-rose-300">{state.message}</p>
+        <p role="alert" className="notice notice-error">{state.message}</p>
       )}
 
-      <div>
+      <div className="form-actions">
         <button
           type="submit"
           disabled={pending}
-          className="button-primary"
+          className="button-primary w-full sm:w-auto"
         >
           {pending ? "Saving…" : "Save profile"}
         </button>

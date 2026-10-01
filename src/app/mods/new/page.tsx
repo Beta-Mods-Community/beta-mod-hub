@@ -9,9 +9,9 @@ export default async function NewBetaModPage() {
   await verifySession();
 
   return (
-    <main className="site-container w-full max-w-2xl flex-1 py-10 sm:py-14">
+    <main className="site-container w-full max-w-2xl flex-1 py-10 sm:py-12">
       <p className="eyebrow">My mods</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-[var(--text)]">
+      <h1 className="page-title mt-3">
         Post a beta
       </h1>
       <p className="mb-8 mt-2 max-w-xl text-sm leading-6 text-[var(--text-soft)]">

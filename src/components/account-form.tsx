@@ -26,7 +26,7 @@ export default function AccountForm({ mode, action, token, disabled = false }: {
     { name: "confirmPassword", label: "Confirm new password", type: "password", autoComplete: "new-password" },
   );
   return (
-    <form action={submit} className="space-y-4">
+    <form action={submit} className="space-y-5">
       {token && <input type="hidden" name="token" value={token} />}
       {fields.map((field) => (
         <div key={field.name}>
@@ -38,11 +38,13 @@ export default function AccountForm({ mode, action, token, disabled = false }: {
           {state?.errors?.[field.name] && <p id={`${prefix}-${field.name}-error`} className="mt-1.5 text-sm text-rose-300">{state.errors[field.name]?.join(" ")}</p>}
         </div>
       ))}
-      {(mode === "change" || mode === "reset") && <p className="text-xs text-[var(--muted)]">Use at least 12 characters. A few unrelated words work well. Changing your password signs out every device.</p>}
-      {state?.message && <p role="status" aria-live="polite" className={`text-sm ${state.success ? "text-[var(--accent)]" : "text-rose-300"}`}>{state.message}</p>}
-      {state?.success && mode === "verify" ? <Link href="/account" className="button-primary">Return to account</Link> : (
-        <button type="submit" disabled={disabled || pending} className="button-primary">{pending ? "Please wait…" : labels[mode]}</button>
-      )}
+      {(mode === "change" || mode === "reset") && <p className="text-sm leading-6 text-[var(--muted)]">Use at least 12 characters. A few unrelated words work well. Changing your password signs out every device.</p>}
+      {state?.message && <p role="status" aria-live="polite" className={`notice ${state.success ? "notice-success" : "notice-error"}`}>{state.message}</p>}
+      <div className="form-actions">
+        {state?.success && mode === "verify" ? <Link href="/account" className="button-primary">Return to account</Link> : (
+          <button type="submit" disabled={disabled || pending} className="button-primary w-full sm:w-auto">{pending ? "Please wait…" : labels[mode]}</button>
+        )}
+      </div>
     </form>
   );
 }

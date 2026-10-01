@@ -24,9 +24,11 @@ function PendingClock() {
 }
 
 export default function UploadStatus({ pending, hasFile = true }: { pending: boolean; hasFile?: boolean }) {
-  return <div className={pending ? "mt-2 space-y-2 text-xs leading-5 text-[var(--muted)]" : "sr-only"}>
-    {/* Keep this region mounted; announce the pending message, not each tick. */}
-    <p role="status" aria-live="polite" aria-atomic="true">{pending ? uploadPendingMessage(hasFile) : ""}</p>
-    {pending && <PendingClock />}
+  return <div className={pending ? "notice mt-4" : "sr-only"}>
+    <div className="min-w-0 space-y-3">
+      {/* Keep this region mounted; announce the pending message, not each tick. */}
+      <p role="status" aria-live="polite" aria-atomic="true">{pending ? uploadPendingMessage(hasFile) : ""}</p>
+      {pending && <PendingClock />}
+    </div>
   </div>;
 }

@@ -16,20 +16,22 @@ export default function FormErrorSummary({
   if (!message && !invalidFields.length) return null;
 
   return (
-    <div role="alert" className="space-y-2 text-sm text-rose-300">
-      <p>{message || "Please correct the following fields."}</p>
-      {invalidFields.length > 0 && (
-        <ul className="list-disc space-y-1 pl-5">
-          {invalidFields.map(field => (
-            <li key={field.id}>
-              <a href={`#${field.id}`} className="underline underline-offset-2">
-                {field.label}: {field.errors!.join(", ")}
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
-      {children}
+    <div role="alert" className="notice notice-error">
+      <div className="min-w-0 space-y-2">
+        <p className="font-medium">{message || "Please correct the following fields."}</p>
+        {invalidFields.length > 0 && (
+          <ul className="list-disc space-y-1 pl-5">
+            {invalidFields.map(field => (
+              <li key={field.id}>
+                <a href={`#${field.id}`} className="underline underline-offset-2">
+                  {field.label}: {field.errors!.join(", ")}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+        {children}
+      </div>
     </div>
   );
 }

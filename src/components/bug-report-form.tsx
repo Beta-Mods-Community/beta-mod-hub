@@ -49,106 +49,114 @@ export default function BugReportForm({
       const attachment = new FormData(event.currentTarget).get("attachment");
       setSubmittedWithAttachment(attachment instanceof File && attachment.size > 0);
       setAttachmentReselected(false);
-    }} className="flex flex-col gap-4">
+    }} className="flex flex-col gap-6">
       <input type="hidden" name="betaModId" value={betaModId} />
 
-      <div>
-        <label htmlFor={`${prefix}-buildId`} className={labelClass}>
-          Affected build
-        </label>
-        <select
-          id={`${prefix}-buildId`}
-          name="buildId"
-          required
-          value={buildId}
-          onChange={event => setBuildId(event.target.value)}
-          className={inputClass}
-          aria-invalid={Boolean(state?.errors?.buildId)}
-          aria-describedby={state?.errors?.buildId ? `${prefix}-buildId-error` : undefined}
-        >
-          {builds.map((build, index) => (
-            <option key={build.id} value={build.id}>
-              {build.versionLabel}{index === 0 ? " (latest)" : ""}
-            </option>
-          ))}
-        </select>
-        {state?.errors?.buildId && (
-          <p id={`${prefix}-buildId-error`} className={errorClass}>{state.errors.buildId.join(", ")}</p>
-        )}
+      <div className="min-w-0 grid gap-5 lg:grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)]">
+        <div>
+          <label htmlFor={`${prefix}-buildId`} className={labelClass}>
+            Affected build
+          </label>
+          <select
+            id={`${prefix}-buildId`}
+            name="buildId"
+            required
+            value={buildId}
+            onChange={event => setBuildId(event.target.value)}
+            className={inputClass}
+            aria-invalid={Boolean(state?.errors?.buildId)}
+            aria-describedby={state?.errors?.buildId ? `${prefix}-buildId-error` : undefined}
+          >
+            {builds.map((build, index) => (
+              <option key={build.id} value={build.id}>
+                {build.versionLabel}{index === 0 ? " (latest)" : ""}
+              </option>
+            ))}
+          </select>
+          {state?.errors?.buildId && (
+            <p id={`${prefix}-buildId-error`} className={errorClass}>{state.errors.buildId.join(", ")}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor={`${prefix}-severity`} className={labelClass}>
+            Severity
+          </label>
+          <select
+            id={`${prefix}-severity`}
+            name="severity"
+            value={severity}
+            onChange={event => setSeverity(event.target.value)}
+            className={inputClass}
+            aria-invalid={Boolean(state?.errors?.severity)}
+            aria-describedby={state?.errors?.severity ? `${prefix}-severity-error` : undefined}
+          >
+            <option value="minor">Minor: cosmetic or occasional problem</option>
+            <option value="major">Major: a feature is broken</option>
+            <option value="blocking">Blocking: prevents playing or testing</option>
+          </select>
+          {state?.errors?.severity && (
+            <p id={`${prefix}-severity-error`} className={errorClass}>{state.errors.severity.join(", ")}</p>
+          )}
+        </div>
       </div>
 
-      <div>
-        <label htmlFor={`${prefix}-severity`} className={labelClass}>
-          Severity
-        </label>
-        <select
-          id={`${prefix}-severity`}
-          name="severity"
-          value={severity}
-          onChange={event => setSeverity(event.target.value)}
-          className={inputClass}
-          aria-invalid={Boolean(state?.errors?.severity)}
-          aria-describedby={state?.errors?.severity ? `${prefix}-severity-error` : undefined}
-        >
-          <option value="minor">Minor: cosmetic or occasional problem</option>
-          <option value="major">Major: a feature is broken</option>
-          <option value="blocking">Blocking: prevents playing or testing</option>
-        </select>
-        {state?.errors?.severity && (
-          <p id={`${prefix}-severity-error`} className={errorClass}>{state.errors.severity.join(", ")}</p>
-        )}
+      <div className="form-section border-t border-line pt-6">
+        <div>
+          <label htmlFor={`${prefix}-description`} className={labelClass}>
+            What happened?
+          </label>
+          <textarea
+            id={`${prefix}-description`}
+            name="description"
+            rows={4}
+            required
+            minLength={10}
+            maxLength={4000}
+            value={description}
+            onChange={event => setDescription(event.target.value)}
+            placeholder="What did you expect, and what actually happened?"
+            className={inputClass}
+            aria-invalid={Boolean(state?.errors?.description)}
+            aria-describedby={state?.errors?.description ? `${prefix}-description-error` : undefined}
+          />
+          {state?.errors?.description && (
+            <p id={`${prefix}-description-error`} className={errorClass}>{state.errors.description.join(", ")}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor={`${prefix}-reproSteps`} className={labelClass}>
+            Repro steps (optional)
+          </label>
+          <textarea
+            id={`${prefix}-reproSteps`}
+            name="reproSteps"
+            rows={3}
+            maxLength={2000}
+            value={reproSteps}
+            onChange={event => setReproSteps(event.target.value)}
+            placeholder="1. Start a new save  2. Cast the spell  3. ..."
+            className={inputClass}
+            aria-invalid={Boolean(state?.errors?.reproSteps)}
+            aria-describedby={state?.errors?.reproSteps ? `${prefix}-reproSteps-error` : undefined}
+          />
+          {state?.errors?.reproSteps && (
+            <p id={`${prefix}-reproSteps-error`} className={errorClass}>{state.errors.reproSteps.join(", ")}</p>
+          )}
+        </div>
       </div>
 
-      <div>
-        <label htmlFor={`${prefix}-description`} className={labelClass}>
-          What happened?
-        </label>
-        <textarea
-          id={`${prefix}-description`}
-          name="description"
-          rows={4}
-          required
-          minLength={10}
-          maxLength={4000}
-          value={description}
-          onChange={event => setDescription(event.target.value)}
-          placeholder="What did you expect, and what actually happened?"
-          className={inputClass}
-          aria-invalid={Boolean(state?.errors?.description)}
-          aria-describedby={state?.errors?.description ? `${prefix}-description-error` : undefined}
-        />
-        {state?.errors?.description && (
-          <p id={`${prefix}-description-error`} className={errorClass}>{state.errors.description.join(", ")}</p>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor={`${prefix}-reproSteps`} className={labelClass}>
-          Repro steps (optional)
-        </label>
-        <textarea
-          id={`${prefix}-reproSteps`}
-          name="reproSteps"
-          rows={3}
-          maxLength={2000}
-          value={reproSteps}
-          onChange={event => setReproSteps(event.target.value)}
-          placeholder="1. Start a new save  2. Cast the spell  3. ..."
-          className={inputClass}
-          aria-invalid={Boolean(state?.errors?.reproSteps)}
-          aria-describedby={state?.errors?.reproSteps ? `${prefix}-reproSteps-error` : undefined}
-        />
-        {state?.errors?.reproSteps && (
-          <p id={`${prefix}-reproSteps-error`} className={errorClass}>{state.errors.reproSteps.join(", ")}</p>
-        )}
-      </div>
-
-      {uploadPermission?.allowed !== false ? <div>
+      {uploadPermission?.allowed !== false ? <div className="min-w-0 border-t border-line pt-6">
         <label htmlFor={`${prefix}-bug-attachment`} className={labelClass}>Log or save file (optional)</label>
         <input id={`${prefix}-bug-attachment`} name="attachment" type="file" accept={cloudPilot ? ".txt,.log,.json,.ini,.zip" : ATTACHMENT_ACCEPT} aria-describedby={`${prefix}-attachment-help`} onChange={event => setAttachmentReselected(!pending && Boolean(event.target.files?.[0]?.size))} className={inputClass} />
-        <p id={`${prefix}-attachment-help`} className="mt-2 text-xs leading-5 text-[var(--muted)]">{cloudPilot ? "Plain UTF-8 text/log, JSON/INI or ZIP, up to 8 MiB. Binary saves are not supported yet. ZIPs cannot be encrypted or contain nested archives. Files are sent privately to Transloadit for scanning. " : "Text/log, ZIP, JSON/INI, or game saves (.sav, .save, .fos), up to 20 MiB. Scanned before storage. "}Only you and the mod author can download it. Remove passwords or personal details first.</p>
+        <div id={`${prefix}-attachment-help`} className="mt-3 space-y-2 text-sm leading-6 text-[var(--muted)]">
+          <p className="font-medium text-text-soft">{cloudPilot ? "UTF-8 text/log, JSON/INI or ZIP · Up to 8 MiB" : "Text/log, ZIP, JSON/INI, or game saves (.sav, .save, .fos) · Up to 20 MiB"}</p>
+          {cloudPilot && <p>Binary saves are not supported yet. ZIPs cannot be encrypted or contain nested archives. Files are sent privately to Transloadit for scanning.</p>}
+          <p>{!cloudPilot && "Scanned before storage. "}Only you and the mod author can download it. Remove passwords or personal details first.</p>
+        </div>
       </div> : (
-        <p className="text-sm text-[var(--muted)]">Attachments are unavailable: {uploadPermission.message} You can still submit a text-only report.</p>
+        <p className="notice">Attachments are unavailable: {uploadPermission.message} You can still submit a text-only report.</p>
       )}
 
       {!pending && (
@@ -165,13 +173,15 @@ export default function BugReportForm({
         </FormErrorSummary>
       )}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="button-primary self-start"
-      >
-        {pending ? "Submitting report…" : "Report bug"}
-      </button>
+      <div className="form-actions">
+        <button
+          type="submit"
+          disabled={pending}
+          className="button-primary w-full sm:w-auto"
+        >
+          {pending ? "Submitting report…" : "Report bug"}
+        </button>
+      </div>
       <UploadStatus pending={pending} hasFile={submittedWithAttachment} />
     </form>
   );

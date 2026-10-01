@@ -22,12 +22,12 @@ export default async function EditBetaModPage({
   if (mod.ownerId !== session.userId) redirect(`/mods/${mod.id}`);
 
   return (
-    <main className="site-container w-full max-w-2xl flex-1 py-10 sm:py-14">
+    <main className="site-container w-full max-w-2xl flex-1 py-10 sm:py-12">
       <p className="eyebrow">My mods</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-[var(--text)]">
+      <h1 className="page-title mt-3">
         Edit beta
       </h1>
-      <p className="mb-8 mt-2 text-sm text-[var(--text-soft)]">
+      <p className="mb-8 mt-2 break-words text-sm leading-6 text-[var(--text-soft)]">
         Update the details of {mod.title}.
       </p>
       <div className="panel p-5 sm:p-8">

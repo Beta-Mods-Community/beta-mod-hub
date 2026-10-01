@@ -43,7 +43,7 @@ export default function SeverityBadge({ severity }: { severity: string }) {
       title={state.title}
       description={state.description}
       label={`About ${severity} severity`}
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.11em] ${state.className}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm border px-2 py-1 text-xs font-semibold leading-4 ${state.className}`}
     >
       <Icon aria-hidden="true" focusable="false" className="h-3 w-3 shrink-0" strokeWidth={1.8} />
       {severity}
