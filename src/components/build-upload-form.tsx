@@ -8,6 +8,7 @@ import type { BuildUploadFormState } from "@lib/definitions";
 import { formatBytes } from "@lib/pilot";
 import { BUILD_ARCHIVE_ACCEPT, validateBuildArchive } from "@lib/build-upload-policy";
 import { BUILD_UPLOAD_UNCONFIRMED, recoverUploadAction } from "@/lib/upload-action-recovery";
+import FormErrorSummary from "@/components/form-error-summary";
 import UploadStatus from "@/components/upload-status";
 
 const inputClass = "field";
@@ -98,21 +99,26 @@ export default function BuildUploadForm({
         <label htmlFor="build-file" className={labelClass}>
           Build file
         </label>
-        <input id="build-file" name="file" type="file" required accept={zipOnly ? ".zip" : BUILD_ARCHIVE_ACCEPT} aria-describedby="build-file-help" onChange={event => {
+        <input id="build-file" name="file" type="file" required accept={zipOnly ? ".zip" : BUILD_ARCHIVE_ACCEPT} aria-invalid={Boolean(fileError)} aria-describedby={[`${prefix}-build-file-help`, fileError ? `${prefix}-build-file-error` : undefined].filter(Boolean).join(" ")} onChange={event => {
           const file = event.target.files?.[0];
           setFileError(file ? validateBuildArchive(file.name, file.size, maxBytes, zipOnly) : null);
         }} className={inputClass} />
-        <p id="build-file-help" className="mt-1 text-xs text-[var(--muted)]">
+        <p id={`${prefix}-build-file-help`} className="mt-1 text-xs text-[var(--muted)]">
           {zipOnly ? "ZIP only, no encrypted or nested archives; up to 32 MiB expanded and 256 entries" : "ZIP, 7z, RAR, TAR, or TAR.GZ"}; max {formatBytes(maxBytes)}. Scanned for malware before it&apos;s stored
           or shared.
         </p>
         {zipOnly && <p className="mt-1 text-xs text-[var(--muted)]">Files are sent privately to Transloadit for scanning. See our privacy notice before uploading confidential material.</p>}
       </div>
 
-      {fileError && <p role="alert" className={errorClass}>{fileError}</p>}
+      {fileError && <p id={`${prefix}-build-file-error`} role="alert" className={errorClass}>{fileError}</p>}
 
-      {!pending && state?.message && (
-        <p role="alert" className="text-sm text-rose-300">{state.message} Your version and changelog are preserved.</p>
+      {!pending && (
+        <FormErrorSummary message={state?.message} fields={[
+          { id: `${prefix}-versionLabel`, label: "Version label", errors: state?.errors?.versionLabel },
+          { id: `${prefix}-changelog`, label: "Changelog", errors: state?.errors?.changelog },
+        ]}>
+          <p>Your version and changelog are preserved.</p>
+        </FormErrorSummary>
       )}
 
       <div>

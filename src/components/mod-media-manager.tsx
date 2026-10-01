@@ -72,8 +72,8 @@ export default function ModMediaManager({ betaModId, media, uploadPermission, cl
       <button className="button-primary" disabled={pending}>{pending ? "Upload in progress…" : <><ImagePlus size={16} />Upload screenshot</>}</button>
       <UploadStatus pending={pending} />
       {!pending && <p className="text-xs text-[var(--muted)]">Images appear only after malware scanning. Location and camera metadata are removed.</p>}
-      {!pending && state?.message && <p role="status" className={`text-sm ${state.ok ? "text-emerald-300" : "text-rose-300"}`}>{state.message}</p>}
     </form> : <p className="rounded-lg border border-[var(--line)] p-4 text-sm text-[var(--muted)]">{uploadPermission?.allowed === false ? uploadPermission.message : "The gallery is full. Remove an image to add another."}</p>}
+    {!pending && state?.message && <p role="status" className={`text-sm ${state.ok ? "text-emerald-300" : "text-rose-300"}`}>{state.message}</p>}
     <div className="space-y-3">{images.map((image, index) => <MediaRow key={image.id} betaModId={betaModId} image={image} first={index === 0} last={index === images.length - 1} />)}</div>
   </section>;
 }

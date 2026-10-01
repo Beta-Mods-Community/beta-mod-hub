@@ -91,6 +91,10 @@ body {
   outline-offset: 3px !important;
 }
 
+.focus-inset:focus-visible {
+  outline-offset: -4px !important;
+}
+
 #main-content:focus {
   outline: none !important;
 }

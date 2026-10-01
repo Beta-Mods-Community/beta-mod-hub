@@ -7,6 +7,7 @@ import { submitBugReport } from "@lib/feedback";
 import type { BugReportFormState } from "@lib/definitions";
 import { ATTACHMENT_ACCEPT } from "@lib/feedback-policy";
 import { BUG_REPORT_UNCONFIRMED, recoverUploadAction } from "@/lib/upload-action-recovery";
+import FormErrorSummary from "@/components/form-error-summary";
 import UploadStatus from "@/components/upload-status";
 
 const inputClass = "field";
@@ -23,10 +24,12 @@ export default function BugReportForm({
   betaModId,
   builds,
   cloudPilot = false,
+  uploadPermission,
 }: {
   betaModId: string;
   builds: { id: string; versionLabel: string }[];
   cloudPilot?: boolean;
+  uploadPermission?: { allowed: true } | { allowed: false; message: string };
 }) {
   const [state, formAction, pending] = useActionState(
     submitReport,
@@ -38,12 +41,14 @@ export default function BugReportForm({
   const [description, setDescription] = useState("");
   const [reproSteps, setReproSteps] = useState("");
   const [submittedWithAttachment, setSubmittedWithAttachment] = useState(false);
+  const [attachmentReselected, setAttachmentReselected] = useState(false);
 
   return (
     <form action={formAction} onSubmit={event => {
       if (pending) { event.preventDefault(); return; }
       const attachment = new FormData(event.currentTarget).get("attachment");
       setSubmittedWithAttachment(attachment instanceof File && attachment.size > 0);
+      setAttachmentReselected(false);
     }} className="flex flex-col gap-4">
       <input type="hidden" name="betaModId" value={betaModId} />
 
@@ -138,14 +143,26 @@ export default function BugReportForm({
         )}
       </div>
 
-      <div>
+      {uploadPermission?.allowed !== false ? <div>
         <label htmlFor={`${prefix}-bug-attachment`} className={labelClass}>Log or save file (optional)</label>
-        <input id={`${prefix}-bug-attachment`} name="attachment" type="file" accept={cloudPilot ? ".txt,.log,.json,.ini,.zip" : ATTACHMENT_ACCEPT} className={inputClass} />
-        <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{cloudPilot ? "Plain UTF-8 text/log, JSON/INI or ZIP, up to 8 MiB. Binary saves are not supported yet. ZIPs cannot be encrypted or contain nested archives. Files are sent privately to Transloadit for scanning. " : "Text/log, ZIP, JSON/INI, or game saves (.sav, .save, .fos), up to 20 MiB. Scanned before storage. "}Only you and the mod author can download it. Remove passwords or personal details first.</p>
-      </div>
+        <input id={`${prefix}-bug-attachment`} name="attachment" type="file" accept={cloudPilot ? ".txt,.log,.json,.ini,.zip" : ATTACHMENT_ACCEPT} aria-describedby={`${prefix}-attachment-help`} onChange={event => setAttachmentReselected(!pending && Boolean(event.target.files?.[0]?.size))} className={inputClass} />
+        <p id={`${prefix}-attachment-help`} className="mt-2 text-xs leading-5 text-[var(--muted)]">{cloudPilot ? "Plain UTF-8 text/log, JSON/INI or ZIP, up to 8 MiB. Binary saves are not supported yet. ZIPs cannot be encrypted or contain nested archives. Files are sent privately to Transloadit for scanning. " : "Text/log, ZIP, JSON/INI, or game saves (.sav, .save, .fos), up to 20 MiB. Scanned before storage. "}Only you and the mod author can download it. Remove passwords or personal details first.</p>
+      </div> : (
+        <p className="text-sm text-[var(--muted)]">Attachments are unavailable: {uploadPermission.message} You can still submit a text-only report.</p>
+      )}
 
-      {!pending && state?.message && (
-        <p role="alert" className="text-sm text-rose-300">{state.message} Your report text is preserved.</p>
+      {!pending && (
+        <FormErrorSummary message={state?.message} fields={[
+          { id: `${prefix}-buildId`, label: "Affected build", errors: state?.errors?.buildId },
+          { id: `${prefix}-severity`, label: "Severity", errors: state?.errors?.severity },
+          { id: `${prefix}-description`, label: "What happened?", errors: state?.errors?.description },
+          { id: `${prefix}-reproSteps`, label: "Repro steps", errors: state?.errors?.reproSteps },
+        ]}>
+          <p>Your report text is preserved.</p>
+          {submittedWithAttachment && !attachmentReselected && uploadPermission?.allowed !== false && (
+            <p>The file selection has been cleared. If you submit again, select your attachment again to include it.</p>
+          )}
+        </FormErrorSummary>
       )}
 
       <button

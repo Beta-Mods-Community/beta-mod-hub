@@ -20,6 +20,8 @@ import ModGallery from "@/components/mod-gallery";
 import ModMediaManager from "@/components/mod-media-manager";
 import Markdown from "@/components/markdown";
 import ReportContentForm from "@/components/report-content-form";
+import SectionHeading from "@/components/section-heading";
+import TestingChecklist from "@/components/testing-checklist";
 import { modFollows } from "@/db/community-schema";
 import { bugReports } from "@/db/schema";
 import { db } from "@lib/db";
@@ -314,6 +316,7 @@ export default async function BetaModPage({
               <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Get a notification here for new builds and retest requests.</p>
               {session ? <form action={setFollow.bind(null, mod.id, !following)}><button className="button-secondary mt-3 w-full">{following ? "Unfollow mod" : "Follow mod"}</button></form> : <Link href="/login" className="button-secondary mt-3 w-full">Sign in to follow</Link>}
             </div>}
+            {latestBuild && !readOnly && <TestingChecklist key={latestBuild.id} versionLabel={latestBuild.versionLabel} />}
           </section>
           {session && <ReportContentForm modId={mod.id} />}
         </aside>
@@ -463,7 +466,7 @@ export default async function BetaModPage({
             )}
           </section>
 
-          <BugReports betaModId={mod.id} builds={builds} viewerId={session?.userId} isOwner={isOwner} readOnly={readOnly} filters={{ bugStatus, bugBuild, bugPage }} />
+          <BugReports betaModId={mod.id} builds={builds} viewerId={session?.userId} isOwner={isOwner} readOnly={readOnly} uploadPermission={uploadPermission} filters={{ bugStatus, bugBuild, bugPage }} />
 
           {isOwner && !readOnly && (
             <section className="border-t border-[var(--line)] pt-8">
@@ -504,12 +507,6 @@ export default async function BetaModPage({
 
       </div>
     </main>
-  );
-}
-
-function SectionHeading({ title }: { title: string }) {
-  return (
-    <h2 className="text-xl font-semibold tracking-tight text-[var(--text)]">{title}</h2>
   );
 }
 

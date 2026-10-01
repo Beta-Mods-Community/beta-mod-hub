@@ -3,16 +3,18 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@lib/db";
 import { betaMods, bugReports, builds as buildTable, users } from "@/db/schema";
 import { bugAttachments, bugReportWorkflow } from "@/db/feedback-schema";
-import { deleteBugAttachment, respondToBugReport, retestBugReport } from "@lib/feedback";
+import { respondToBugReport, retestBugReport } from "@lib/feedback";
 import { formatDate } from "@lib/format";
 import { formatBytes, isCloudPilot } from "@lib/pilot";
 import { canReadAttachment } from "@lib/feedback-policy";
 import { getReputationHistoryByUserIds } from "@lib/dal";
 import { computeReputation } from "@lib/reputation";
 import BugReportForm from "./bug-report-form";
+import AttachmentRemoval from "./attachment-removal";
 import SeverityBadge from "./severity-badge";
 import ReportStatusBadge from "./report-status-badge";
 import ReputationBadge from "./reputation-badge";
+import SectionHeading from "./section-heading";
 
 type Props = {
   betaModId: string;
@@ -20,11 +22,12 @@ type Props = {
   viewerId?: string;
   isOwner: boolean;
   readOnly: boolean;
+  uploadPermission: { allowed: true } | { allowed: false; message: string };
   filters?: { bugStatus?: string; bugBuild?: string; bugPage?: string };
 };
 
-export default async function BugReports({ betaModId, builds, viewerId, isOwner, readOnly, filters = {} }: Props) {
-  if (!db) return <section id="bugs" className="scroll-mt-24"><h2 className="text-xl font-semibold">Bug reports</h2><p className="mt-4 text-sm text-[var(--muted)]">Reports are temporarily unavailable.</p></section>;
+export default async function BugReports({ betaModId, builds, viewerId, isOwner, readOnly, uploadPermission, filters = {} }: Props) {
+  if (!db) return <section id="bugs" className="scroll-mt-24"><SectionHeading title="Bug reports" /><p className="mt-4 text-sm text-[var(--muted)]">Reports are temporarily unavailable.</p></section>;
   const status = ["open", "acknowledged", "fixed"].includes(filters.bugStatus ?? "") ? filters.bugStatus as "open" | "acknowledged" | "fixed" : undefined;
   const buildId = builds.some(build => build.id === filters.bugBuild) ? filters.bugBuild : undefined;
   const parsedPage = Number(filters.bugPage ?? "1");
@@ -53,7 +56,7 @@ export default async function BugReports({ betaModId, builds, viewerId, isOwner,
     return `/mods/${betaModId}?${query}#bugs`;
   };
   return <section id="bugs" className="scroll-mt-24">
-    <div className="flex flex-wrap items-end justify-between gap-3"><h2 className="text-xl font-semibold">Bug reports</h2><span className="text-sm text-[var(--muted)]">{total} {hasFilters ? "matching " : ""}{total === 1 ? "report" : "reports"}</span></div>
+    <div className="flex flex-wrap items-end justify-between gap-3"><SectionHeading title="Bug reports" /><span className="text-sm text-[var(--muted)]">{total} {hasFilters ? "matching " : ""}{total === 1 ? "report" : "reports"}</span></div>
     {(total > 0 || hasFilters) && <form key={JSON.stringify([status ?? "", buildId ?? ""])} method="get" action={`/mods/${betaModId}#bugs`} className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
       <label className="text-xs font-medium">Status<select name="bugStatus" defaultValue={status ?? ""} className="field mt-1"><option value="">All statuses</option><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="fixed">Fixed</option></select></label>
       <label className="text-xs font-medium">Affected build<select name="bugBuild" defaultValue={buildId ?? ""} className="field mt-1"><option value="">All builds</option>{builds.map(build => <option key={build.id} value={build.id}>{build.versionLabel}</option>)}</select></label>
@@ -71,7 +74,7 @@ export default async function BugReports({ betaModId, builds, viewerId, isOwner,
         <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6">{report.description}</p>
         {report.reproSteps && <div className="mt-3"><h3 className="text-xs font-semibold text-[var(--muted)]">Steps to reproduce</h3><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{report.reproSteps}</p></div>}
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]"><Link href={`/users/${report.reporterId}`} className="text-[var(--text-soft)] hover:underline">{reporterName}</Link>{history && <ReputationBadge score={computeReputation(history)} />}<span>· {formatDate(report.createdAt)}</span></div>
-        {reportAttachments.map(attachment => <div key={attachment.id} className="mt-3 flex flex-wrap items-center gap-3"><a href={`/attachments/${attachment.id}`} className="break-all text-sm text-[var(--accent)] hover:underline">Download {attachment.filename} ({formatBytes(attachment.sizeBytes)})</a>{!readOnly && <form action={deleteBugAttachment}><input type="hidden" name="attachmentId" value={attachment.id} /><button className="text-xs text-[var(--muted)] hover:text-rose-300" type="submit">Remove attachment</button></form>}</div>)}
+        {reportAttachments.map(attachment => <div key={attachment.id} className="mt-3 flex flex-wrap items-center gap-3"><a href={`/attachments/${attachment.id}`} className="break-all text-sm text-[var(--accent)] hover:underline">Download {attachment.filename} ({formatBytes(attachment.sizeBytes)})</a>{!readOnly && <AttachmentRemoval attachmentId={attachment.id} filename={attachment.filename} />}</div>)}
         {workflow?.authorResponse && <div className="mt-4 border-l-2 border-[var(--accent)] pl-4"><p className="text-xs font-semibold">Author response{workflow.respondedAt ? ` · ${formatDate(workflow.respondedAt)}` : ""}</p><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--text-soft)]">{workflow.authorResponse}</p></div>}
         {workflow && workflow.retestStatus !== "not-requested" && <div className="mt-4 rounded border border-[var(--line)] p-3 text-sm"><p className="font-semibold">{workflow.retestStatus === "requested" ? "Retest requested" : workflow.retestStatus === "resolved" ? "Reporter confirmed resolved" : "Reporter says the issue remains"}{workflow.retestBuildId ? ` · Build ${builds.find(build => build.id === workflow.retestBuildId)?.versionLabel ?? "unavailable"}` : ""}</p>{workflow.retestNotes && <p className="mt-1 whitespace-pre-wrap break-words text-[var(--text-soft)]">{workflow.retestNotes}</p>}</div>}
         {isOwner && !readOnly && <details className="mt-4 border-t border-[var(--line)] pt-3"><summary className="cursor-pointer text-sm font-semibold">Respond or update status</summary><form action={respondToBugReport} className="mt-3 space-y-3">
@@ -87,6 +90,6 @@ export default async function BugReports({ betaModId, builds, viewerId, isOwner,
       </article>;
     })}</div>
     {(page > 1 || page * 20 < total) && <nav aria-label="Bug report pages" className="mt-5 flex items-center justify-between gap-4">{page > 1 ? <Link className="button-secondary" href={pageUrl(page - 1)}>Previous</Link> : <span />}<span className="text-xs text-[var(--muted)]">Page {page}</span>{page * 20 < total ? <Link className="button-secondary" href={pageUrl(page + 1)}>Next</Link> : <span />}</nav>}
-    {readOnly ? <p className="mt-5 border-t border-[var(--line)] pt-4 text-sm text-[var(--muted)]">This mod is read-only.</p> : builds.length === 0 ? <p className="mt-5 text-sm text-[var(--muted)]">Bug reporting opens after the first build is uploaded.</p> : viewerId ? <details className="mt-5 rounded-md border border-[var(--line)]"><summary className="cursor-pointer px-4 py-3 text-sm font-semibold">File a bug report</summary><div className="border-t border-[var(--line)] p-4"><BugReportForm betaModId={betaModId} builds={builds} cloudPilot={isCloudPilot()} /></div></details> : <p className="mt-5 text-sm"><Link className="text-[var(--accent)]" href="/login">Sign in</Link> to report a bug.</p>}
+    {readOnly ? <p className="mt-5 border-t border-[var(--line)] pt-4 text-sm text-[var(--muted)]">This mod is read-only.</p> : builds.length === 0 ? <p className="mt-5 text-sm text-[var(--muted)]">Bug reporting opens after the first build is uploaded.</p> : viewerId ? <details className="mt-5 rounded-md border border-[var(--line)]"><summary className="cursor-pointer px-4 py-3 text-sm font-semibold">File a bug report</summary><div className="border-t border-[var(--line)] p-4"><BugReportForm betaModId={betaModId} builds={builds} cloudPilot={isCloudPilot()} uploadPermission={uploadPermission} /></div></details> : <p className="mt-5 text-sm"><Link className="text-[var(--accent)]" href="/login">Sign in</Link> to report a bug.</p>}
   </section>;
 }

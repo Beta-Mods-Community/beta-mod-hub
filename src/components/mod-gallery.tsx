@@ -16,7 +16,7 @@ export default function ModGallery({ media, title }: { media: GalleryImage[]; ti
   const alt = current.caption || `${title}, screenshot ${index + 1}`;
 
   return <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface-soft)]">
-    <button type="button" onClick={() => dialog.current?.showModal()} className="group relative block h-[clamp(12rem,48vw,24rem)] w-full bg-black/35 focus-visible:outline-offset-[-4px]" aria-label={`Enlarge ${alt}`}>
+    <button type="button" onClick={() => dialog.current?.showModal()} className="focus-inset group relative block h-[clamp(12rem,48vw,24rem)] w-full bg-black/35" aria-label={`Enlarge ${alt}`}>
       <img src={`/media/${current.id}`} alt={alt} width={current.width} height={current.height} className="h-full w-full object-contain" fetchPriority="high" />
       <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-md border border-white/15 bg-black/75 px-3 py-2 text-xs text-white"><Expand size={14} />View image</span>
     </button>
