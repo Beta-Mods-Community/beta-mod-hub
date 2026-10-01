@@ -13,6 +13,7 @@ const files = [
   "beta-mod-form.tsx",
   "profile-form.tsx",
   "bug-report-form.tsx",
+  "approve-uploader-form.tsx",
 ];
 const uploadForm = "build-upload-form.tsx";
 
@@ -29,6 +30,7 @@ function inspectForm(text: string) {
   const controls = new Map<string, Map<string, ts.JsxAttribute>>();
   const declarations = new Map<string, string[]>();
   const described = new Map<string, string[]>();
+  const labels = new Set<string>();
 
   // These forms use literal IDs and `${prefix}-suffix` templates, optionally
   // in conditionals/arrays. Inspect only the requested attribute, keep hyphens,
@@ -54,6 +56,9 @@ function inspectForm(text: string) {
       const attributes = new Map(node.attributes.properties
         .filter(ts.isJsxAttribute).map(attribute => [attribute.name.getText(source), attribute]));
       const tag = node.tagName.getText(source);
+      if (tag === "label") {
+        for (const id of ids(attributes.get("htmlFor"))) labels.add(id);
+      }
       const name = attributes.get("name")?.initializer;
       if (["input", "select", "textarea"].includes(tag) && name && ts.isStringLiteral(name)) {
         controls.set(name.text, attributes);
@@ -69,7 +74,7 @@ function inspectForm(text: string) {
     ts.forEachChild(node, visit);
   }
   visit(source);
-  return { fields: errorFields(text), controls, declarations, described };
+  return { fields: errorFields(text), controls, declarations, described, labels };
 }
 
 function assertInvalidBindings(text: string) {
@@ -101,6 +106,20 @@ test("every erroring field sets aria-invalid on its own control", () => {
 
 test("each control describes its rendered error and all help IDs exist", () => {
   for (const file of [...files, uploadForm]) assertDescriptionBindings(formSource(file));
+});
+
+test("uploader approval exposes both field errors with instance-specific labelled controls", () => {
+  const source = formSource("approve-uploader-form.tsx");
+  const form = inspectForm(source);
+  assert.deepEqual(form.fields, ["email", "note"]);
+  assert.match(source, /const prefix = useId\(\)/);
+  for (const field of ["email", "note"]) {
+    const id = `\${prefix}-approve-${field}`;
+    assert.equal(form.controls.get(field)?.get("id")?.initializer?.getText(), `{\`${id}\`}`);
+    assert.ok(form.labels.has(id), `${field}: its label must reference its unique control ID`);
+  }
+  assertInvalidBindings(source);
+  assertDescriptionBindings(source);
 });
 
 test("the guard rejects missing or mistyped hyphenated profile error IDs", () => {

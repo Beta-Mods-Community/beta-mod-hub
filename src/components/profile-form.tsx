@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState, useId, useState } from "react";
 
 import type { ProfileFormState } from "@lib/definitions";
 
@@ -26,6 +26,10 @@ export default function ProfileForm({
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const prefix = useId();
+  // Keep edits available for correction when the action returns an error.
+  const [displayName, setDisplayName] = useState(initial?.displayName ?? "");
+  const [bio, setBio] = useState(initial?.bio ?? "");
+  const [avatarUrl, setAvatarUrl] = useState(initial?.avatarUrl ?? "");
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -38,7 +42,8 @@ export default function ProfileForm({
             id={`${prefix}-display-name`}
             name="displayName"
             type="text"
-            defaultValue={initial?.displayName}
+            value={displayName}
+            onChange={event => setDisplayName(event.target.value)}
             className={inputClass}
             aria-invalid={Boolean(state?.errors?.displayName)}
             aria-describedby={state?.errors?.displayName ? `${prefix}-display-name-error` : undefined}
@@ -56,7 +61,8 @@ export default function ProfileForm({
             id={`${prefix}-bio`}
             name="bio"
             rows={4}
-            defaultValue={initial?.bio}
+            value={bio}
+            onChange={event => setBio(event.target.value)}
             placeholder="Games you play, mods you make, or what you like testing."
             className={inputClass}
             aria-invalid={Boolean(state?.errors?.bio)}
@@ -76,7 +82,8 @@ export default function ProfileForm({
           id={`${prefix}-avatar-url`}
           name="avatarUrl"
           type="url"
-          defaultValue={initial?.avatarUrl ?? ""}
+          value={avatarUrl}
+          onChange={event => setAvatarUrl(event.target.value)}
           placeholder="https://example.com/avatar.png"
           className={inputClass}
           aria-invalid={Boolean(state?.errors?.avatarUrl)}

@@ -38,6 +38,7 @@ function formHarness(file: string, props: Props) {
       },
     },
     "next/navigation": { unstable_rethrow: unusedAction },
+    "next/link": { default: ({ children, ...props }: Props) => jsxRuntime.jsx("a", { ...props, children }) },
     "@lib/feedback": { submitBugReport: unusedAction },
     "@lib/build-uploads": { uploadBuild: unusedAction },
     "@lib/build-upload-policy": archivePolicy,
@@ -181,4 +182,61 @@ test("client build file errors set aria-invalid and describe both help and the c
 test("the error summary remains absent for initial, empty and successful states", () => {
   assert.equal(FormErrorSummary({ fields: [], children: "Stale recovery warning" }), null);
   assert.equal(FormErrorSummary({ fields: [{ id: "field", label: "Field", errors: [] }], children: "Stale recovery warning" }), null);
+});
+
+test("listing edits survive pending, validation and operational failures across every field", () => {
+  const initial = { title: "Saved title", game: "Saved game", status: "alpha", tags: "old", description: "Saved description" };
+  const edited = { title: "Updated title", game: "Updated game", status: "rc", tags: "combat, magic", description: "New summary\n\n## Installation\nKeep all these edits." };
+  const form = formHarness("beta-mod-form.tsx", { submitLabel: "Save changes", modId: "mod-id", initial });
+  for (const [field, value] of Object.entries(initial)) {
+    assert.equal(control(form.render(), field).props.value, value);
+    change(form.render(), field, { value: edited[field as keyof typeof edited] });
+  }
+  for (const result of [undefined, { errors: { title: ["Change the title."] } }, { message: "Could not save the listing." }]) {
+    form.result(result, result === undefined);
+    const tree = form.render();
+    for (const [field, value] of Object.entries(edited)) {
+      assert.equal(control(tree, field).props.value, value, `${field}: preserves edited value`);
+      assert.equal(Object.hasOwn(control(tree, field).props, "defaultValue"), false);
+    }
+    assert.equal(control(tree, "id").props.value, "mod-id");
+  }
+  change(form.render(), "title", { value: "Corrected title" });
+  form.result({ errors: { game: ["Change the game."] } });
+  assert.equal(control(form.render(), "title").props.value, "Corrected title");
+  assert.match(text(form.render()), /250 characters or fewer/);
+});
+
+test("profile edits survive action failures including cleared optional fields", () => {
+  const initial = { displayName: "Saved name", bio: "Saved bio", avatarUrl: "https://example.com/old.png" };
+  const edited = { displayName: "New name", bio: "New multi-line bio\nwith edits.", avatarUrl: "" };
+  const form = formHarness("profile-form.tsx", { initial });
+  for (const [field, value] of Object.entries(initial)) {
+    assert.equal(control(form.render(), field).props.value, value);
+    change(form.render(), field, { value: edited[field as keyof typeof edited] });
+  }
+  for (const result of [undefined, { errors: { displayName: ["Change your name."] } }, { message: "Could not save your profile." }]) {
+    form.result(result, result === undefined);
+    const tree = form.render();
+    for (const [field, value] of Object.entries(edited)) {
+      assert.equal(control(tree, field).props.value, value, `${field}: preserves edited value`);
+      assert.equal(Object.hasOwn(control(tree, field).props, "defaultValue"), false);
+    }
+  }
+  change(form.render(), "bio", { value: "" });
+  form.result({ errors: { displayName: ["Still invalid."] } });
+  assert.equal(control(form.render(), "bio").props.value, "");
+});
+
+test("new listing and profile fields are controlled even without initial values", () => {
+  for (const [file, fields] of [
+    ["beta-mod-form.tsx", ["title", "game", "tags", "description", "status"]],
+    ["profile-form.tsx", ["displayName", "bio", "avatarUrl"]],
+  ] as const) {
+    const tree = formHarness(file, { submitLabel: "Create listing" }).render();
+    for (const field of fields) {
+      assert.equal(control(tree, field).props.value, field === "status" ? "alpha" : "");
+      assert.equal(typeof control(tree, field).props.onChange, "function");
+    }
+  }
 });

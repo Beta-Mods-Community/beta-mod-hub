@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState, useId, useState } from "react";
 import Link from "next/link";
 
 import type { BetaModFormState } from "@lib/definitions";
@@ -35,6 +35,12 @@ export default function BetaModForm({
 }: Props) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const prefix = useId();
+  // Action failures must not reset the author's draft to the saved values.
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [game, setGame] = useState(initial?.game ?? "");
+  const [status, setStatus] = useState(initial?.status ?? "alpha");
+  const [tags, setTags] = useState(initial?.tags ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -51,7 +57,8 @@ export default function BetaModForm({
               id={`${prefix}-title`}
               name="title"
               type="text"
-              defaultValue={initial?.title}
+              value={title}
+              onChange={event => setTitle(event.target.value)}
               placeholder="Mod name"
               className={inputClass}
               aria-invalid={Boolean(state?.errors?.title)}
@@ -71,7 +78,8 @@ export default function BetaModForm({
                 id={`${prefix}-game`}
                 name="game"
                 type="text"
-                defaultValue={initial?.game}
+                value={game}
+                onChange={event => setGame(event.target.value)}
                 placeholder="Skyrim"
                 className={inputClass}
                 list="beta-mod-games"
@@ -89,7 +97,8 @@ export default function BetaModForm({
               <select
                 id={`${prefix}-status`}
                 name="status"
-                defaultValue={initial?.status ?? "alpha"}
+                value={status}
+                onChange={event => setStatus(event.target.value)}
                 className={inputClass}
                 aria-invalid={Boolean(state?.errors?.status)}
                 aria-describedby={state?.errors?.status ? `${prefix}-status-error` : undefined}
@@ -113,7 +122,8 @@ export default function BetaModForm({
               id={`${prefix}-tags`}
               name="tags"
               type="text"
-              defaultValue={initial?.tags}
+              value={tags}
+              onChange={event => setTags(event.target.value)}
               placeholder="combat, magic, balance"
               className={inputClass}
               aria-invalid={Boolean(state?.errors?.tags)}
@@ -138,7 +148,8 @@ export default function BetaModForm({
         <textarea
           id={`${prefix}-description`}
           name="description"
-          defaultValue={initial?.description}
+          value={description}
+          onChange={event => setDescription(event.target.value)}
           rows={10}
           placeholder={"One sentence describing what this mod changes.\n\n## Installation\nRequired game version, dependencies, and install/uninstall steps.\n\n## What to test\nThe specific things you want testers to check.\n\n## Known issues\nUnfinished features, confirmed bugs, and any workarounds."}
           className={inputClass}
@@ -150,7 +161,7 @@ export default function BetaModForm({
         <div id="description-help" className="mt-3 space-y-1 text-sm leading-6 text-[var(--muted)]">
           <p>Include installation instructions, the supported game version, known issues, and what you need tested.</p>
           <p className="text-xs">Markdown headings, lists, links, and emphasis are supported.</p>
-          <p className="text-xs">Keep the first nonempty line under 250 characters. It becomes the summary in your Nexus release package.</p>
+          <p className="text-xs">Keep the first nonempty line to 250 characters or fewer. It becomes the summary in your Nexus release package.</p>
         </div>
         <Link href="/help/authors#templates" target="_blank" rel="noopener" className="mt-2 inline-flex min-h-11 items-center text-sm text-accent-strong hover:underline">Description templates (opens in a new tab)</Link>
         {state?.errors?.description && (
