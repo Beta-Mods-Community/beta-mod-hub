@@ -200,8 +200,9 @@ export function createR2Store({
           if (out.Body) deadline?.trackBody(out.Body);
           deadline?.assertActive();
           if (!out.Body) return null;
-          if (maxMaterializedBytes !== undefined && out.ContentLength !== undefined && (
-            !Number.isSafeInteger(out.ContentLength) || out.ContentLength < 0 || out.ContentLength > maxMaterializedBytes
+          if (out.ContentLength !== undefined && (
+            !Number.isSafeInteger(out.ContentLength) || out.ContentLength < 0 ||
+            maxMaterializedBytes !== undefined && out.ContentLength > maxMaterializedBytes
           )) {
             (out.Body as unknown as BoundedBody).destroy?.();
             return null;
@@ -210,6 +211,9 @@ export function createR2Store({
             ? await out.Body.transformToByteArray()
             : await readBoundedBody(out.Body, maxMaterializedBytes, deadline);
           deadline?.assertActive();
+          // EOF alone is not proof of a complete object. An inconsistent
+          // response must not become a silently truncated release package.
+          if (out.ContentLength !== undefined && data.byteLength !== out.ContentLength) return null;
           return { data, size: data.byteLength };
         });
       } catch {

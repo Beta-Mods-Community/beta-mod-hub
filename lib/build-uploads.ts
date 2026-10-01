@@ -28,7 +28,7 @@ import {
   retainReservationForCleanup,
 } from "./storage-usage";
 import { betaMods, builds, storageReservations } from "../db/schema";
-import { assertEditableMod, lockModForMutation, mutationMessage } from "./mod-lifecycle";
+import { assertEditableMod, lockModForMutation, ModMutationError, mutationMessage } from "./mod-lifecycle";
 import { getAccountWriteError } from "./access";
 import { notifyModFollowers } from "./notifications";
 import {
@@ -179,6 +179,10 @@ export async function uploadBuild(
     await db.transaction(async tx => {
       const currentMod = await lockModForMutation(tx, betaModId);
       assertEditableMod(currentMod, session.userId);
+      const accountError = await getAccountWriteError(session.userId, tx);
+      if (accountError) throw new ModMutationError(accountError);
+      const latestPermission = await getUploadPermission(session.userId, limits, tx);
+      if (!latestPermission.allowed) throw new ModMutationError(latestPermission.message);
       await tx.insert(builds).values({
         id: buildId, betaModId, versionLabel,
         fileUrl: finalKey, changelog: changelog || null,

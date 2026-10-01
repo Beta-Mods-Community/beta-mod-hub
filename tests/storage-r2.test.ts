@@ -126,6 +126,20 @@ describe("R2 store: get", () => {
     const store = createR2Store({ client, bucket: BUCKET });
     assert.equal(await store.get("builds/abc/x.zip"), null);
   });
+
+  for (const bounded of [false, true]) {
+    it(`refuses incomplete or inconsistent declared lengths (${bounded ? "bounded" : "legacy"} reads)`, async () => {
+      for (const ContentLength of [0, 2, 4, -1, 1.5, NaN]) {
+        const data = new Uint8Array([1, 2, 3]);
+        const { client } = stubClient(() => ({ ContentLength, Body: {
+          transformToByteArray: async () => data,
+          async *[Symbol.asyncIterator]() { yield data; },
+        } }));
+        const store = createR2Store({ client, bucket: BUCKET, ...(bounded ? { maxMaterializedBytes: 8 } : {}) });
+        assert.equal(await store.get("builds/abc/x.zip"), null, `declared length ${ContentLength}`);
+      }
+    });
+  }
 });
 
 describe("cloud object store: bounded materialization", () => {

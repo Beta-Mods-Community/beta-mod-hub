@@ -71,8 +71,12 @@ function scanWithClamav(data) {
 }
 
 function parseClamavResponse(response) {
-  if (/stream: OK/.test(response)) return { clean: true };
-  const match = response.match(/stream:\s+(.+?) FOUND/);
+  // zINSTREAM returns one NUL-terminated verdict. Substring matching can turn
+  // a malware name beginning with "OK" or contradictory replies into clean.
+  if (!response.endsWith("\0")) throw new Error("unterminated clamd response");
+  const verdict = response.slice(0, -1);
+  if (verdict === "stream: OK") return { clean: true };
+  const match = verdict.match(/^stream:\s+([^\0\r\n]+) FOUND$/);
   if (match) return { clean: false, malware: match[1].trim() };
   if (/size limit exceeded|Too many|Error/i.test(response)) {
     throw new Error(`clamd error: ${response.trim()}`);

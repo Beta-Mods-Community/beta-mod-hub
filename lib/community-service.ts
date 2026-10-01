@@ -39,6 +39,8 @@ export async function reportContentRecord(userId: string, modId: string, reason:
   if (!db) return "Reporting is temporarily unavailable.";
   const [mod] = await db.select({ id: betaMods.id }).from(betaMods).where(eq(betaMods.id, modId)).limit(1);
   if (!mod) return "This mod could not be found.";
-  await db.insert(contentReports).values({ betaModId: modId, reporterId: userId, reason }).onConflictDoNothing();
+  const inserted = await db.insert(contentReports).values({ betaModId: modId, reporterId: userId, reason })
+    .onConflictDoNothing().returning({ id: contentReports.id });
+  if (!inserted.length) return "You have already reported this listing. No new report was submitted.";
   return "Report submitted. The site administrator can review it.";
 }

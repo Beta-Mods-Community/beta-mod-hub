@@ -20,17 +20,17 @@ export async function applyModeration(
 ): Promise<boolean> {
   if (!db || !MODERATION_TARGET_RE.test(id) || !["hide", "restore", "resolve"].includes(action) || reason.trim().length < 5) return false;
   if (!readAdminUserIds().has(actorId.toLowerCase())) return false;
-  await db.transaction(async tx => {
+  return db.transaction(async tx => {
     const [mod] = await tx.select().from(betaMods).where(eq(betaMods.id, id)).for("update").limit(1);
-    if (!mod) return;
+    if (!mod) return false;
     if (action !== "resolve") {
       await tx.update(betaMods).set({ hiddenAt: action === "hide" ? new Date() : null }).where(eq(betaMods.id, id));
       await notifyUser(tx, mod.ownerId, actorId, `${mod.title}: listing ${action === "hide" ? "hidden" : "restored"}. ${reason}`, `/mods/${id}`);
     }
     await tx.update(contentReports).set({ resolvedAt: new Date() }).where(eq(contentReports.betaModId, id));
     await tx.insert(moderationLog).values({ actorId, targetId: id, action, reason });
+    return true;
   });
-  return true;
 }
 
 /**
@@ -47,9 +47,11 @@ export async function setAccountSuspendedRecord(
   const admins = readAdminUserIds();
   if (!db || !MODERATION_TARGET_RE.test(targetUserId) || reason.trim().length < 5
       || !admins.has(actorId.toLowerCase()) || admins.has(targetUserId.toLowerCase())) return false;
-  await db.transaction(async tx => {
-    await tx.update(users).set({ suspendedAt: suspended ? new Date() : null, sessionVersion: sql`${users.sessionVersion} + 1` }).where(eq(users.id, targetUserId));
+  return db.transaction(async tx => {
+    const changed = await tx.update(users).set({ suspendedAt: suspended ? new Date() : null, sessionVersion: sql`${users.sessionVersion} + 1` })
+      .where(eq(users.id, targetUserId)).returning({ id: users.id });
+    if (!changed.length) return false;
     await tx.insert(moderationLog).values({ actorId, targetId: targetUserId, action: suspended ? "suspend" : "unsuspend", reason });
+    return true;
   });
-  return true;
 }

@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "./db";
 import { readAdminUserIds } from "./pilot";
-import { allowsUnverifiedLocalAccounts } from "./account-policy";
+import { getAccountWriteError } from "./account-write-access";
 import { getSession } from "./session";
 import { users } from "../db/schema";
 
@@ -49,17 +49,8 @@ export async function requireAdmin() {
   return viewer;
 }
 
-/** Used by mutating actions to return useful form errors before any write. */
-export async function getAccountWriteError(userId: string): Promise<string | null> {
-  if (!db) return "The database is temporarily unavailable.";
-  const [user] = await db.select({ emailVerifiedAt: users.emailVerifiedAt, suspendedAt: users.suspendedAt })
-    .from(users).where(eq(users.id, userId)).limit(1);
-  if (!user || user.suspendedAt) return "This account is unavailable.";
-  if (!user.emailVerifiedAt && !allowsUnverifiedLocalAccounts()) {
-    return "Verify your email in Account settings before posting or uploading.";
-  }
-  return null;
-}
+export { getAccountWriteError } from "./account-write-access";
+export type { AccountTransaction } from "./account-write-access";
 
 export async function requireVerifiedAccount() {
   const viewer = await getViewer();

@@ -3,6 +3,7 @@ import "server-only";
 import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 
 import { db } from "./db";
+import type { ModTransaction } from "./mod-lifecycle";
 import {
   evaluateReservation,
   type PilotLimits,
@@ -363,13 +364,16 @@ export async function listPilotAccounts(): Promise<
 }
 
 /** Approvals are explicit: not being in this table means "cannot upload". */
-export async function isPilotUploader(userId: string): Promise<boolean> {
-  if (!db) return false;
-  const rows = await db
+export async function isPilotUploader(userId: string, tx?: ModTransaction): Promise<boolean> {
+  const database = tx ?? db;
+  if (!database) return false;
+  const query = database
     .select({ userId: pilotAccounts.userId })
     .from(pilotAccounts)
     .where(eq(pilotAccounts.userId, userId))
     .limit(1);
+  // Hold an existing approval against revocation until publication commits.
+  const rows = await (tx ? query.for("share") : query);
   return rows.length > 0;
 }
 
@@ -387,9 +391,10 @@ export async function countPilotAccounts(): Promise<number> {
  * Whether new uploads are allowed. A missing row reads as enabled so the site
  * never comes up frozen; only an explicit 'false' pauses uploads.
  */
-export async function isUploadsEnabled(): Promise<boolean> {
-  if (!db) return true;
-  const rows = await db
+export async function isUploadsEnabled(tx?: ModTransaction): Promise<boolean> {
+  const database = tx ?? db;
+  if (!database) return true;
+  const rows = await database
     .select({ value: appSettings.value })
     .from(appSettings)
     .where(eq(appSettings.key, UPLOADS_ENABLED_KEY))
@@ -399,17 +404,22 @@ export async function isUploadsEnabled(): Promise<boolean> {
 
 export async function setUploadsEnabled(enabled: boolean): Promise<void> {
   if (!db) return;
-  await db
-    .insert(appSettings)
-    .values({
-      key: UPLOADS_ENABLED_KEY,
-      value: enabled ? "true" : "false",
-      updatedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: appSettings.key,
-      set: { value: enabled ? "true" : "false", updatedAt: new Date() },
-    });
+  await db.transaction(async tx => {
+    // The advisory lock also protects the default-enabled state before this
+    // setting has a row. A row lock alone cannot serialize that first pause.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('upload-permission'))`);
+    await tx
+      .insert(appSettings)
+      .values({
+        key: UPLOADS_ENABLED_KEY,
+        value: enabled ? "true" : "false",
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: appSettings.key,
+        set: { value: enabled ? "true" : "false", updatedAt: new Date() },
+      });
+  });
 }
 
 // --- Who may upload ---------------------------------------------------------
@@ -425,13 +435,19 @@ export type UploadPermission =
  * The mod page calls this to decide whether to render the upload form, and
  * `uploadBuild` calls it again before doing anything — rendering a form is a
  * hint, not authorisation, so the action never relies on the page's answer.
+ * Final upload transactions pass tx to re-read and hold the switch and
+ * approval through commit, after locking the mod and account rows. Scanning
+ * and object storage must finish before taking these short-lived locks.
  */
 export async function getUploadPermission(
   userId: string,
   limits: PilotLimits,
+  tx?: ModTransaction,
 ): Promise<UploadPermission> {
+  if (!tx && !db) return { allowed: false, message: "Upload permissions are temporarily unavailable." };
+  if (tx) await tx.execute(sql`select pg_advisory_xact_lock_shared(hashtext('upload-permission'))`);
   // The kill switch wins over everything, including who is asking.
-  if (!(await isUploadsEnabled())) {
+  if (!(await isUploadsEnabled(tx))) {
     return {
       allowed: false,
       message: "Uploads are paused right now. Please try again later.",
@@ -439,7 +455,7 @@ export async function getUploadPermission(
   }
 
   // Allowlist: while the pilot is on, only approved accounts may upload.
-  if (limits.mode === "on" && !(await isPilotUploader(userId))) {
+  if (limits.mode === "on" && !(await isPilotUploader(userId, tx))) {
     return {
       allowed: false,
       message:

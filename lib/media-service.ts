@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, eq } from "drizzle-orm";
 import { betaMods, modMedia, storageReservations } from "../db/schema";
 import { db } from "./db";
+import { getAccountWriteError } from "./account-write-access";
 import { MAX_MEDIA_BYTES } from "./image-meta";
 import { assertMediaOwner, MAX_MOD_IMAGES, MediaCaptionSchema, MediaIdSchema, MediaError } from "./media-policy";
 import { processMediaUpload } from "./media-upload";
@@ -46,7 +47,9 @@ export async function uploadModMediaForUser(input: { userId: string; modId: stri
       await database.transaction(async (tx) => {
         const current = await lockModForMutation(tx, modId);
         assertMediaOwner(current ?? undefined, input.userId);
-        const latestPermission = await getUploadPermission(input.userId, limits);
+        const accountError = await getAccountWriteError(input.userId, tx);
+        if (accountError) throw new MediaError(accountError);
+        const latestPermission = await getUploadPermission(input.userId, limits, tx);
         if (!latestPermission.allowed) throw new MediaError(latestPermission.message);
         const rows = await tx.select().from(modMedia).where(eq(modMedia.betaModId, modId)).orderBy(asc(modMedia.position));
         if (rows.length >= MAX_MOD_IMAGES) throw new MediaError(`A mod can have up to ${MAX_MOD_IMAGES} screenshots.`);

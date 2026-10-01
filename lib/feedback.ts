@@ -101,6 +101,12 @@ export async function submitBugReport(_state: BugReportFormState, formData: Form
     await db.transaction(async tx => {
       const mod = await lockModForMutation(tx, betaModId);
       assertEditableMod(mod);
+      const accountError = await getAccountWriteError(session.userId, tx);
+      if (accountError) throw new ModMutationError(accountError);
+      if (file) {
+        const latestPermission = await getUploadPermission(session.userId, readPilotLimits(), tx);
+        if (!latestPermission.allowed) throw new ModMutationError(latestPermission.message);
+      }
       const [build] = await tx.select({ id: builds.id }).from(builds)
         .where(and(eq(builds.id, parsed.data.buildId), eq(builds.betaModId, betaModId)));
       if (!build) throw new ModMutationError("Choose a build from this mod.");

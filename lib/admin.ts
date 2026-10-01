@@ -7,8 +7,9 @@ import * as z from "zod";
 import { requireAdmin } from "./access";
 import { db } from "./db";
 import { readPilotLimits } from "./pilot";
-import { countPilotAccounts, setUploadsEnabled } from "./storage-usage";
-import { pilotAccounts, users } from "../db/schema";
+import { setUploadsEnabled } from "./storage-usage";
+import { pilotAccounts } from "../db/schema";
+import { approvePilotUploader } from "./pilot-approvals";
 
 /**
  * Admin actions for the pilot: the upload kill switch and the upload
@@ -74,45 +75,32 @@ export async function approveUploader(
   }
   const { email, note } = parsed.data;
 
-  const found = await db
-    .select({ id: users.id, displayName: users.displayName })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
-  const user = found[0];
-  if (!user) {
+  const limits = readPilotLimits();
+  const result = await approvePilotUploader({
+    email, note: note || null, approvedBy: admin.email ?? admin.userId,
+    maxApproved: limits.maxApprovedUploaders,
+  });
+  if (result.outcome === "unavailable") return { message: "The database isn't configured yet." };
+  if (result.outcome === "missing") {
     return {
       message: `No account for ${email} yet — they have to sign up on the site first.`,
     };
   }
 
-  const existing = await db
-    .select({ userId: pilotAccounts.userId })
-    .from(pilotAccounts)
-    .where(eq(pilotAccounts.userId, user.id))
-    .limit(1);
-  if (existing.length > 0) {
-    return { message: `${user.displayName} already has upload access.` };
+  if (result.outcome === "existing") {
+    return { message: `${result.displayName} already has upload access.` };
   }
 
   // The invite list is a hard cap during the pilot, so how many people can
   // ever upload is bounded by configuration rather than by memory.
-  const limits = readPilotLimits();
-  const approved = await countPilotAccounts();
-  if (approved >= limits.maxApprovedUploaders) {
+  if (result.outcome === "full") {
     return {
-      message: `The pilot allows ${limits.maxApprovedUploaders} approved uploaders and ${approved} are approved already. Raise PILOT_MAX_UPLOADERS first.`,
+      message: `The pilot allows ${limits.maxApprovedUploaders} approved uploaders and ${result.approved} are approved already. Remove an existing approval before adding another uploader.`,
     };
   }
 
-  await db.insert(pilotAccounts).values({
-    userId: user.id,
-    approvedBy: admin.email ?? admin.userId,
-    note: note || null,
-  });
-
   revalidatePath("/admin");
-  return { ok: true, message: `${user.displayName} can now upload.` };
+  return { ok: true, message: `${result.displayName} can now upload.` };
 }
 
 export async function revokeUploader(userId: string): Promise<void> {

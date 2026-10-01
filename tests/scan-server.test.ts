@@ -12,6 +12,7 @@ const fixtureKey = "synthetic-scanner-test-key";
 async function startScanner(t: TestContext, host?: string) {
   const sockets = new Set<Socket>();
   let scanCount = 0;
+  let scanReply = "stream: OK\0";
   const clamd = createServer((socket) => {
     sockets.add(socket);
     socket.on("close", () => sockets.delete(socket));
@@ -23,7 +24,7 @@ async function startScanner(t: TestContext, host?: string) {
       } else if (input.subarray(0, 10).equals(Buffer.from("zINSTREAM\0"))
         && input.length >= 14 && input.subarray(-4).equals(Buffer.alloc(4))) {
         scanCount += 1;
-        socket.end("stream: OK\0");
+        socket.end(scanReply);
       }
     });
   });
@@ -80,7 +81,8 @@ async function startScanner(t: TestContext, host?: string) {
       resolve({ host: match[1], port: Number(match[2]) });
     });
   });
-  return { ...address, url: `http://127.0.0.1:${address.port}`, scans: () => scanCount };
+  return { ...address, url: `http://127.0.0.1:${address.port}`, scans: () => scanCount,
+    setScanReply: (reply: string) => { scanReply = reply; } };
 }
 
 it("local scanner defaults to loopback and loads its authentication key from --env-file", async (t) => {
@@ -113,4 +115,23 @@ it("scanner accepts an explicit container-network binding", async (t) => {
   assert.equal(result.status, 401);
   await result.arrayBuffer();
   assert.equal(scanner.scans(), 0);
+});
+
+it("scanner requires one exact clean verdict and never mistakes an OK-prefixed malware name for success", async (t) => {
+  const scanner = await startScanner(t);
+  const scan = () => fetch(scanner.url, {
+    method: "POST", headers: { authorization: `Bearer ${fixtureKey}` }, body: "synthetic fixture",
+  });
+  scanner.setScanReply("stream: OK.FakeSignature FOUND\0");
+  const infected = await scan();
+  assert.equal(infected.status, 200);
+  assert.deepEqual(await infected.json(), { clean: false, malware: "OK.FakeSignature" });
+
+  for (const reply of ["stream: OK", "stream: OK\n", "stream: OKAY\0", "prefix stream: OK\0", "stream: OK\0stream: Test FOUND\0",
+    "stream: OK\nstream: read ERROR\0", "stream: OK\0\0", ""]) {
+    scanner.setScanReply(reply);
+    const result = await scan();
+    assert.equal(result.status, 503, JSON.stringify(reply));
+    assert.equal((await result.json()).clean, false);
+  }
 });
