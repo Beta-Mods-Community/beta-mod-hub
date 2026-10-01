@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
+.markdown { overflow-wrap: anywhere; }
 .markdown > * + * { margin-top: 1rem; }
 .markdown h1, .markdown h2, .markdown h3 { font-weight: 600; color: var(--text); margin-top: 1.5rem; }
 .markdown h1 { font-size: 1.6rem; }
 .markdown h2 { font-size: 1.3rem; }
 .markdown h3 { font-size: 1.1rem; }
+.markdown > :first-child { margin-top: 0; }
 .markdown ul { list-style: disc; padding-left: 1.5rem; }
 .markdown ol { list-style: decimal; padding-left: 1.5rem; }
 .markdown pre { overflow-x: auto; padding: 1rem; background: var(--surface-soft); border-radius: .5rem; }

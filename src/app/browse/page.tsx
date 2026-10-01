@@ -35,6 +35,7 @@ export default async function BrowsePage({
   const hasFilters = Boolean(game || q);
   const firstResult = (page - 1) * CATALOG_PAGE_SIZE + 1;
   const lastResult = firstResult + mods.length - 1;
+  const useWideCards = mods.length <= 2;
 
   return (
     <main className="site-container flex-1 py-10 sm:py-12">
@@ -113,8 +114,8 @@ export default async function BrowsePage({
         </section>
       ) : (
         <section aria-label="Active beta mods" className="mt-6">
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {mods.map((mod) => <ModCard key={mod.id} mod={mod} />)}
+          <div className={`grid gap-5 ${useWideCards ? "" : "md:grid-cols-2 xl:grid-cols-3"}`}>
+            {mods.map((mod) => <ModCard key={mod.id} mod={mod} featured={useWideCards} />)}
           </div>
           {pages > 1 && (
             <nav aria-label="Pagination" className="mt-8 flex items-center justify-between gap-4 border-t border-line pt-6">

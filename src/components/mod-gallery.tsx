@@ -15,7 +15,7 @@ export default function ModGallery({ media, title }: { media: GalleryImage[]; ti
   if (!current) return null;
   const alt = current.caption || `${title}, screenshot ${index + 1}`;
 
-  return <div className="overflow-hidden rounded-xl border border-[var(--line)] bg-black/30">
+  return <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface-soft)]">
     <button type="button" onClick={() => dialog.current?.showModal()} className="group relative block h-[clamp(12rem,48vw,24rem)] w-full bg-black/35 focus-visible:outline-offset-[-4px]" aria-label={`Enlarge ${alt}`}>
       <img src={`/media/${current.id}`} alt={alt} width={current.width} height={current.height} className="h-full w-full object-contain" fetchPriority="high" />
       <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-md border border-white/15 bg-black/75 px-3 py-2 text-xs text-white"><Expand size={14} />View image</span>
@@ -29,7 +29,7 @@ export default function ModGallery({ media, title }: { media: GalleryImage[]; ti
         <img src={`/media/${image.id}`} alt="" width={112} height={64} loading="lazy" className="h-full w-full object-cover" />
       </button>)}
     </div>}
-    <dialog ref={dialog} className="m-auto max-h-[94dvh] w-[min(96vw,1440px)] max-w-none overflow-auto rounded-xl border border-white/15 bg-[#0b0d10] p-0 text-white backdrop:bg-black/90" aria-label={`${title} screenshots`} onClick={(event) => { if (event.target === event.currentTarget) dialog.current?.close(); }} onKeyDown={(event) => {
+    <dialog ref={dialog} className="m-auto max-h-[94dvh] w-[min(96vw,1440px)] max-w-none overflow-auto rounded-lg border border-[var(--line)] bg-[var(--surface-soft)] p-0 text-[var(--text)] backdrop:bg-black/90" aria-label={`${title} screenshots`} onClick={(event) => { if (event.target === event.currentTarget) dialog.current?.close(); }} onKeyDown={(event) => {
       if (event.key === "ArrowLeft") { event.preventDefault(); move(-1); }
       if (event.key === "ArrowRight") { event.preventDefault(); move(1); }
     }}>

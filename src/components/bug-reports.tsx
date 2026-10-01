@@ -54,13 +54,13 @@ export default async function BugReports({ betaModId, builds, viewerId, isOwner,
   };
   return <section id="bugs" className="scroll-mt-24">
     <div className="flex flex-wrap items-end justify-between gap-3"><h2 className="text-xl font-semibold">Bug reports</h2><span className="text-sm text-[var(--muted)]">{total} {hasFilters ? "matching " : ""}{total === 1 ? "report" : "reports"}</span></div>
-    <form key={JSON.stringify([status ?? "", buildId ?? ""])} method="get" action={`/mods/${betaModId}#bugs`} className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+    {(total > 0 || hasFilters) && <form key={JSON.stringify([status ?? "", buildId ?? ""])} method="get" action={`/mods/${betaModId}#bugs`} className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
       <label className="text-xs font-medium">Status<select name="bugStatus" defaultValue={status ?? ""} className="field mt-1"><option value="">All statuses</option><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="fixed">Fixed</option></select></label>
       <label className="text-xs font-medium">Affected build<select name="bugBuild" defaultValue={buildId ?? ""} className="field mt-1"><option value="">All builds</option>{builds.map(build => <option key={build.id} value={build.id}>{build.versionLabel}</option>)}</select></label>
       <button className="button-secondary" type="submit">Filter reports</button>
-    </form>
+    </form>}
     {hasFilters && <Link href={`/mods/${betaModId}#bugs`} className="mt-3 inline-block text-sm text-[var(--accent)] underline underline-offset-4">Clear filters</Link>}
-    <div className="mt-5 space-y-4">{reports.length === 0 ? <div className="py-5 text-sm text-[var(--muted)]">
+    <div className="mt-5 space-y-4">{reports.length === 0 ? <div className="text-sm leading-6 text-[var(--muted)]">
       <p>{total > 0 ? "There are no reports on this page." : hasFilters ? "No reports match these filters." : "No bug reports yet."}</p>
       {total > 0 && <Link href={pageUrl(1)} className="mt-2 inline-block text-[var(--accent)] underline underline-offset-4">Go to the first page</Link>}
     </div> : reports.map(({ report, workflow, reporterName, buildVersion }) => {

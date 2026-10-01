@@ -37,6 +37,7 @@ import {
 import { MAX_UPLOAD_BYTES } from "@lib/definitions";
 import { voteReady } from "@lib/feedback";
 import { formatDate } from "@lib/format";
+import { modExcerpt } from "@lib/mod-excerpt";
 import { effectiveArchiveLimit, readPilotLimits, isCloudPilot } from "@lib/pilot";
 import { confirmPromotion } from "@lib/promote";
 import { addRequirement, removeRequirement } from "@lib/requirements";
@@ -140,15 +141,41 @@ export default async function BetaModPage({
       )}
 
       <article className="panel overflow-hidden">
-        <div className="border-b border-[var(--line)]">
-          {media.length > 0 && <ModGallery key={gallery.find((image) => image.isHero)?.id ?? mod.id} media={gallery} title={mod.title} />}
-          <div className="p-5 sm:p-7">
+        <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-center">
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3"><StatusBadge status={mod.status} /><p className="eyebrow">{mod.game}</p></div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">{mod.title}</h1>
+            <h1 className="mt-3 break-words text-3xl font-semibold tracking-[-0.035em] text-[var(--text)] sm:text-4xl">{mod.title}</h1>
+            {mod.description && (
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-soft)]">
+                {modExcerpt(mod.description, 180)}
+              </p>
+            )}
+          </div>
+          <div className="min-w-0 rounded-md border border-[var(--line)] bg-[var(--surface-soft)] p-4" aria-label="Latest build download">
+            {latestBuild ? (
+              <>
+                <p className="text-xs text-[var(--muted)]">
+                  Latest build <span className="ml-1 font-medium text-[var(--text-soft)]">{latestBuild.versionLabel}</span>
+                </p>
+                <Link href={`/files/${latestBuild.id}`} className="button-primary mt-3 w-full">
+                  <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  Download build
+                </Link>
+                <p className="mt-3 flex items-center gap-1.5 text-xs text-[var(--success)]">
+                  <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Malware scan passed
+                </p>
+                <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
+                  Scanned before sharing. Compatibility still needs testing.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm leading-6 text-[var(--muted)]">No test build uploaded yet.</p>
+            )}
           </div>
         </div>
 
-        <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="grid gap-4 border-t border-[var(--line)] px-5 py-4 sm:px-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-0">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[var(--text-soft)]">
               <UserRound className="h-4 w-4 text-[var(--muted)]" aria-hidden="true" />
@@ -166,11 +193,11 @@ export default async function BetaModPage({
               </span>
             </p>
             {mod.tags.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2" aria-label="Tags">
+              <div className="mt-3 flex flex-wrap gap-2" aria-label="Tags">
                 {mod.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-sm border border-[var(--line)] bg-[var(--surface-soft)] px-2 py-1 text-[11px] font-medium text-[var(--text-soft)]"
+                    className="rounded-sm border border-[var(--line)] bg-[var(--surface-soft)] px-2 py-1 text-xs font-medium text-[var(--text-soft)]"
                   >
                     {tag}
                   </span>
@@ -192,14 +219,14 @@ export default async function BetaModPage({
 
       <nav
         aria-label="Mod page sections"
-        className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-[var(--line)] py-2"
+        className="mt-4 flex items-center gap-4 overflow-x-auto border-b border-[var(--line)] py-1 sm:gap-5"
       >
-        <span className="text-xs text-[var(--muted)]">On this page</span>
+        <span className="hidden shrink-0 text-xs text-[var(--muted)] sm:inline">On this page</span>
         {SECTION_LINKS.map((item) => (
           <a
             key={item.href}
             href={item.href}
-            className="inline-flex min-h-11 items-center text-sm font-medium text-[var(--text-soft)] underline-offset-4 transition-colors hover:text-[var(--accent)] hover:underline"
+            className="inline-flex min-h-11 shrink-0 items-center text-sm font-medium text-[var(--text-soft)] underline-offset-4 transition-colors hover:text-[var(--accent)] hover:underline"
           >
             {item.label}
             {item.href === "#files" && builds.length > 0 ? ` ${builds.length}` : ""}
@@ -209,28 +236,29 @@ export default async function BetaModPage({
       </nav>
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
-        <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1">
+        <section id="overview" className="min-w-0 scroll-mt-24 border-b border-[var(--line)] pb-8 lg:col-start-1 lg:row-start-1">
+          <h2 className="sr-only">Overview</h2>
+          {media.length > 0 && (
+            <div className="mb-6">
+              <ModGallery key={gallery.find((image) => image.isHero)?.id ?? mod.id} media={gallery} title={mod.title} />
+            </div>
+          )}
+          {mod.description ? (
+            <Markdown>{mod.description}</Markdown>
+          ) : (
+            <EmptyCopy>No description has been added yet.</EmptyCopy>
+          )}
+        </section>
+
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1 lg:row-span-2">
           <section id="testing" className="panel scroll-mt-24 p-5" aria-labelledby="testing-heading">
             <h2 id="testing-heading" className="text-lg font-semibold text-[var(--text)]">
-              Latest build
+              Testing feedback
             </h2>
             {latestBuild ? (
               <>
-                <p className="mt-1 text-sm text-[var(--text-soft)]">{latestBuild.versionLabel}</p>
-                <p className="mt-1 text-xs text-[var(--muted)]">Uploaded {formatDate(latestBuild.uploadedAt)}</p>
-                <Link href={`/files/${latestBuild.id}`} className="button-primary mt-4 w-full">
-                  <Download className="h-4 w-4" aria-hidden="true" />
-                  Download {latestBuild.versionLabel}
-                </Link>
-                <p className="mt-3 flex items-center gap-1.5 text-xs text-emerald-300">
-                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                  Malware scan passed
-                </p>
-                <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
-                  The archive was scanned before storage. Compatibility still needs testing.
-                </p>
-
-                <h3 className="mt-5 border-t border-[var(--line)] pt-5 text-sm font-semibold">Tester verdicts</h3>
+                <p className="mt-1 text-xs text-[var(--muted)]">For build {latestBuild.versionLabel}</p>
+                <h3 className="sr-only">Tester verdicts</h3>
                 <dl className="mt-3 grid grid-cols-2 gap-4">
                   <div>
                     <dt className="text-xs text-[var(--muted)]">Ready</dt>
@@ -290,16 +318,7 @@ export default async function BetaModPage({
           {session && <ReportContentForm modId={mod.id} />}
         </aside>
 
-        <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-start-1">
-          <section id="overview" className="scroll-mt-24 border-b border-[var(--line)] pb-8">
-            <SectionHeading title="About this beta" />
-            {mod.description ? (
-              <div className="mt-5"><Markdown>{mod.description}</Markdown></div>
-            ) : (
-              <EmptyCopy>No description has been added yet.</EmptyCopy>
-            )}
-          </section>
-
+        <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-start-2">
           {isOwner && !readOnly && <details className="panel p-5 sm:p-7">
             <summary className="cursor-pointer text-base font-semibold text-[var(--text)]">Screenshots and cover image</summary>
             <div className="mt-5"><ModMediaManager betaModId={mod.id} media={gallery} uploadPermission={uploadPermission} cloudPilot={isCloudPilot()} /></div>
@@ -335,7 +354,7 @@ export default async function BetaModPage({
                           {build.versionLabel}
                         </h3>
                         {index === 0 && (
-                          <span className="rounded-sm border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                          <span className="rounded-sm border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent-strong)]">
                             Current
                           </span>
                         )}
