@@ -1,6 +1,6 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element -- Private R2 delivery uses stable app routes. */
+/* eslint-disable @next/next/no-img-element -- Private media delivery uses stable app routes. */
 import { useActionState, useState } from "react";
 import { unstable_rethrow } from "next/navigation";
 import { ArrowDown, ArrowUp, ImagePlus, Star, Trash2 } from "lucide-react";

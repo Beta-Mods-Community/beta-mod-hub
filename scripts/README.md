@@ -85,7 +85,7 @@ These belong to the alternative [home](../DEPLOY-HOME.md) and
 | `home-backup.ps1` | Writes a PostgreSQL dump and an R2 inventory, verifies output, and prunes old local backups. The inventory does not copy stored archives; quarantine backup is opt-in. |
 | `home-restore.ps1` | Plans a restore by default; `-Confirm` can replace database or quarantine-volume contents. `-Which audit` compares the current bucket with a saved inventory without restoring it. |
 | `r2-inventory.mjs` | Reads R2 object metadata and database references and writes an inventory. Use `--env-file` to select one private configuration file. It does not repair or delete objects. |
-| `setup-r2.mjs` | Creates an R2 bucket and storage credential using a privileged bootstrap token, then writes local configuration. This is provisioning, not a contributor setup step. |
+| `setup-r2.mjs` | Creates an R2 bucket, revokes existing tokens whose names begin with `betamods-r2-storage`, mints a replacement credential, and writes local configuration. It uses a privileged bootstrap token and can invalidate credentials already in use. This is one-time provisioning, not a routine contributor setup step. |
 | `smoke-prod.mjs` | Connects to a configured Compose deployment and scanner. `--full` also writes an upload fixture and removes it afterward. It is not a read-only cloud health check. |
 
 Cloud backups are maintained in a private operations repository. Do not point

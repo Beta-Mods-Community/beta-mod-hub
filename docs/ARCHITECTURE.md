@@ -10,7 +10,8 @@ deployment tools. Hosted data and credentials are not part of the source.
 | --- | --- |
 | `src/app` | App Router pages and authenticated HTTP routes |
 | `src/components` | Forms, navigation, mod views, and shared UI |
-| `lib` | Server actions, queries, account policy, uploads, scanning, storage, and release packages |
+| `src/lib` | Browser-safe upload progress, response recovery, and cloud action diagnostics |
+| `lib` | Server actions and queries, shared policies and helpers, uploads, scanning, storage, and release packages |
 | `db` and `schema.sql` | Drizzle schema modules, SQL schema, and migrations |
 | `scripts/scan-server.mjs` | HTTP wrapper for a local ClamAV daemon |
 | `scripts/cloud-*.mjs` | Bounded cloud runtime and operator tools |
@@ -22,6 +23,35 @@ PostgreSQL holds accounts, listing text, build references, reports, votes,
 quota reservations, and moderation state. Uploaded bytes live separately in
 local storage or a private S3-compatible bucket. Storage keys are not public
 file URLs.
+
+## Shared UI
+
+Use the color and spacing patterns in
+[`src/app/globals.css`](../src/app/globals.css), including theme utilities such
+as `bg-surface`, `text-muted`, and `border-line`. Shared classes include
+`site-container`, `panel`, `field`, `button-primary`, and `button-secondary`.
+Reuse the existing form feedback, status badges, and section headings in
+`src/components` so labels, focus styles, and behavior stay consistent.
+
+[`SectionHeading`](../src/components/section-heading.tsx) keeps a visible heading
+and accepts an optional `description` to explain its icon.
+[`ContextHelp`](../src/components/context-help.tsx) renders a non-submit button
+and a native popover for explanatory text. Give icon-only triggers a descriptive
+`label`. Keep help outside links and action buttons, and never pass interactive
+children to it. Where a whole card is a link, use `StatusBadge` with
+`explain={false}` to keep the badge passive. Help must not replace a download,
+navigation, vote, or form action.
+
+Keep pages and data access on the server; add client boundaries only where
+interaction needs them. Pass rendered icons or content as children to a client
+component instead of passing component functions across the boundary. Browser
+helpers must not import database, credential, or other server-only modules.
+
+UI tests such as `semantic-badges`, `context-help`, and `testing-details` cover
+source structure, generated markup, and pure positioning logic. They do not
+exercise a browser DOM, native popover events, layout, or screen-reader behavior.
+For affected UI, also check keyboard focus, hover, click/tap, dismissal, and
+narrow viewports with synthetic data. Report the checks actually performed.
 
 ## Accounts and authorization
 

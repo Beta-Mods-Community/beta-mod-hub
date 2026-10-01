@@ -64,7 +64,7 @@ Bug reports, design feedback, documentation, and testing are welcome. Discuss la
 - [Architecture](docs/ARCHITECTURE.md): application structure and security boundaries.
 - [Deployment](docs/DEPLOYMENT.md): configuration profiles and operator responsibilities.
 - [Scripts](scripts/README.md): runtime entry points, local checks, and operator tools.
-- [Product spec](beta-mod-hub-spec.md): the original design, including work that is still planned.
+- [Product spec](beta-mod-hub-spec.md): current product rules, implemented workflows, and remaining scope.
 
 ## Security and file ownership
 

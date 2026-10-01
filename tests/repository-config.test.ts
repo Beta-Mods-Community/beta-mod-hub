@@ -20,6 +20,16 @@ test("Docker context excludes private configuration and operator artifacts", () 
   }
 });
 
+test("Git excludes private working state and generated output", () => {
+  const patterns = new Set(read(".gitignore").split(/\r?\n/).map(line => line.trim()));
+  for (const pattern of [".env*", "/node_modules", "/.next/", "/.next-check/",
+    "/data/", "/backups/", "/.local-notes/", "/.release-audit/", "/AGENTS.md",
+    "/github-recovery-codes.txt", "*.pem", "*.key", "*.p12", "*.pfx", "*.bmbak"]) {
+    assert.ok(patterns.has(pattern), `Missing Git exclusion: ${pattern}`);
+  }
+  assert.ok(patterns.has("!.env.*.example"), "Keep non-secret configuration templates available to contributors");
+});
+
 test("Compose image includes the policy imported by its runtime config", () => {
   assert.match(read("next.config.ts"), /from "\.\/lib\/pilot"/);
   assert.match(read("Dockerfile"), /COPY --from=build \/app\/lib\/pilot\.ts \.\/lib\/pilot\.ts/);

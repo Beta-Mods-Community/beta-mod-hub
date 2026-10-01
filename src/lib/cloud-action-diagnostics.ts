@@ -1,4 +1,4 @@
-/** Temporary cloud-pilot diagnostics. No telemetry transmission, body reads or request changes. */
+/** Bounded cloud-pilot diagnostics. No telemetry transmission, body reads or request changes. */
 export const ACTION_DIAGNOSTIC_LIMIT = 12;
 export const ACTION_DIAGNOSTIC_WINDOW_MS = 60000;
 

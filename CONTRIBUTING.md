@@ -31,6 +31,8 @@ npm run build
 
 On PowerShell, use `npm.cmd` instead of `npm` when the script shim is blocked. If a preview is already using `.next`, the existing `BETAMODS_BUILD_CHECK=1` environment setting builds into `.next-check`; otherwise use a separate clean checkout for validation.
 
+Generated Next.js output can contain links to installed dependencies. Do not recursively move a build-cache directory. If an idle cache needs resetting, rename the directory in place or use a separate clean checkout; leave a running preview's output alone.
+
 The first command generates Next.js route types. The CI workflow also builds the cloud profile without service credentials. These checks do not test live uploads, email delivery, or database migrations.
 
 The scoped `esbuild` override in `package.json` keeps Drizzle Kit's older loader on a patched transform dependency. Keep it until that dependency chain is updated; validate changes with a clean install, dependency audit, and offline `drizzle-kit export` before removing it.
@@ -118,7 +120,7 @@ Report which checks ran, the environment and storage driver, any failures or ski
 - Enforce permissions on the server. Hiding a button is not authorization.
 - Preserve quarantine, scan, and final-storage boundaries. Missing scans, unknown quota state, and provider failures must not publish files.
 - Do not raise upload, storage, or billing limits as a shortcut around a bug.
-- Use existing visual patterns, semantic HTML, keyboard access, and field-level error associations. Test narrow viewports and empty states.
+- Use the [shared UI patterns](docs/ARCHITECTURE.md#shared-ui), semantic HTML, keyboard access, and field-level error associations. Test narrow viewports, empty states, and affected browser interactions; source and static-markup checks do not replace those checks.
 - Do not automate the Nexus website. New Nexus API work needs a verified API contract and must not claim unfinished OAuth support works.
 - Explain why new dependencies or assets are needed and record their source and license. Do not use real mod binaries or private screenshots as test fixtures.
 - Review your diff and staged files before submission. Do not commit environment files, access codes, mail previews, backups, database dumps, or generated user content.

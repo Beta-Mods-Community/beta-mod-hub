@@ -1,6 +1,6 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element -- Stable media routes redirect to private presigned R2 objects. */
+/* eslint-disable @next/next/no-img-element -- Stable media routes enforce access before serving private files. */
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
 import { galleryOrder, type GalleryImage } from "@lib/media-policy";
