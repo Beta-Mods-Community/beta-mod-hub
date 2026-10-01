@@ -82,16 +82,24 @@ test("section help keeps a named icon control alongside the visible heading", ()
 });
 
 test("badge icons preserve readable state labels and stay decorative", () => {
-  for (const { value, html } of rendered) {
+  for (const { kind, value, html } of rendered) {
     const trigger = helpTrigger(html);
     assert.equal(trigger.replace(/<[^>]+>/g, ""), value);
     assert.equal((html.match(/<svg\b/g) ?? []).length, 1);
     assert.match(html, /<svg[^>]*aria-hidden="true"/);
     assert.match(html, /<svg[^>]*focusable="false"/);
     assert.match(html, /<svg[^>]*stroke="currentColor"/);
-    assert.match(html, /<svg[^>]*stroke-width="1\.8"/);
-    assert.match(html, /<svg[^>]*class="[^"]*h-3 w-3 shrink-0/);
-    assert.match(trigger, /class="[^"]*inline-flex items-center gap-1\.5 whitespace-nowrap/);
+    if (kind === "release") {
+      assert.match(html, /<svg[^>]*stroke-width="2"/);
+      assert.match(html, /<svg[^>]*class="[^"]*h-5 w-5 shrink-0/);
+      assert.match(trigger, /class="[^"]*inline-flex items-center gap-2 whitespace-nowrap/);
+      assert.match(trigger, /\bmin-h-8\b/);
+      assert.match(trigger, /\btext-sm\b/);
+    } else {
+      assert.match(html, /<svg[^>]*stroke-width="1\.8"/);
+      assert.match(html, /<svg[^>]*class="[^"]*h-3 w-3 shrink-0/);
+      assert.match(trigger, /class="[^"]*inline-flex items-center gap-1\.5 whitespace-nowrap/);
+    }
     assert.match(trigger, /type="button"/);
     assert.ok(trigger.includes(`aria-label="About ${value} `));
     assert.doesNotMatch(html, /title=|role="(?:button|img)"|tabindex=|lucide-shield/);
@@ -164,7 +172,9 @@ test("reputation exposes the tier and participation meaning through accessible h
 });
 
 test("status badges can stay noninteractive and linked mod cards contain no help buttons", () => {
-  assert.match(passiveBadge, /^<span class="inline-flex items-center gap-1\.5 whitespace-nowrap/);
+  assert.match(passiveBadge, /^<span class="inline-flex items-center gap-2 whitespace-nowrap/);
+  assert.match(passiveBadge, /\bh-5 w-5 shrink-0\b/);
+  assert.match(passiveBadge, /\btext-sm\b/);
   assert.equal(passiveBadge.replace(/<[^>]+>/g, ""), "beta");
   assert.match(passiveBadge, /lucide-test-tube-diagonal/);
   assert.doesNotMatch(passiveBadge, /<(?:button|a)\b|tabindex=|popover|aria-describedby=/);

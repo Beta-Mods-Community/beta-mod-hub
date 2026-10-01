@@ -211,7 +211,7 @@ export default async function BetaModPage({
                 Malware scan passed
               </ContextHelp>
               <p className="mt-1 text-xs leading-5 text-muted">
-                Scanned before sharing. Compatibility still needs testing.
+                Compatibility still needs testing.
               </p>
             </>
           ) : (
@@ -224,7 +224,6 @@ export default async function BetaModPage({
         aria-label="Mod page sections"
         className="mt-8 flex items-center gap-5 overflow-x-auto border-b border-line py-2 sm:mt-10 sm:gap-7"
       >
-        <span className="hidden shrink-0 text-xs text-[var(--muted)] sm:inline">On this page</span>
         {SECTION_LINKS.map((item) => (
           <a
             key={item.href}
@@ -330,7 +329,7 @@ export default async function BetaModPage({
               </p>
             )}
             {!isOwner && !readOnly && <div className="mt-5 border-t border-[var(--line)] pt-5">
-              <h3 aria-label="Follow this mod" className="flex items-center gap-2 text-sm font-semibold">
+              <h3 aria-label="Updates" className="flex items-center gap-2 text-sm font-semibold">
                 <ContextHelp
                   title="Follow this mod"
                   description="Following adds this mod to your Following page and gives you notifications here for new builds, bugs marked fixed, and its release on Nexus. Use the follow button below to change your choice."
@@ -338,7 +337,7 @@ export default async function BetaModPage({
                   className="inline-flex text-[var(--muted)]"
                 >
                   <Bell aria-hidden="true" className="h-4 w-4" />
-                </ContextHelp>Follow this mod
+                </ContextHelp>Updates
               </h3>
               <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Get a notification here for new builds, reported fixes, and release on Nexus.</p>
               {session ? <form action={setFollow.bind(null, mod.id, !following)}><button className="button-secondary mt-3 w-full">{following ? "Unfollow mod" : "Follow mod"}</button></form> : <Link href="/login" className="button-secondary mt-3 w-full">Sign in to follow</Link>}

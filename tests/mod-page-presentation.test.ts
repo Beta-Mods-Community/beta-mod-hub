@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -72,4 +73,11 @@ test("report metadata badges keep readable text and accessible contextual help",
     assert.match(button, /aria-describedby="[^"]+"/);
     assert.match(html, /role="tooltip"/);
   }
+});
+
+test("mod section links have an accessible name without a redundant visible label", () => {
+  const page = readFileSync(new URL("../src/app/mods/[id]/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /aria-label="Mod page sections"/);
+  assert.match(page, /SECTION_LINKS\.map/);
+  assert.doesNotMatch(page, />On this page</);
 });

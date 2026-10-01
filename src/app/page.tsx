@@ -21,7 +21,7 @@ export default async function Home() {
         <div className="site-container relative z-10 flex items-center py-12 sm:min-h-88 sm:py-16 lg:min-h-100 lg:py-20">
           <div className="max-w-xl">
             <h1 id="home-heading" className="max-w-[13ch] text-4xl font-semibold leading-[1.04] tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl">
-              Game mods in testing
+              Test beta mods
             </h1>
             <p className="mt-5 max-w-md text-base leading-7 text-text-soft sm:text-lg">
               Download beta versions, report bugs, and help authors test their
