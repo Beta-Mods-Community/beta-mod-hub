@@ -89,6 +89,13 @@ test("mod cards keep real counts and their heading level without controls nested
   assert.doesNotMatch(html, /<button\b|popover|aria-describedby=|text-\[(?:10|11)px\]/);
   assert.match(html, /<img[^>]*src="\/media\/sample-image"[^>]*class="[^"]*object-cover/);
   assert.doesNotMatch(html, /object-contain/);
+  for (const icon of ["user-check", "bug", "file-archive"]) {
+    const pictogram = html.match(new RegExp(`<svg\\b[^>]*class="[^\"]*lucide-${icon}[^\"]*"[^>]*>`))?.[0] ?? "";
+    assert.match(pictogram, /\bh-4\.5 w-4\.5 shrink-0\b/);
+    assert.match(pictogram, /stroke-width="2"/);
+    assert.match(pictogram, /aria-hidden="true"/);
+    assert.match(pictogram, /focusable="false"/);
+  }
 });
 
 test("empty card states do not imply a build or testing activity exists", () => {

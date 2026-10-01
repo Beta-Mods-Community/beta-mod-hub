@@ -30,9 +30,9 @@ export default function VerdictBadge({ isCurrentBuild, ready }: {
       title={state.title}
       description={state.description}
       label={`About ${state.title.toLowerCase()} verdict`}
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm border px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.1em] ${state.color}`}
+      className={`inline-flex items-center gap-2 whitespace-nowrap min-h-8 rounded-md border px-2.5 py-1 text-sm font-semibold uppercase tracking-[0.06em] ${state.color}`}
     >
-      <Icon aria-hidden="true" focusable="false" className="h-3 w-3 shrink-0" strokeWidth={1.8} />
+      <Icon aria-hidden="true" focusable="false" className="h-5 w-5 shrink-0" strokeWidth={2} />
       {state.title}
     </ContextHelp>
   );

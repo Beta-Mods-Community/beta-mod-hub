@@ -84,7 +84,7 @@ export default async function DashboardPage({
                     : "text-[var(--muted)] hover:text-[var(--text)]"
                 }`}
               >
-                <item.icon aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+                <item.icon aria-hidden="true" focusable="false" className="h-5 w-5 shrink-0" strokeWidth={2} />
                 {item.label}
                 {active && (
                   <span className="absolute inset-x-0 -bottom-px h-0.5 bg-[var(--accent)]" />
@@ -190,11 +190,11 @@ function BuildingPanel({
                   </h3>
                   <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[var(--text-soft)]">
                     <span className="inline-flex items-center gap-1.5">
-                      <Bug className="h-3.5 w-3.5" aria-hidden="true" />
+                      <Bug className="h-5 w-5 shrink-0" aria-hidden="true" />
                       {signal?.openBugs ?? 0} open {signal?.openBugs === 1 ? "bug" : "bugs"}
                     </span>
                     <span className="inline-flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
                       {signal && signal.total > 0
                         ? `${signal.ready} of ${signal.total} testers ready`
                         : "Awaiting first verdict"}

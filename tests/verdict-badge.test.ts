@@ -44,6 +44,9 @@ test("verdict help remains a non-submitting, named control with decorative icons
     assert.ok(descriptionId);
     assert.ok(html.includes(`id="${descriptionId}"`));
     assert.match(html, /<svg[^>]*aria-hidden="true"[^>]*focusable="false"/);
+    assert.match(html, /<svg[^>]*class="[^"]*h-5 w-5 shrink-0/);
+    assert.match(html, /<svg[^>]*stroke-width="2"/);
+    assert.match(html, /<button[^>]*class="[^"]*min-h-8[^\"]*text-sm/);
     assert.doesNotMatch(html, /<form\b|type="submit"/);
   }
 });

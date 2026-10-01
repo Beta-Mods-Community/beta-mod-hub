@@ -43,9 +43,9 @@ export default function ReportStatusBadge({ status }: { status: string }) {
       title={state.title}
       description={state.description}
       label={`About ${status} report status`}
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap py-1 text-xs font-semibold leading-4 ${state.className}`}
+      className={`inline-flex items-center gap-2 whitespace-nowrap min-h-8 py-1 text-sm font-semibold ${state.className}`}
     >
-      <Icon aria-hidden="true" focusable="false" className="h-3 w-3 shrink-0" strokeWidth={1.8} />
+      <Icon aria-hidden="true" focusable="false" className="h-5 w-5 shrink-0" strokeWidth={2} />
       {status}
     </ContextHelp>
   );

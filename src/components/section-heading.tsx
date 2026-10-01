@@ -21,11 +21,11 @@ export default function SectionHeading({
     <Icon
       aria-hidden="true"
       focusable="false"
-      className="h-4 w-4"
-      strokeWidth={1.8}
+      className={compact ? "h-5 w-5" : "h-6 w-6"}
+      strokeWidth={2}
     />
   );
-  const iconClassName = "grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-accent/25 bg-linear-to-br from-accent/15 to-accent/5 text-accent-strong shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]";
+  const iconClassName = `grid ${compact ? "h-9 w-9" : "h-10 w-10"} shrink-0 place-items-center rounded-lg border border-accent/25 bg-linear-to-br from-accent/15 to-accent/5 text-accent-strong shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]`;
 
   return (
     <h2

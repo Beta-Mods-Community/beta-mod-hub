@@ -23,7 +23,7 @@ export default function RetestNotice({
     <div className="mt-4 flex items-start gap-2.5 rounded border border-[var(--line)] p-3 text-sm">
       <div className="min-w-0">
         <ContextHelp title={label} description={help} className="flex items-start gap-2.5 font-semibold">
-          <Icon aria-hidden="true" focusable="false" className={`mt-0.5 h-4 w-4 shrink-0 ${color}`} strokeWidth={1.8} />
+          <Icon aria-hidden="true" focusable="false" className={`h-5 w-5 shrink-0 ${color}`} strokeWidth={2} />
           <span className="break-words">{label}</span>
         </ContextHelp>
         {buildVersion && <p className="mt-1 break-words text-xs text-[var(--muted)]">Build {buildVersion}</p>}

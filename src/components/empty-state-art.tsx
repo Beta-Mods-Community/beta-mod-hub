@@ -37,7 +37,7 @@ export default function EmptyStateArt({ kind }: { kind: keyof typeof icons }) {
         <path d="M1 40h10M85 40h10" stroke="currentColor" opacity=".4" />
       </svg>
       <span className="absolute inset-0 grid place-items-center">
-        <Icon className="h-8 w-8" strokeWidth={1.5} />
+        <Icon aria-hidden="true" focusable="false" className="h-9 w-9" strokeWidth={2} />
       </span>
     </div>
   );

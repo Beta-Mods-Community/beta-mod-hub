@@ -32,6 +32,8 @@ test("empty-state artwork is decorative and introduces no remote assets or contr
   for (const html of rendered.art) {
     assert.match(html, /^<div aria-hidden="true"/);
     assert.match(html, /<svg/);
+    assert.match(html, /<svg[^>]*class="[^"]*lucide-[^\"]*h-9 w-9/);
+    assert.match(html, /<svg[^>]*stroke-width="2"[^>]*aria-hidden="true"[^>]*focusable="false"/);
     assert.doesNotMatch(html, /<(?:a|button|img|input)\b|(?:src|href)="https?:/);
   }
 });

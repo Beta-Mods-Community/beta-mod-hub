@@ -9,13 +9,14 @@ type RenderedComponents = {
   reputation: { score: number; html: string }[];
   heading: string;
   explainedHeading: string;
+  compactHeading: string;
   passiveBadge: string;
   modCard: string;
 };
 
 // Lucide requires normal React, while the main suite uses the server condition.
 // Render these components in isolation; no actions or database are loaded.
-const { badges: rendered, reputation, heading, explainedHeading, passiveBadge, modCard }: RenderedComponents = JSON.parse(execFileSync(process.execPath, ["--import", "tsx", "-e", `
+const { badges: rendered, reputation, heading, explainedHeading, compactHeading, passiveBadge, modCard }: RenderedComponents = JSON.parse(execFileSync(process.execPath, ["--import", "tsx", "-e", `
   const React = require("react");
   const { renderToStaticMarkup } = require("react-dom/server");
   const components = [
@@ -35,6 +36,9 @@ const { badges: rendered, reputation, heading, explainedHeading, passiveBadge, m
     title: "Bug reports", id: "explained-bugs-heading", icon: require("lucide-react").Bug,
     description: "Read and respond to problems found in a specific build.",
   }));
+  const compactHeading = renderToStaticMarkup(React.createElement(SectionHeading, {
+    title: "Testing feedback", icon: require("lucide-react").ClipboardCheck, compact: true,
+  }));
   const ReputationBadge = require("./src/components/reputation-badge").default;
   const reputation = [0, 4, 12, 25].map(score => ({
     score, html: renderToStaticMarkup(React.createElement(ReputationBadge, { score })),
@@ -47,7 +51,7 @@ const { badges: rendered, reputation, heading, explainedHeading, passiveBadge, m
     tags: [], status: "beta", ownerName: "Example author", createdAt: "2026-09-30",
     updatedAt: "2026-09-30", testerCount: 0, openBugs: 0, ready: 0, total: 0, buildCount: 0, lastBuildAt: null,
   } }));
-  process.stdout.write(JSON.stringify({ badges: rows, reputation, heading, explainedHeading, passiveBadge, modCard }));
+  process.stdout.write(JSON.stringify({ badges: rows, reputation, heading, explainedHeading, compactHeading, passiveBadge, modCard }));
 `], { cwd: fileURLToPath(new URL("..", import.meta.url)), encoding: "utf8", timeout: 30_000 }));
 
 function badge(kind: string, value: string) {
@@ -82,29 +86,36 @@ test("section help keeps a named icon control alongside the visible heading", ()
 });
 
 test("badge icons preserve readable state labels and stay decorative", () => {
-  for (const { kind, value, html } of rendered) {
+  for (const { value, html } of rendered) {
     const trigger = helpTrigger(html);
     assert.equal(trigger.replace(/<[^>]+>/g, ""), value);
     assert.equal((html.match(/<svg\b/g) ?? []).length, 1);
     assert.match(html, /<svg[^>]*aria-hidden="true"/);
     assert.match(html, /<svg[^>]*focusable="false"/);
     assert.match(html, /<svg[^>]*stroke="currentColor"/);
-    if (kind === "release") {
-      assert.match(html, /<svg[^>]*stroke-width="2"/);
-      assert.match(html, /<svg[^>]*class="[^"]*h-5 w-5 shrink-0/);
-      assert.match(trigger, /class="[^"]*inline-flex items-center gap-2 whitespace-nowrap/);
-      assert.match(trigger, /\bmin-h-8\b/);
-      assert.match(trigger, /\btext-sm\b/);
-    } else {
-      assert.match(html, /<svg[^>]*stroke-width="1\.8"/);
-      assert.match(html, /<svg[^>]*class="[^"]*h-3 w-3 shrink-0/);
-      assert.match(trigger, /class="[^"]*inline-flex items-center gap-1\.5 whitespace-nowrap/);
-    }
+    assert.match(html, /<svg[^>]*stroke-width="2"/);
+    assert.match(html, /<svg[^>]*class="[^"]*h-5 w-5 shrink-0/);
+    assert.match(trigger, /class="[^"]*inline-flex items-center gap-2 whitespace-nowrap/);
+    assert.match(trigger, /\bmin-h-8\b/);
+    assert.match(trigger, /\btext-sm\b/);
     assert.match(trigger, /type="button"/);
     assert.ok(trigger.includes(`aria-label="About ${value} `));
     assert.doesNotMatch(html, /title=|role="(?:button|img)"|tabindex=|lucide-shield/);
     assert.doesNotMatch(html.match(/<svg\b[^>]*>/)?.[0] ?? "", /aria-label=|role=|tabindex=/);
   }
+});
+
+test("section emblems are larger and retain a compact hierarchy", () => {
+  for (const html of [heading, explainedHeading]) {
+    assert.match(html, /\bh-10 w-10 shrink-0\b/);
+    assert.match(html, /<svg[^>]*class="[^"]*h-6 w-6/);
+    assert.match(html, /<svg[^>]*stroke-width="2"/);
+  }
+  assert.match(compactHeading, /\bh-9 w-9 shrink-0\b/);
+  assert.match(compactHeading, /<svg[^>]*class="[^"]*h-5 w-5/);
+  assert.match(compactHeading, /<svg[^>]*stroke-width="2"/);
+  assert.equal(compactHeading.replace(/<[^>]+>/g, ""), "Testing feedback");
+  assert.doesNotMatch(compactHeading, /<(?:button|a)\b|tabindex=|role=/);
 });
 
 test("badge help associates each trigger with its explanation without putting popup text in the button", () => {
@@ -162,9 +173,13 @@ test("reputation exposes the tier and participation meaning through accessible h
   const tiers = ["New Tester", "Active Tester", "Experienced Tester", "Trusted Tester"];
   for (const [index, { score, html }] of reputation.entries()) {
     const trigger = helpTrigger(html);
-    assert.equal(trigger.replace(/<[^>]+>/g, ""), `★${score}`);
+    assert.equal(trigger.replace(/<[^>]+>/g, ""), `${score}`);
     assert.ok(trigger.includes(`aria-label="About reputation ${score}, ${tiers[index]}"`));
-    assert.match(trigger, /<span aria-hidden="true">★<\/span>/);
+    assert.match(trigger, /<svg[^>]*class="[^"]*lucide-star[^\"]*h-5 w-5 shrink-0/);
+    assert.match(trigger, /<svg[^>]*aria-hidden="true"[^>]*focusable="false"/);
+    assert.match(trigger, /<svg[^>]*stroke-width="2"/);
+    assert.match(trigger, /\btext-sm\b/);
+    assert.match(trigger, /\bmin-h-8\b/);
     assert.match(html, /participation score based on mods tested, readiness votes, and bug reports/);
     assert.match(html, /does not verify report quality or trustworthiness/);
     assert.doesNotMatch(html, /title=|—/);

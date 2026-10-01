@@ -28,9 +28,9 @@ export default function UploadSwitchForm({ enabled }: { enabled: boolean }) {
         className={enabled ? buttonDanger : buttonPrimary}
       >
         {enabled ? (
-          <ShieldAlert className="h-4 w-4" />
+          <ShieldAlert aria-hidden="true" className="h-5 w-5 shrink-0" />
         ) : (
-          <ShieldCheck className="h-4 w-4" />
+          <ShieldCheck aria-hidden="true" className="h-5 w-5 shrink-0" />
         )}
         {pending
           ? "Working…"

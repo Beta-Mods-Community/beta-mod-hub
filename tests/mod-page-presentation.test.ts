@@ -66,7 +66,8 @@ test("gallery controls retain explicit names and never become form submissions",
 test("report metadata badges keep readable text and accessible contextual help", () => {
   for (const html of rendered.badges) {
     const button = html.match(/<button\b[^>]*>/)?.[0] ?? "";
-    assert.match(button, /\btext-xs\b/);
+    assert.match(button, /\btext-sm\b/);
+    assert.match(html, /<svg[^>]*class="[^"]*h-5 w-5 shrink-0/);
     assert.doesNotMatch(button, /text-\[(?:10|11)px\]/);
     assert.match(button, /type="button"/);
     assert.match(button, /aria-label="About [^"]+"/);

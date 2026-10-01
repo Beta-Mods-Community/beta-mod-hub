@@ -39,7 +39,7 @@ export default function CatalogFilters({ q, game, sort, games }: {
       </label>
       <details ref={disclosure} className="group min-w-0 rounded-md border border-line lg:border-0">
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-medium text-text-soft lg:group-open:hidden [&::-webkit-details-marker]:hidden">
-          <SlidersHorizontal aria-hidden="true" className="h-4 w-4 text-muted" />
+          <SlidersHorizontal aria-hidden="true" className="h-5 w-5 shrink-0 text-text-soft" />
           Game &amp; sort{activeCount > 0 && <span className="text-xs text-muted">({activeCount} applied)</span>}
           <ChevronDown aria-hidden="true" className="ml-auto h-4 w-4 text-muted transition-transform group-open:rotate-180 motion-reduce:transition-none" />
         </summary>
@@ -49,7 +49,7 @@ export default function CatalogFilters({ q, game, sort, games }: {
         </div>
       </details>
       <button type="submit" className="button-secondary justify-self-end">
-        <Search className="h-4 w-4" aria-hidden="true" />
+        <Search className="h-5 w-5 shrink-0" aria-hidden="true" />
         Search
       </button>
     </form>

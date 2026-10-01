@@ -60,7 +60,7 @@ export default function ApproveUploaderForm() {
         disabled={pending}
         className="button-primary"
       >
-        <UserPlus className="h-4 w-4" />
+        <UserPlus aria-hidden="true" className="h-5 w-5 shrink-0" />
         {pending ? "Adding…" : "Approve"}
       </button>
       {state?.message && (

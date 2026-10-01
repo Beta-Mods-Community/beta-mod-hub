@@ -92,6 +92,11 @@ test("attachment paperclip and lock are decorative while the privacy restriction
   decorativeIcons(html, 2);
   assert.match(html, /lucide-paperclip/);
   assert.match(html, /lucide-lock-keyhole/);
+  assert.match(html, /<svg[^>]*class="[^"]*lucide-paperclip[^\"]*h-5 w-5 shrink-0/);
+  assert.match(html, /<svg[^>]*class="[^"]*lucide-lock-keyhole[^\"]*h-4\.5 w-4\.5 shrink-0/);
+  assert.equal((html.match(/stroke-width="2"/g) ?? []).length, 2);
+  assert.match(html, /<button[^>]*class="[^"]*text-sm leading-5/);
+  assert.doesNotMatch(html, /text-\[(?:10|11)px\]/);
   assert.match(html, /<span>Reporter and mod author only<\/span>/);
   assert.doesNotMatch(html, /aria-label=|role="(?:button|img)"|tabindex=/);
 });
@@ -106,6 +111,8 @@ test("retest states retain distinct icons, readable labels, escaped builds, and 
     const row = rendered.retests.find(item => item.status === status);
     assert.ok(row);
     decorativeIcons(row.html, 1);
+    assert.match(row.html, /<svg[^>]*class="[^"]*h-5 w-5 shrink-0/);
+    assert.match(row.html, /<svg[^>]*stroke-width="2"/);
     assert.ok(row.html.includes(`lucide-${icon}`));
     assert.ok(row.html.includes(`>${label}</span>`));
     assert.ok(row.html.includes(`>Build ${escaped(buildVersion)}</p>`));

@@ -78,13 +78,13 @@ export default function ModCard({ mod, className = "", featured = false, heading
           <div className="space-y-2.5 border-t border-line pt-4 text-xs leading-5 text-muted">
             {activity.length > 0 ? <ul aria-label="Testing activity" className="flex flex-wrap gap-x-4 gap-y-2 tabular-nums">
               {activity.map(({ icon: Icon, label }) => <li key={label} className="inline-flex items-center gap-1.5">
-                <Icon aria-hidden="true" focusable="false" className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
+                <Icon aria-hidden="true" focusable="false" className="h-4.5 w-4.5 shrink-0" strokeWidth={2} />
                 <span>{label}</span>
               </li>)}
             </ul> : mod.buildCount > 0 ? <p>No readiness votes yet</p> : null}
             <div className="flex items-end justify-between gap-4">
               <p className="flex min-w-0 items-start gap-1.5">
-                <FileArchive aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.8} />
+                <FileArchive aria-hidden="true" focusable="false" className="mt-px h-4.5 w-4.5 shrink-0" strokeWidth={2} />
                 <span>
                   {mod.buildCount === 0 ? "No build posted" : `${mod.buildCount} ${mod.buildCount === 1 ? "build" : "builds"} · latest ${formatDate(mod.lastBuildAt ?? mod.updatedAt)}`}
                 </span>

@@ -22,17 +22,17 @@ export default function PrivateAttachmentLink({
         href={`/attachments/${attachmentId}`}
         className="group flex items-start gap-2.5 rounded-sm text-sm text-accent-strong"
       >
-        <Paperclip aria-hidden="true" focusable="false" className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.8} />
+        <Paperclip aria-hidden="true" focusable="false" className="h-5 w-5 shrink-0" strokeWidth={2} />
         <span className="min-w-0">
           <span className="break-all underline-offset-4 group-hover:underline">Download {filename}</span>
           <span className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-            <span className="rounded border border-[var(--line)] px-1.5 py-0.5 text-[10px] font-semibold tracking-wide">{fileType}</span>
+            <span className="rounded border border-[var(--line)] px-1.5 py-0.5 text-xs font-semibold tracking-wide">{fileType}</span>
             <span>{sizeLabel}</span>
           </span>
         </span>
       </a>
-      <ContextHelp title="Private report attachment" description="Only the person who filed this report and the mod author can download this file. Other testers cannot see it. Use the filename link to download it, and avoid including passwords or other personal information in logs." className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-[var(--muted)]">
-        <LockKeyhole aria-hidden="true" focusable="false" className="mt-1 h-3 w-3 shrink-0" strokeWidth={1.8} />
+      <ContextHelp title="Private report attachment" description="Only the person who filed this report and the mod author can download this file. Other testers cannot see it. Use the filename link to download it, and avoid including passwords or other personal information in logs." className="mt-2 flex items-start gap-2 text-sm leading-5 text-[var(--muted)]">
+        <LockKeyhole aria-hidden="true" focusable="false" className="mt-px h-4.5 w-4.5 shrink-0" strokeWidth={2} />
         <span>Reporter and mod author only</span>
       </ContextHelp>
     </div>

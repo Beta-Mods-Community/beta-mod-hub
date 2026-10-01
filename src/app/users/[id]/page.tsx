@@ -236,7 +236,7 @@ export default async function UserProfilePage({
                     {report.modTitle}
                   </Link>
                   <span className="ml-auto flex items-center gap-1 text-xs text-[var(--muted)]">
-                    <CalendarDays className="h-3 w-3" aria-hidden="true" />
+                    <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />
                     {formatDate(report.createdAt)}
                   </span>
                 </div>

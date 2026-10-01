@@ -51,7 +51,7 @@ export default async function AdminPage() {
       {/* Kill switch */}
       <section className={`${card} mb-6`}>
         <h2 className={heading}>
-          <ShieldAlert className="h-4 w-4" />
+          <ShieldAlert aria-hidden="true" className="h-5 w-5 shrink-0" />
           New uploads
         </h2>
         <p
@@ -75,7 +75,7 @@ export default async function AdminPage() {
       {/* Storage usage */}
       <section className={`${card} mb-6`}>
         <h2 className={heading}>
-          <Gauge className="h-4 w-4" />
+          <Gauge aria-hidden="true" className="h-5 w-5 shrink-0" />
           Storage
         </h2>
 
@@ -161,7 +161,7 @@ export default async function AdminPage() {
       {/* Allowlist */}
       <section className={card}>
         <h2 className={heading}>
-          <Users className="h-4 w-4" />
+          <Users aria-hidden="true" className="h-5 w-5 shrink-0" />
           Approved uploaders
         </h2>
         <p className="text-sm leading-6 text-muted">
@@ -198,7 +198,7 @@ export default async function AdminPage() {
                     type="submit"
                     className="flex min-h-11 items-center gap-2 rounded-md border border-line-strong px-3 text-sm text-text-soft hover:border-red-400 hover:text-red-400"
                   >
-                    <Ban className="h-3.5 w-3.5" />
+                    <Ban aria-hidden="true" className="h-5 w-5 shrink-0" />
                     Remove
                   </button>
                 </form>
