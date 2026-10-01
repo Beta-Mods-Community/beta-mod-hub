@@ -22,20 +22,20 @@ export default async function LoginPage({
     <main className="site-container flex w-full max-w-md flex-1 flex-col justify-center py-14">
       <div className="panel p-6 sm:p-8">
         <p className="eyebrow">Account</p>
-        <h1 className="mb-1 mt-3 text-2xl font-semibold tracking-tight text-[var(--text)]">
+        <h1 className="page-title mb-3 mt-3">
           Sign in
         </h1>
-        <p className="mb-6 text-sm text-[var(--text-soft)]">
+        <p className="mb-6 text-sm leading-6 text-[var(--text-soft)]">
           Sign in to upload mods, report bugs, and vote on builds.
         </p>
 
         {nexus === "error" && (
-          <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
+          <p className="notice notice-error mb-4">
             Nexus sign-in failed. Try again or sign in with your email.
           </p>
         )}
         {nexus === "unconfigured" && (
-          <p className="mb-4 rounded-md bg-zinc-100 p-3 text-sm text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          <p className="notice mb-4">
             Nexus sign-in isn&apos;t available yet. Use your email and password.
           </p>
         )}
@@ -44,7 +44,7 @@ export default async function LoginPage({
           <>
             <a
               href="/nexus-sso"
-            className="button-secondary mb-4 w-full"
+              className="button-secondary mb-4 w-full"
             >
               Continue with Nexus
             </a>
@@ -57,7 +57,7 @@ export default async function LoginPage({
         )}
 
         <LoginForm />
-        {(password === "reset" || password === "changed") && <p role="status" className="mt-4 text-sm text-[var(--accent)]">Your password was updated and all devices were signed out. Sign in with your new password.</p>}
+        {(password === "reset" || password === "changed") && <p role="status" className="notice notice-success mt-4">Your password was updated and all devices were signed out. Sign in with your new password.</p>}
         <Link href="/forgot-password" className="mt-4 block text-center text-sm text-[var(--accent)] underline-offset-4 hover:underline">Forgot your password?</Link>
         <p className="mt-6 text-center text-sm text-[var(--muted)]">
           New here?{" "}

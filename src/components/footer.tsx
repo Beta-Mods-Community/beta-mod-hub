@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import ContextHelp from "./context-help";
+import BrandMark from "./brand-mark";
 
 const footerLinks = [
   { href: "/contact", label: "Contact" },
@@ -10,16 +11,12 @@ const footerLinks = [
 
 export default function Footer() {
   return (
-    <footer className="mt-auto border-t border-[var(--line)] bg-[var(--surface-soft)]">
+    <footer className="mt-auto bg-background">
+      <div className="site-container section-divider" aria-hidden="true" />
       <div className="site-container grid gap-4 py-6 lg:grid-cols-[1fr_auto] lg:items-center">
         <div className="max-w-xl">
           <div className="flex items-center gap-2.5">
-            <span
-              aria-hidden
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--accent)] bg-[var(--accent-soft)] text-sm font-black text-[var(--accent-strong)]"
-            >
-              β
-            </span>
+            <BrandMark size={28} />
             <p className="text-sm font-semibold tracking-tight text-[var(--text)]">
               Beta Mods
             </p>

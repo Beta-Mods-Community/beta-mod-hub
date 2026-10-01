@@ -14,10 +14,10 @@ export default async function SignupPage() {
     <main className="site-container flex w-full max-w-md flex-1 flex-col justify-center py-14">
       <div className="panel p-6 sm:p-8">
         <p className="eyebrow">Account</p>
-        <h1 className="mb-1 mt-3 text-2xl font-semibold tracking-tight text-[var(--text)]">
+        <h1 className="page-title mb-3 mt-3">
           Create your account
         </h1>
-        <p className="mb-6 text-sm text-[var(--text-soft)]">
+        <p className="mb-6 text-sm leading-6 text-[var(--text-soft)]">
           Test mods, report bugs, or post your own beta.
         </p>
         <SignupForm />

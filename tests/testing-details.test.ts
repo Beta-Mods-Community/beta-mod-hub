@@ -28,10 +28,10 @@ test("section heading help is optional and preserves the visible heading", () =>
   assert.match(source, /<h2/);
   assert.match(source, /description\?: string/);
   assert.match(source, /icon: LucideIcon/);
-  assert.match(source, /<Icon aria-hidden="true" focusable="false"/);
-  assert.match(source, /description \? <ContextHelp\s+title=\{title\}\s+description=\{description\}/);
+  assert.match(source, /<Icon\s+aria-hidden="true"\s+focusable="false"/);
+  assert.match(source, /description \?\s*\(?\s*<ContextHelp\s+title=\{title\}\s+description=\{description\}/);
   assert.match(source, /label=\{`About \$\{title\}`\}/);
-  assert.match(source, /: <span className=\{iconClassName\}>\{icon\}<\/span>/);
+  assert.match(source, /:\s*\(?\s*<span className=\{iconClassName\}>\{icon\}<\/span>/);
   assert.match(source, /<span>\{title\}<\/span>/);
 });
 

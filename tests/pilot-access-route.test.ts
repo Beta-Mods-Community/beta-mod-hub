@@ -36,6 +36,17 @@ test("gate HTML preserves native HTTPS form Origin without referring token-beari
   assert.match(await response.text(), /<form method="post">/);
 });
 
+test("gate share metadata contains public branding only", async () => {
+  const html = await (await route.GET()).text();
+  assert.match(html, /<meta property="og:title" content="Beta Mods">/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/betamods\.com\/images\/beta-mods-mark\.png">/);
+  assert.match(html, /<meta name="twitter:card" content="summary">/);
+  assert.ok(!html.includes(fixture.PILOT_ACCESS_KEY));
+  assert.ok(!html.includes(fixture.SESSION_SECRET));
+  assert.ok(!html.includes(fixture.DATABASE_URL));
+  assert.doesNotMatch(html, /returnTo|verify-email\?token|property="og:url"/);
+});
+
 test("gate rejects null, missing and foreign origins without accepting a correct code", async () => {
   for (const origin of [null, "null", "https://foreign.invalid"]) {
     const headers: Record<string, string> = { "Content-Type": "application/x-www-form-urlencoded" };

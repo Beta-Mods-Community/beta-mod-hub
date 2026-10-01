@@ -29,9 +29,28 @@ file URLs.
 Use the color and spacing patterns in
 [`src/app/globals.css`](../src/app/globals.css), including theme utilities such
 as `bg-surface`, `text-muted`, and `border-line`. Shared classes include
-`site-container`, `panel`, `field`, `button-primary`, and `button-secondary`.
+`site-container`, `page-title`, `section-title`, `panel`, `surface-section`,
+`field`, `button-primary`, and `button-secondary`.
 Reuse the existing form feedback, status badges, and section headings in
 `src/components` so labels, focus styles, and behavior stay consistent.
+The shared reading canvas fades into the darker outer background. Keep
+decorative layers pointer-transparent and outside the document's focus order.
+Shell dividers use `site-container section-divider` to stay inset with fading ends.
+
+Use `form-section` for field groups, `form-actions` for wrapping action rows,
+and `notice` with `notice-error`, `notice-success`, or `notice-info` for feedback.
+Keep field errors associated with their inputs. Native file inputs use `field`;
+do not replace them with a drop area that cannot be used from the keyboard.
+Important metadata and badges should be at least 12px. Reading text belongs in
+the 14–16px range with enough line spacing for longer reports.
+
+`BrandMark` references the existing vector in `public/images`; do not redraw
+the beta symbol separately in each React component. `EmptyStateArt` uses local
+SVG geometry and the existing Lucide icon set. `PageSkeleton` provides page,
+catalog, and mod layouts with reduced-motion support. No new image package is
+required. Public share metadata comes from `lib/site-presentation.ts` and
+contains only site branding. The access gate must never expose listing data,
+user information, or token-bearing return URLs in a share preview.
 
 [`SectionHeading`](../src/components/section-heading.tsx) keeps a visible heading
 and accepts an optional `description` to explain its icon.

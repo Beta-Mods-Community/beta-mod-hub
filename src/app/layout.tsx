@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Footer from "@/components/footer";
 import Header from "@/components/header";
 import { isCloudPilot } from "@lib/pilot";
+import { sitePresentation } from "@lib/site-presentation";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,6 +31,19 @@ export const metadata: Metadata = {
     "game mods",
     "release testing",
   ],
+  openGraph: {
+    type: "website",
+    siteName: sitePresentation.title,
+    title: sitePresentation.title,
+    description: sitePresentation.description,
+    images: [{ url: sitePresentation.image, alt: "Beta Mods beta symbol" }],
+  },
+  twitter: {
+    card: "summary",
+    title: sitePresentation.title,
+    description: sitePresentation.description,
+    images: [sitePresentation.image],
+  },
 };
 
 export default function RootLayout({

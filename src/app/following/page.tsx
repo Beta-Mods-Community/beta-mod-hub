@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
-import { ArrowUpRight, Bookmark } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
+import EmptyStateArt from "@/components/empty-state-art";
 
 import { verifySession } from "@lib/dal";
 import { db } from "@lib/db";
@@ -25,7 +26,7 @@ export default async function FollowingPage() {
   return (
     <main className="site-container flex-1 py-10 sm:py-12">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight text-text">Following</h1>
+        <h1 className="page-title">Following</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
           Keep track of mods you want to test. New builds appear in your notifications.
         </p>
@@ -40,7 +41,7 @@ export default async function FollowingPage() {
                   <StatusBadge status={mod.status} />
                   <span className="text-xs text-muted">{mod.game}</span>
                 </div>
-                <Link href={`/mods/${mod.id}`} className="mt-3 block break-words font-semibold text-text hover:text-accent">
+                <Link href={`/mods/${mod.id}`} className="mt-3 block break-words text-lg font-semibold leading-snug text-text hover:text-accent">
                   {mod.title}
                 </Link>
               </div>
@@ -53,10 +54,10 @@ export default async function FollowingPage() {
           ))}
         </ul>
       ) : (
-        <section className="mt-7 flex items-start gap-4 border-t border-line py-10" aria-labelledby="following-empty-heading">
-          <Bookmark className="mt-1 h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
+        <section className="mt-7 border-t border-line py-10" aria-labelledby="following-empty-heading">
+          <EmptyStateArt kind="following" />
           <div>
-            <h2 id="following-empty-heading" className="text-base font-semibold text-text">No followed mods to show</h2>
+            <h2 id="following-empty-heading" className="section-title font-semibold text-text">No followed mods to show</h2>
             <p className="mt-2 max-w-lg text-sm leading-6 text-muted">
               Browse active betas and choose Follow on a mod page to keep it here and receive updates when a new build is posted.
             </p>

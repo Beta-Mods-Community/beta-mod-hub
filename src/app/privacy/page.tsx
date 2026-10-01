@@ -2,7 +2,7 @@ import Link from "next/link";
 import { isCloudPilot } from "@lib/pilot";
 export const metadata = { title: "Privacy" };
 export default function PrivacyPage() {
-  return <main className="site-container w-full max-w-3xl flex-1 py-12"><h1 className="text-3xl font-semibold">Privacy during the pilot</h1>
+  return <main className="site-container w-full max-w-3xl flex-1 py-10 sm:py-12"><h1 className="page-title">Privacy during the pilot</h1>
     <div className="panel mt-6 space-y-5 p-6 text-sm leading-7">
       <h2 className="text-lg font-semibold">Account and activity</h2>
       <p>We store your email address, password hash, profile, mod listings, uploads, votes, follows, and bug reports to operate the site. Verification and password-reset links expire and can be used once. Login attempts are limited using account and request information.</p>

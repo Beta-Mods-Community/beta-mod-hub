@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { cloudPilotEnabled, makePilotCookie, PILOT_COOKIE, pilotGateKey, safePilotReturnTo } from "@lib/cloud-pilot";
 import { consumeRateLimit } from "@lib/account-rate-limit";
 import { db } from "@lib/db";
+import { sitePresentation } from "@lib/site-presentation";
 
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" };
@@ -13,7 +14,24 @@ const formHeaders = { ...headers, "Referrer-Policy": "strict-origin", "Content-T
 export async function GET() {
   if (!cloudPilotEnabled()) return new Response("Not found", { status: 404 });
   if (!pilotGateKey()) return new Response("The private pilot is not configured yet.", { status: 503, headers });
-  return new Response(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Private beta · Beta Mods</title><style>body{margin:0;background:#090b0d;color:#edf4f6;font:16px system-ui;display:grid;min-height:100vh;place-items:center}main{width:min(420px,85vw)}h1{font-size:2rem}p{color:#a8b8c1;line-height:1.6}label{display:block;margin-top:24px}input,button{box-sizing:border-box;width:100%;padding:14px;margin-top:10px;border-radius:6px;border:1px solid #34434a;font:inherit}input{background:#11191e;color:white}button{background:#42dcf4;color:#091317;font-weight:650;cursor:pointer}</style><main><p>Beta Mods</p><h1>Private beta</h1><p>Enter the access code shared with your tester group, then sign in or create an account.</p><form method="post"><label for="code">Tester access code</label><input id="code" name="code" type="password" required maxlength="256" autocomplete="off"><button>Continue</button></form><p>Uploads are limited to small files during this beta.</p></main></html>`, { headers: formHeaders });
+  return new Response(`<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Private beta · Beta Mods</title>
+<meta property="og:type" content="website"><meta property="og:title" content="${sitePresentation.title}">
+<meta property="og:description" content="${sitePresentation.description}"><meta property="og:image" content="${sitePresentation.image}">
+<meta property="og:image:alt" content="Beta Mods beta symbol"><meta name="twitter:card" content="summary">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0a0e12;color:#edf1f5;font:16px system-ui;display:grid;min-height:100dvh;place-items:center;padding:40px 24px}
+main{width:min(100%,440px)}.brand{display:flex;align-items:center;gap:12px;color:#edf1f5;font-weight:650}.mark{display:grid;place-items:center;width:36px;height:36px;border:1px solid #4ad9ed;border-radius:6px;background:#102229;color:#8be7f3;font-size:24px;font-weight:900}
+h1{margin:40px 0 16px;font-size:clamp(30px,6vw,40px);line-height:1.15;letter-spacing:-.035em}p{color:#9baab9;line-height:1.7}label{display:block;margin-top:28px;font-size:14px;font-weight:600}
+input,button{width:100%;min-height:48px;padding:12px 14px;margin-top:10px;border-radius:6px;border:1px solid #536677;font:inherit}input{background:#0d1218;color:#edf1f5}button{margin-top:18px;background:#4ad9ed;border-color:#4ad9ed;color:#07171d;font-weight:650;cursor:pointer}button:hover{background:#8be7f3;border-color:#8be7f3}input:focus-visible,button:focus-visible{outline:2px solid #4ad9ed;outline-offset:3px}.note{margin-top:28px;padding-top:20px;border-top:1px solid #26323e;font-size:13px}
+</style></head><body><main>
+<p class="brand"><span class="mark" aria-hidden="true">β</span>Beta Mods</p>
+<h1>Private beta</h1><p>Enter the access code shared with your tester group, then sign in or create an account.</p>
+<form method="post"><label for="code">Tester access code</label><input id="code" name="code" type="password" required maxlength="256" autocomplete="off"><button>Continue</button></form>
+<p class="note">Uploads are limited to small files during this beta.</p>
+</main></body></html>`, { headers: formHeaders });
 }
 
 export async function POST(request: Request) {
