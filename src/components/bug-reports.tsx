@@ -30,7 +30,7 @@ type Props = {
 };
 
 export default async function BugReports({ betaModId, builds, viewerId, isOwner, readOnly, uploadPermission, filters = {} }: Props) {
-  if (!db) return <section id="bugs" className="scroll-mt-24"><SectionHeading title="Bug reports" icon={Bug} /><p className="mt-4 text-sm text-[var(--muted)]">Reports are temporarily unavailable.</p></section>;
+  if (!db) return <section id="bugs" className="scroll-mt-24"><SectionHeading title="Bug reports" description="Problems testers found in a specific build, with severity, reproduction steps, and author responses. Attachments are private to the reporter and mod author." icon={Bug} /><p className="mt-4 text-sm text-[var(--muted)]">Reports are temporarily unavailable.</p></section>;
   const status = ["open", "acknowledged", "fixed"].includes(filters.bugStatus ?? "") ? filters.bugStatus as "open" | "acknowledged" | "fixed" : undefined;
   const buildId = builds.some(build => build.id === filters.bugBuild) ? filters.bugBuild : undefined;
   const parsedPage = Number(filters.bugPage ?? "1");
@@ -59,7 +59,7 @@ export default async function BugReports({ betaModId, builds, viewerId, isOwner,
     return `/mods/${betaModId}?${query}#bugs`;
   };
   return <section id="bugs" className="scroll-mt-24">
-    <div className="flex flex-wrap items-end justify-between gap-3"><SectionHeading title="Bug reports" icon={Bug} /><span className="text-sm text-[var(--muted)]">{total} {hasFilters ? "matching " : ""}{total === 1 ? "report" : "reports"}</span></div>
+    <div className="flex flex-wrap items-end justify-between gap-3"><SectionHeading title="Bug reports" description="Problems testers found in a specific build, with severity, reproduction steps, and author responses. Attachments are private to the reporter and mod author." icon={Bug} /><span className="text-sm text-[var(--muted)]">{total} {hasFilters ? "matching " : ""}{total === 1 ? "report" : "reports"}</span></div>
     {(total > 0 || hasFilters) && <form key={JSON.stringify([status ?? "", buildId ?? ""])} method="get" action={`/mods/${betaModId}#bugs`} className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
       <label className="text-xs font-medium">Status<select name="bugStatus" defaultValue={status ?? ""} className="field mt-1"><option value="">All statuses</option><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="fixed">Fixed</option></select></label>
       <label className="text-xs font-medium">Affected build<select name="bugBuild" defaultValue={buildId ?? ""} className="field mt-1"><option value="">All builds</option>{builds.map(build => <option key={build.id} value={build.id}>{build.versionLabel}</option>)}</select></label>

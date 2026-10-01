@@ -1,4 +1,5 @@
 import { LockKeyhole, Paperclip } from "lucide-react";
+import ContextHelp from "./context-help";
 
 const fileTypes = new Set(["txt", "log", "zip", "sav", "save", "fos", "json", "ini"]);
 
@@ -30,10 +31,10 @@ export default function PrivateAttachmentLink({
           </span>
         </span>
       </a>
-      <p className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-[var(--muted)]">
+      <ContextHelp title="Private report attachment" description="Only the person who filed this report and the mod author can download this file. Other testers cannot see it. Use the filename link to download it, and avoid including passwords or other personal information in logs." className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-[var(--muted)]">
         <LockKeyhole aria-hidden="true" focusable="false" className="mt-1 h-3 w-3 shrink-0" strokeWidth={1.8} />
         <span>Reporter and mod author only</span>
-      </p>
+      </ContextHelp>
     </div>
   );
 }

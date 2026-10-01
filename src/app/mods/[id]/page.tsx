@@ -22,6 +22,7 @@ import {
 
 import BugReports from "@/components/bug-reports";
 import BuildUploadForm from "@/components/build-upload-form";
+import ContextHelp from "@/components/context-help";
 import DeleteModButton from "@/components/delete-mod-button";
 import ModGallery from "@/components/mod-gallery";
 import ModMediaManager from "@/components/mod-media-manager";
@@ -60,6 +61,8 @@ const SECTION_LINKS = [
   { href: "#bugs", label: "Bugs", icon: Bug },
   { href: "#testing", label: "Testing", icon: ClipboardCheck },
 ] as const;
+
+const SCAN_HELP = "This file passed a malware scan before it was shared. A clean scan cannot guarantee safety, game compatibility, or protection of your saves. Back up your saves before testing.";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -170,10 +173,10 @@ export default async function BetaModPage({
                   <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
                   Download build
                 </Link>
-                <p className="mt-3 flex items-center gap-1.5 text-xs text-[var(--success)]">
+                <ContextHelp title="Malware scan passed" description={SCAN_HELP} className="mt-3 inline-flex items-center gap-1.5 text-xs text-[var(--success)]">
                   <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   Malware scan passed
-                </p>
+                </ContextHelp>
                 <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
                   Scanned before sharing. Compatibility still needs testing.
                 </p>
@@ -262,18 +265,18 @@ export default async function BetaModPage({
 
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1 lg:row-span-2">
           <section id="testing" className="panel scroll-mt-24 p-5" aria-labelledby="testing-heading">
-            <SectionHeading id="testing-heading" title="Testing feedback" icon={ClipboardCheck} compact />
+            <SectionHeading id="testing-heading" title="Testing feedback" description="Readiness votes summarize testing of the latest build. Earlier votes stay in testing history and do not count as approval of a new build." icon={ClipboardCheck} compact />
             {latestBuild ? (
               <>
                 <p className="mt-1 text-xs text-[var(--muted)]">For build {latestBuild.versionLabel}</p>
                 <h3 className="sr-only">Tester verdicts</h3>
                 <dl className="mt-3 grid grid-cols-2 gap-4">
                   <div>
-                    <dt className="flex items-center gap-1.5 text-xs text-[var(--muted)]"><CircleCheck aria-hidden="true" className="h-3.5 w-3.5" />Ready</dt>
+                    <dt className="text-xs text-[var(--muted)]"><ContextHelp title="Ready votes" description="Testers who consider this build ready for release based on their testing. These votes apply only to this build and do not guarantee compatibility." className="inline-flex items-center gap-1.5"><CircleCheck aria-hidden="true" className="h-3.5 w-3.5" />Ready</ContextHelp></dt>
                     <dd className="mt-1 text-2xl font-semibold tabular-nums">{tally.ready}</dd>
                   </div>
                   <div>
-                    <dt className="flex items-center gap-1.5 text-xs text-[var(--muted)]"><Wrench aria-hidden="true" className="h-3.5 w-3.5" />Not ready</dt>
+                    <dt className="text-xs text-[var(--muted)]"><ContextHelp title="Not ready votes" description="Testers who think this build needs more work before release. Bug reports provide details about the problems they found." className="inline-flex items-center gap-1.5"><Wrench aria-hidden="true" className="h-3.5 w-3.5" />Not ready</ContextHelp></dt>
                     <dd className="mt-1 text-2xl font-semibold tabular-nums">{tally.total - tally.ready}</dd>
                   </div>
                 </dl>
@@ -320,8 +323,8 @@ export default async function BetaModPage({
               </p>
             )}
             {!isOwner && !readOnly && <div className="mt-5 border-t border-[var(--line)] pt-5">
-              <h3 className="flex items-center gap-2 text-sm font-semibold"><Bell aria-hidden="true" className="h-4 w-4 text-[var(--muted)]" />Follow this mod</h3>
-              <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Get a notification here for new builds and retest requests.</p>
+              <h3 aria-label="Follow this mod" className="flex items-center gap-2 text-sm font-semibold"><ContextHelp title="Follow this mod" description="Following adds this mod to your Following page and gives you notifications here for new builds, bugs marked fixed, and its release on Nexus. Use the follow button below to change your choice." label="About following this mod" className="inline-flex text-[var(--muted)]"><Bell aria-hidden="true" className="h-4 w-4" /></ContextHelp>Follow this mod</h3>
+              <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Get a notification here for new builds, reported fixes, and release on Nexus.</p>
               {session ? <form action={setFollow.bind(null, mod.id, !following)}><button className="button-secondary mt-3 w-full">{following ? "Unfollow mod" : "Follow mod"}</button></form> : <Link href="/login" className="button-secondary mt-3 w-full">Sign in to follow</Link>}
             </div>}
             {latestBuild && !readOnly && <TestingChecklist key={latestBuild.id} versionLabel={latestBuild.versionLabel} />}
@@ -337,7 +340,7 @@ export default async function BetaModPage({
 
           <section id="files" className="scroll-mt-24 border-b border-[var(--line)] pb-8">
             <div className="flex flex-wrap items-end justify-between gap-4">
-              <SectionHeading title="Test builds" icon={FileArchive} />
+              <SectionHeading title="Test builds" description="Downloadable versions uploaded by the author, with the newest build first. Use the matching version when reporting a bug; readiness votes apply to the latest build." icon={FileArchive} />
               <span className="text-xs text-[var(--muted)]">
                 {builds.length} {builds.length === 1 ? "build" : "builds"}
               </span>
@@ -360,7 +363,9 @@ export default async function BetaModPage({
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <FileArchive className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
+                        <ContextHelp title={`Build ${build.versionLabel}`} description="A versioned mod archive uploaded by the author. Check its changelog and the mod's requirements before installing, and use the Download link to get the file." label={`About build ${build.versionLabel}`} className="inline-flex text-[var(--accent)]">
+                          <FileArchive className="h-4 w-4" aria-hidden="true" />
+                        </ContextHelp>
                         <h3 className="font-semibold text-[var(--text)]">
                           {build.versionLabel}
                         </h3>
@@ -376,10 +381,10 @@ export default async function BetaModPage({
                       {build.changelog && (
                         <div className="mt-3"><Markdown>{build.changelog}</Markdown></div>
                       )}
-                      <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300">
+                      <ContextHelp title="Malware scan passed" description={SCAN_HELP} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300">
                         <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                         Malware scan passed
-                      </p>
+                      </ContextHelp>
                     </div>
                     <Link href={`/files/${build.id}`} className="button-secondary shrink-0">
                       <Download className="h-4 w-4" aria-hidden="true" />
@@ -407,7 +412,7 @@ export default async function BetaModPage({
           </section>
 
           <section id="requirements" className="scroll-mt-24 border-b border-[var(--line)] pb-8">
-            <SectionHeading title="Requirements" icon={ListChecks} />
+            <SectionHeading title="Requirements" description="Other mods or tools the author says this mod needs. Check their installation instructions before testing; Beta Mods does not verify these dependencies." icon={ListChecks} />
             {requirements.length === 0 ? (
               <EmptyCopy>No external requirements have been recorded.</EmptyCopy>
             ) : (
@@ -478,7 +483,7 @@ export default async function BetaModPage({
 
           {isOwner && !readOnly && (
             <section className="border-t border-[var(--line)] pt-8">
-              <SectionHeading title="Publish on Nexus Mods" icon={PackageCheck} />
+              <SectionHeading title="Publish on Nexus Mods" description="Download a release package to upload to Nexus Mods yourself. Confirming the live Nexus URL closes testing and makes this beta page read-only; downloading the package alone does not publish it." icon={PackageCheck} />
               <p className="mt-4 text-sm leading-6 text-[var(--text-soft)]">
                 Download the latest build, description, requirements, and screenshots as a package to upload to Nexus Mods. Add the Nexus page URL here once it is published.
               </p>

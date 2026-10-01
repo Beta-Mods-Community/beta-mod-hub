@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
+import ContextHelp from "./context-help";
 
 const footerLinks = [
   { href: "/contact", label: "Contact" },
@@ -27,10 +28,12 @@ export default function Footer() {
             An independent site, not affiliated with Nexus Mods.
           </p>
           <p className="mt-1 flex items-start gap-2 text-xs leading-5 text-[var(--muted)]">
-            <ShieldCheck
-              aria-hidden
-              className="mt-0.5 h-3.5 w-3.5 shrink-0"
-            />
+            <ContextHelp title="Malware scanning" label="About malware scanning" description="Uploads must pass the site's malware checks before they can be shared. A clean result is not a guarantee of safety, stability, or compatibility. Read the author's requirements and test beta builds with backed-up saves." className="shrink-0">
+              <ShieldCheck
+                aria-hidden
+                className="mt-0.5 h-3.5 w-3.5 shrink-0"
+              />
+            </ContextHelp>
             Uploads are malware-scanned before sharing. Scans cannot guarantee safety.
           </p>
         </div>

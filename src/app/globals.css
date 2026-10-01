@@ -95,6 +95,38 @@ body {
   outline-offset: -4px !important;
 }
 
+.context-help-trigger {
+  text-align: inherit;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 4px;
+}
+
+.context-help-trigger:hover {
+  text-decoration-color: var(--accent);
+}
+
+.context-help-panel {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: min(21rem, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line-strong);
+  border-top-color: var(--accent);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 40%);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 #main-content:focus {
   outline: none !important;
 }

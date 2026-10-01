@@ -76,7 +76,9 @@ test("private attachment links preserve the download route, escaped filename, an
   assert.ok(html.includes(`href="/attachments/${attachmentId}"`));
   assert.ok(html.includes(`Download ${escaped(filename)}`));
   assert.match(html, />14\.2 KiB<\/span>/);
-  assert.doesNotMatch(html, /<img\b|<script\b|target=|<button\b/);
+  assert.doesNotMatch(html, /<img\b|<script\b|target=/);
+  assert.equal((html.match(/<button\b/g) ?? []).length, 1, "Only the privacy hint is a help control");
+  assert.doesNotMatch(html.match(/<a\b[\s\S]*?<\/a>/)?.[0] ?? "", /<button\b/);
 });
 
 test("filename labels recognize supported extensions regardless of case and fall back to FILE", () => {
@@ -105,18 +107,20 @@ test("retest states retain distinct icons, readable labels, escaped builds, and 
     assert.ok(row);
     decorativeIcons(row.html, 1);
     assert.ok(row.html.includes(`lucide-${icon}`));
-    assert.ok(row.html.includes(`>${label}</p>`));
+    assert.ok(row.html.includes(`>${label}</span>`));
     assert.ok(row.html.includes(`>Build ${escaped(buildVersion)}</p>`));
     assert.ok(row.html.includes(`>${escaped(notes)}</p>`));
     assert.match(row.html, /<p class="[^"]*whitespace-pre-wrap[^"]*">first/);
-    assert.doesNotMatch(row.html, /<script\b|<beta\b|<(?:button|a)\b|aria-label=|tabindex=/);
+    assert.doesNotMatch(row.html, /<script\b|<beta\b|<a\b|tabindex=/);
+    assert.match(row.html, /<button[^>]*type="button"/);
+    assert.match(row.html, /role="tooltip"/);
   }
 });
 
 test("retest notices omit absent details and preserve the unavailable-build fallback", () => {
   for (const html of [rendered.noDetails, rendered.emptyDetails]) {
-    assert.equal((html.match(/<p\b/g) ?? []).length, 1);
-    assert.match(html, />Retest requested<\/p>/);
+    assert.equal((html.match(/<p\b/g) ?? []).length, 0);
+    assert.match(html, />Retest requested<\/span>/);
     assert.doesNotMatch(html, /Build |whitespace-pre-wrap/);
   }
   assert.match(rendered.unavailableBuild, />Build unavailable<\/p>/);

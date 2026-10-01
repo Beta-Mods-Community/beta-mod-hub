@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import StatusBadge from "@/components/status-badge";
+import ContextHelp from "@/components/context-help";
 import SectionHeading from "@/components/section-heading";
 import SeverityBadge from "@/components/severity-badge";
 import ReportStatusBadge from "@/components/report-status-badge";
@@ -133,7 +134,7 @@ function BuildingPanel({
   return (
     <section className="py-8 sm:py-10" aria-labelledby="releases-heading">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <SectionHeading id="releases-heading" title="Your mods" icon={Layers} />
+        <SectionHeading id="releases-heading" title="Your mods" description="Mods you have posted, with open bug counts across their builds and readiness votes for each latest build. Open a mod to review feedback or manage its testing." icon={Layers} />
         {myMods.length > 0 && (
           <p className="text-sm text-muted">
             {myMods.length} {myMods.length === 1 ? "project" : "projects"}
@@ -222,7 +223,7 @@ function TestingPanel({
 }) {
   return (
     <section className="py-8 sm:py-10">
-      <SectionHeading title="Your votes" icon={UserCheck} />
+      <SectionHeading title="Your votes" description="Your most recent readiness vote for each mod. Votes stay attached to the build you tested, so a newer build needs a fresh test and vote." icon={UserCheck} />
 
       {votedMods.length === 0 ? (
         <EmptyState
@@ -237,7 +238,13 @@ function TestingPanel({
             <article key={mod.id} className="panel p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <StatusBadge status={mod.status} />
-                <span
+                <ContextHelp
+                  title={!mod.isCurrentBuild ? "Retest needed" : mod.myVote ? "Ready" : "Not ready"}
+                  description={!mod.isCurrentBuild
+                    ? "Your vote applies to an earlier build and does not count toward the current build. Test the latest available build before submitting a new verdict."
+                    : mod.myVote
+                      ? "You marked the current build ready for release based on your testing. This is your verdict, not a guarantee of compatibility."
+                      : "You marked the current build as needing more work before release. A bug report can help the author understand what still needs fixing."}
                   className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
                     !mod.isCurrentBuild
                       ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
@@ -252,7 +259,7 @@ function TestingPanel({
                       ? "Ready"
                       : "Not ready"
                     : "Retest needed"}
-                </span>
+                </ContextHelp>
               </div>
               <h3 className="mt-4 text-base font-semibold text-[var(--text)]">
                 <Link href={`/mods/${mod.id}`} className="hover:text-[var(--accent)]">
@@ -283,7 +290,7 @@ function TestingPanel({
         </div>
       )}
 
-      <SectionHeading title="Bugs you filed" icon={Bug} className="mt-12" />
+      <SectionHeading title="Bugs you filed" description="Bug reports you submitted, including the affected build and current status. Open the mod to read the author's response or record a retest." icon={Bug} className="mt-12" />
 
       {reports.length === 0 ? (
         <EmptyState

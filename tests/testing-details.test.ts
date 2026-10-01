@@ -23,12 +23,33 @@ test("the checklist is scoped to the latest active build", () => {
   assert.match(page, /latestBuild && !readOnly && <TestingChecklist key=\{latestBuild\.id\} versionLabel=\{latestBuild\.versionLabel\}/);
 });
 
-test("section icons are decorative and do not replace heading text", () => {
+test("section heading help is optional and preserves the visible heading", () => {
   const source = component("section-heading");
   assert.match(source, /<h2/);
+  assert.match(source, /description\?: string/);
   assert.match(source, /icon: LucideIcon/);
   assert.match(source, /<Icon aria-hidden="true" focusable="false"/);
+  assert.match(source, /description \? <ContextHelp title=\{title\} description=\{description\}/);
+  assert.match(source, /label=\{`About \$\{title\}`\}/);
+  assert.match(source, /: <span className=\{iconClassName\}>\{icon\}<\/span>/);
   assert.match(source, /<span>\{title\}<\/span>/);
+});
+
+test("mod help explains scan limits without replacing voting or downloads", () => {
+  const page = readFileSync(new URL("../src/app/mods/[id]/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /A clean scan cannot guarantee safety, game compatibility, or protection of your saves/);
+  assert.equal((page.match(/title="Malware scan passed" description=\{SCAN_HELP\}/g) ?? []).length, 2);
+  assert.match(page, /<dt[^>]*><ContextHelp title="Ready votes"/);
+  assert.match(page, /<dt[^>]*><ContextHelp title="Not ready votes"/);
+  const voteForms = page.match(/<form action=\{voteReady\.bind\(null, mod\.id, latestBuild\.id, (?:true|false)\)\}>[\s\S]*?<\/form>/g) ?? [];
+  assert.equal(voteForms.length, 2);
+  for (const form of voteForms) {
+    assert.match(form, /type="submit"/);
+    assert.doesNotMatch(form, /ContextHelp/);
+  }
+  for (const link of page.match(/<Link\s[\s\S]*?<\/Link>/g) ?? []) {
+    assert.doesNotMatch(link, /ContextHelp/);
+  }
 });
 
 test("gallery focus is inset inside the clipped image wrapper", () => {

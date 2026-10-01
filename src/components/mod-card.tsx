@@ -53,7 +53,7 @@ export default function ModCard({ mod, className = "", featured = false, heading
           // eslint-disable-next-line @next/next/no-img-element
           <img src={`/media/${mod.heroMediaId}`} alt={`${mod.title} screenshot`} loading="lazy" className={artworkClass} />
         ) : <ModArtwork title={mod.title} game={mod.game} className={artworkClass} />}
-        <div className="absolute left-4 top-4 rounded-sm bg-background"><StatusBadge status={mod.status} /></div>
+        <div className="absolute left-4 top-4 rounded-sm bg-background"><StatusBadge status={mod.status} explain={false} /></div>
       </div>
       <div className={`flex min-w-0 flex-1 flex-col p-5 ${featured ? "lg:p-8" : ""}`}>
         <p className="text-xs font-medium text-accent">{mod.game}</p>
