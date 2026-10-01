@@ -7,6 +7,7 @@ import {
   Clock3,
   FlaskConical,
   Layers,
+  RotateCcw,
   UserCheck,
 } from "lucide-react";
 
@@ -237,7 +238,7 @@ function TestingPanel({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <StatusBadge status={mod.status} />
                 <span
-                  className={`rounded-sm border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                  className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
                     !mod.isCurrentBuild
                       ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
                       : mod.myVote
@@ -245,6 +246,7 @@ function TestingPanel({
                         : "border-red-500/30 bg-red-500/10 text-red-300"
                   }`}
                 >
+                  {!mod.isCurrentBuild && <RotateCcw aria-hidden="true" focusable="false" className="h-3 w-3 shrink-0" strokeWidth={1.8} />}
                   {mod.isCurrentBuild
                     ? mod.myVote
                       ? "Ready"

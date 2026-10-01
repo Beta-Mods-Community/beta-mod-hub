@@ -12,6 +12,8 @@ import { getReputationHistoryByUserIds } from "@lib/dal";
 import { computeReputation } from "@lib/reputation";
 import BugReportForm from "./bug-report-form";
 import AttachmentRemoval from "./attachment-removal";
+import PrivateAttachmentLink from "./private-attachment-link";
+import RetestNotice from "./retest-notice";
 import SeverityBadge from "./severity-badge";
 import ReportStatusBadge from "./report-status-badge";
 import ReputationBadge from "./reputation-badge";
@@ -75,9 +77,14 @@ export default async function BugReports({ betaModId, builds, viewerId, isOwner,
         <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6">{report.description}</p>
         {report.reproSteps && <div className="mt-3"><h3 className="text-xs font-semibold text-[var(--muted)]">Steps to reproduce</h3><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{report.reproSteps}</p></div>}
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]"><Link href={`/users/${report.reporterId}`} className="text-[var(--text-soft)] hover:underline">{reporterName}</Link>{history && <ReputationBadge score={computeReputation(history)} />}<span>· {formatDate(report.createdAt)}</span></div>
-        {reportAttachments.map(attachment => <div key={attachment.id} className="mt-3 flex flex-wrap items-center gap-3"><a href={`/attachments/${attachment.id}`} className="break-all text-sm text-[var(--accent)] hover:underline">Download {attachment.filename} ({formatBytes(attachment.sizeBytes)})</a>{!readOnly && <AttachmentRemoval attachmentId={attachment.id} filename={attachment.filename} />}</div>)}
+        {reportAttachments.map(attachment => (
+          <div key={attachment.id} className="mt-3 flex flex-wrap items-start gap-3 rounded border border-[var(--line)] p-3">
+            <PrivateAttachmentLink attachmentId={attachment.id} filename={attachment.filename} sizeLabel={formatBytes(attachment.sizeBytes)} />
+            {!readOnly && <AttachmentRemoval attachmentId={attachment.id} filename={attachment.filename} />}
+          </div>
+        ))}
         {workflow?.authorResponse && <div className="mt-4 border-l-2 border-[var(--accent)] pl-4"><p className="text-xs font-semibold">Author response{workflow.respondedAt ? ` · ${formatDate(workflow.respondedAt)}` : ""}</p><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--text-soft)]">{workflow.authorResponse}</p></div>}
-        {workflow && workflow.retestStatus !== "not-requested" && <div className="mt-4 rounded border border-[var(--line)] p-3 text-sm"><p className="font-semibold">{workflow.retestStatus === "requested" ? "Retest requested" : workflow.retestStatus === "resolved" ? "Reporter confirmed resolved" : "Reporter says the issue remains"}{workflow.retestBuildId ? ` · Build ${builds.find(build => build.id === workflow.retestBuildId)?.versionLabel ?? "unavailable"}` : ""}</p>{workflow.retestNotes && <p className="mt-1 whitespace-pre-wrap break-words text-[var(--text-soft)]">{workflow.retestNotes}</p>}</div>}
+        {workflow && <RetestNotice status={workflow.retestStatus} buildVersion={workflow.retestBuildId ? builds.find(build => build.id === workflow.retestBuildId)?.versionLabel ?? "unavailable" : undefined} notes={workflow.retestNotes} />}
         {isOwner && !readOnly && <details className="mt-4 border-t border-[var(--line)] pt-3"><summary className="cursor-pointer text-sm font-semibold">Respond or update status</summary><form action={respondToBugReport} className="mt-3 space-y-3">
           <input name="reportId" type="hidden" value={report.id} /><label className="block text-xs">Status<select name="status" defaultValue={report.status} className="field mt-1"><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="fixed">Fixed</option></select></label>
           <label className="block text-xs">Author response<textarea name="response" required minLength={5} maxLength={2000} rows={3} defaultValue={workflow?.authorResponse ?? ""} className="field mt-1" placeholder="Explain the cause, workaround, or fix." /></label>
