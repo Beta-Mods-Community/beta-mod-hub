@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { Search, SearchX } from "lucide-react";
+import { SearchX } from "lucide-react";
 
-import GameFilter from "@/components/game-filter";
+import CatalogFilters from "@/components/catalog-filters";
 import ModCard from "@/components/mod-card";
-import SortSelect from "@/components/sort-select";
 import { listBetaModGames } from "@lib/dal";
 import { getCatalogPage } from "@lib/catalog";
 import { browseUrl, catalogPage, CATALOG_PAGE_SIZE } from "@lib/catalog-query";
@@ -40,45 +39,32 @@ export default async function BrowsePage({
   return (
     <main className="site-container flex-1 py-10 sm:py-12">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight text-text">Browse beta mods</h1>
+        <h1 className="page-title">Browse beta mods</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
           Find beta builds by game, name, or tag.
         </p>
       </header>
 
-      <form
+      <CatalogFilters
         key={`${q}:${game ?? ""}:${sortKey}`}
-        action="/browse"
-        method="get"
-        role="search"
-        aria-label="Find beta mods"
-        className="panel mt-7 grid items-end gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-[minmax(14rem,1fr)_minmax(10rem,0.65fr)_minmax(10rem,0.55fr)_auto]"
-      >
-        <label className="flex min-w-0 flex-col gap-2 text-xs font-medium text-muted">
-          Search mods
-          <input
-            name="q"
-            defaultValue={q}
-            maxLength={100}
-            placeholder="Name, game, or tag"
-            className="field"
-            type="search"
-          />
-        </label>
-        <GameFilter games={games} current={game} />
-        <SortSelect current={sortKey} />
-        <button type="submit" className="button-secondary">
-          <Search className="h-4 w-4" aria-hidden="true" />
-          Search
-        </button>
-      </form>
+        q={q}
+        game={game}
+        sort={sortKey}
+        games={games}
+      />
+
+      {(hasFilters || sortKey !== "newest") && (
+        <ul aria-label="Applied filters" className="mt-4 flex flex-wrap gap-2 text-xs leading-5 text-text-soft">
+          {q && <li className="max-w-full break-words rounded-md border border-line bg-surface px-2.5 py-1">Search: “{q}”</li>}
+          {game && <li className="max-w-full break-words rounded-md border border-line bg-surface px-2.5 py-1">Game: {game}</li>}
+          {sortKey === "needs-testers" && <li className="rounded-md border border-line bg-surface px-2.5 py-1">Sort: Needs testers</li>}
+        </ul>
+      )}
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
         <p className="text-sm text-muted">
           <span className="font-semibold tabular-nums text-text">{total.toLocaleString()}</span>
-          {" "}{total === 1 ? "beta" : "betas"}
-          {game ? ` for ${game}` : " across all games"}
-          {q && <> matching <span className="font-medium text-text">“{q}”</span></>}
+          {" "}{total === 1 ? "beta mod" : "beta mods"}{hasFilters ? " found" : " available"}
         </p>
         <div className="flex items-center gap-4 text-xs text-muted">
           {total > 0 && pages > 1 && (
@@ -102,7 +88,7 @@ export default async function BrowsePage({
         <section className="flex items-start gap-4 py-10" aria-labelledby="empty-catalog-heading">
           <SearchX className="mt-1 h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
           <div>
-            <h2 id="empty-catalog-heading" className="text-base font-semibold text-text">
+            <h2 id="empty-catalog-heading" className="section-title">
               {hasFilters ? "No matching beta mods" : "No active betas yet"}
             </h2>
             <p className="mt-2 max-w-lg text-sm leading-6 text-muted">
@@ -114,7 +100,7 @@ export default async function BrowsePage({
         </section>
       ) : (
         <section aria-label="Active beta mods" className="mt-6">
-          <div className={`grid gap-5 ${useWideCards ? "" : "md:grid-cols-2 xl:grid-cols-3"}`}>
+          <div className={`grid gap-5 sm:gap-6 ${useWideCards ? "" : "md:grid-cols-2 xl:grid-cols-3"}`}>
             {mods.map((mod) => <ModCard key={mod.id} mod={mod} featured={useWideCards} />)}
           </div>
           {pages > 1 && (

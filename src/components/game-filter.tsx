@@ -6,7 +6,7 @@ export default function GameFilter({
   current?: string;
 }) {
   return (
-    <label className="flex min-w-0 flex-col gap-2 text-xs font-medium text-muted">
+    <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-muted">
       Game
       <select
         id="game-filter"

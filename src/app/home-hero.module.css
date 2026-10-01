@@ -2,7 +2,6 @@
   position: relative;
   isolation: isolate;
   overflow: clip;
-  border-bottom: 1px solid var(--line);
   background: var(--background);
 }
 
@@ -17,23 +16,23 @@
 }
 
 .artwork {
-  left: 32%;
-  right: -8%;
-  opacity: 0.34;
+  left: 35%;
+  right: -5%;
+  opacity: 0.56;
 }
 
 .dragon {
   object-fit: cover;
-  object-position: center 42%;
+  object-position: 54% 40%;
 }
 
 .shade {
   background:
-    linear-gradient(0deg, var(--background), transparent 35%),
-    linear-gradient(90deg, var(--background), transparent 75%);
+    linear-gradient(0deg, var(--background), transparent 45%),
+    linear-gradient(90deg, var(--background) 24%, color-mix(in srgb, var(--background) 85%, transparent) 40%, transparent 76%);
 }
 
-/* Two broad, quiet facets, rather than a busy repeating pattern. */
+/* Broad angled panes are part of the site's identity, not interactive cards. */
 .panels::before,
 .panels::after {
   content: "";
@@ -41,40 +40,46 @@
   top: -25%;
   height: 150%;
   transform: skewX(-22deg);
-  border-inline-start: 1px solid color-mix(in srgb, var(--accent) 11%, transparent);
-  border-inline-end: 1px solid color-mix(in srgb, var(--accent) 6%, transparent);
+  border-inline-start: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-inline-end: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .panels::before {
-  left: 52%;
-  width: 23%;
-  background: color-mix(in srgb, var(--accent) 3%, transparent);
+  left: 50%;
+  width: 24%;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 7%, transparent), color-mix(in srgb, var(--accent) 2%, transparent));
+  box-shadow: inset 4px 0 color-mix(in srgb, var(--accent) 3%, transparent);
 }
 
 .panels::after {
-  left: 88%;
-  width: 18%;
-  background: color-mix(in srgb, var(--background) 36%, transparent);
+  left: 86%;
+  width: 22%;
+  background: color-mix(in srgb, var(--background) 40%, transparent);
 }
 
 @media (max-width: 767px) {
   /* A quieter crop keeps narrow-screen copy clear without a fixed-height hero. */
   .artwork {
-    left: 0;
-    right: -25%;
-    opacity: 0.22;
+    left: 15%;
+    right: -48%;
+    opacity: 0.34;
   }
 
   .dragon {
-    object-position: 54% 32%;
+    object-position: 57% 35%;
   }
 
   .shade {
     background:
-      linear-gradient(0deg, var(--background), transparent 35%),
-      linear-gradient(90deg, var(--background), color-mix(in srgb, var(--background) 45%, transparent));
+      linear-gradient(0deg, var(--background), transparent 65%),
+      linear-gradient(90deg, var(--background) 5%, color-mix(in srgb, var(--background) 64%, transparent) 66%, transparent);
   }
 
-  .panels::before { left: 68%; width: 45%; }
+  .panels::before {
+    left: 72%;
+    width: 42%;
+    border-inline-start-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+
   .panels::after { display: none; }
 }
