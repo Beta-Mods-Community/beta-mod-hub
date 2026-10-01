@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useId } from "react";
+import Link from "next/link";
 
 import type { BetaModFormState } from "@lib/definitions";
 
@@ -139,7 +140,7 @@ export default function BetaModForm({
           name="description"
           defaultValue={initial?.description}
           rows={10}
-          placeholder={"## About\nWhat this mod changes.\n\n## Installation\nRequired game version, dependencies, and install/uninstall steps.\n\n## Testing\nKnown issues and the specific things you want testers to check."}
+          placeholder={"One sentence describing what this mod changes.\n\n## Installation\nRequired game version, dependencies, and install/uninstall steps.\n\n## What to test\nThe specific things you want testers to check.\n\n## Known issues\nUnfinished features, confirmed bugs, and any workarounds."}
           className={inputClass}
           aria-invalid={Boolean(state?.errors?.description)}
           aria-describedby={
@@ -149,7 +150,9 @@ export default function BetaModForm({
         <div id="description-help" className="mt-3 space-y-1 text-sm leading-6 text-[var(--muted)]">
           <p>Include installation instructions, the supported game version, known issues, and what you need tested.</p>
           <p className="text-xs">Markdown headings, lists, links, and emphasis are supported.</p>
+          <p className="text-xs">Keep the first nonempty line under 250 characters. It becomes the summary in your Nexus release package.</p>
         </div>
+        <Link href="/help/authors#templates" target="_blank" rel="noopener" className="mt-2 inline-flex min-h-11 items-center text-sm text-accent-strong hover:underline">Description templates (opens in a new tab)</Link>
         {state?.errors?.description && (
           <p id={`${prefix}-description-error`} className={errorClass}>{state.errors.description.join(", ")}</p>
         )}

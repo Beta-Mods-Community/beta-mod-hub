@@ -163,7 +163,7 @@ export default async function BetaModPage({
           )}
           <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-text-soft">
             <p className="flex min-w-0 flex-wrap items-center gap-2">
-              <UserRound className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+              <UserRound className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
               by
               <Link
                 href={`/users/${mod.ownerId}`}
@@ -189,7 +189,7 @@ export default async function BetaModPage({
           {isOwner && !readOnly && (
             <div className="mt-6 flex flex-wrap gap-2">
               <Link href={`/mods/${mod.id}/edit`} className="button-secondary">
-                <Wrench className="h-3.5 w-3.5" aria-hidden="true" />
+                <Wrench className="h-5 w-5 shrink-0" aria-hidden="true" />
                 Edit page
               </Link>
               <DeleteModButton modId={mod.id} />
@@ -203,11 +203,11 @@ export default async function BetaModPage({
               <p className="mt-2 break-words text-xl font-semibold tracking-tight text-text">{latestBuild.versionLabel}</p>
               <p className="mt-1 text-xs text-muted">Uploaded {formatDate(latestBuild.uploadedAt)}</p>
               <Link href={`/files/${latestBuild.id}`} className="button-primary mt-5 w-full">
-                <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <Download className="h-5 w-5 shrink-0" aria-hidden="true" />
                 Download build
               </Link>
               <ContextHelp title="Malware scan passed" description={SCAN_HELP} className="mt-4 inline-flex items-center gap-1.5 text-xs text-[var(--success)]">
-                <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <ShieldCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
                 Malware scan passed
               </ContextHelp>
               <p className="mt-1 text-xs leading-5 text-muted">
@@ -230,7 +230,7 @@ export default async function BetaModPage({
             href={item.href}
             className="inline-flex min-h-11 shrink-0 items-center gap-2 text-sm font-medium text-[var(--text-soft)] underline-offset-4 transition-colors hover:text-[var(--accent)] hover:underline"
           >
-            <item.icon aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+            <item.icon aria-hidden="true" focusable="false" className="h-5 w-5 shrink-0" strokeWidth={2} />
             <span>{item.label}
             {item.href === "#files" && builds.length > 0 ? ` ${builds.length}` : ""}
             {item.href === "#bugs" && openBugs > 0 ? ` ${openBugs}` : ""}</span>
@@ -239,7 +239,7 @@ export default async function BetaModPage({
       </nav>
 
       <div className="mt-7 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-x-10 lg:gap-y-10">
-        <section id="overview" className="min-w-0 scroll-mt-24 border-b border-line pb-8 lg:col-start-1 lg:row-start-1">
+        <section id="overview" className="min-w-0 scroll-mt-24 lg:col-start-1 lg:row-start-1">
           <h2 className="sr-only">Overview</h2>
           {media.length > 0 && (
             <div className="mb-8">
@@ -268,7 +268,7 @@ export default async function BetaModPage({
                         description="Testers who consider this build ready for release based on their testing. These votes apply only to this build and do not guarantee compatibility."
                         className="inline-flex items-center gap-1.5"
                       >
-                        <CircleCheck aria-hidden="true" className="h-3.5 w-3.5" />Ready
+                        <CircleCheck aria-hidden="true" className="h-5 w-5 shrink-0" />Ready
                       </ContextHelp>
                     </dt>
                     <dd className="mt-2 text-3xl font-semibold tabular-nums text-text">{tally.ready}</dd>
@@ -280,7 +280,7 @@ export default async function BetaModPage({
                         description="Testers who think this build needs more work before release. Bug reports provide details about the problems they found."
                         className="inline-flex items-center gap-1.5"
                       >
-                        <Wrench aria-hidden="true" className="h-3.5 w-3.5" />Not ready
+                        <Wrench aria-hidden="true" className="h-5 w-5 shrink-0" />Not ready
                       </ContextHelp>
                     </dt>
                     <dd className="mt-2 text-3xl font-semibold tabular-nums text-text">{tally.total - tally.ready}</dd>
@@ -304,7 +304,7 @@ export default async function BetaModPage({
                         aria-pressed={myVote === true}
                         className={myVote === true ? voteActiveClass : voteIdleClass}
                       >
-                        <CircleCheck aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                        <CircleCheck aria-hidden="true" className="h-5 w-5 shrink-0" />
                         Ready
                       </button>
                     </form>
@@ -314,7 +314,7 @@ export default async function BetaModPage({
                         aria-pressed={myVote === false}
                         className={myVote === false ? voteActiveClass : voteIdleClass}
                       >
-                        <Wrench aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                        <Wrench aria-hidden="true" className="h-5 w-5 shrink-0" />
                         Not ready
                       </button>
                     </form>
@@ -336,7 +336,7 @@ export default async function BetaModPage({
                   label="About following this mod"
                   className="inline-flex text-[var(--muted)]"
                 >
-                  <Bell aria-hidden="true" className="h-4 w-4" />
+                  <Bell aria-hidden="true" className="h-5 w-5 shrink-0" />
                 </ContextHelp>Updates
               </h3>
               <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Get a notification here for new builds, reported fixes, and release on Nexus.</p>
@@ -353,7 +353,7 @@ export default async function BetaModPage({
             <div className="mt-5"><ModMediaManager betaModId={mod.id} media={gallery} uploadPermission={uploadPermission} cloudPilot={isCloudPilot()} /></div>
           </details>}
 
-          <section id="files" className="scroll-mt-24 border-b border-[var(--line)] pb-8">
+          <section id="files" className="scroll-mt-24">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <SectionHeading title="Test builds" description="Downloadable versions uploaded by the author, with the newest build first. Use the matching version when reporting a bug; readiness votes apply to the latest build." icon={FileArchive} />
               <span className="text-xs text-[var(--muted)]">
@@ -384,7 +384,7 @@ export default async function BetaModPage({
                           label={`About build ${build.versionLabel}`}
                           className="inline-flex text-[var(--accent)]"
                         >
-                          <FileArchive className="h-4 w-4" aria-hidden="true" />
+                          <FileArchive className="h-5 w-5 shrink-0" aria-hidden="true" />
                         </ContextHelp>
                         <h3 className="font-semibold text-[var(--text)]">
                           {build.versionLabel}
@@ -402,12 +402,12 @@ export default async function BetaModPage({
                         <div className="mt-3"><Markdown>{build.changelog}</Markdown></div>
                       )}
                       <ContextHelp title="Malware scan passed" description={SCAN_HELP} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300">
-                        <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                        <ShieldCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
                         Malware scan passed
                       </ContextHelp>
                     </div>
                     <Link href={`/files/${build.id}`} className="button-secondary shrink-0">
-                      <Download className="h-4 w-4" aria-hidden="true" />
+                      <Download className="h-5 w-5 shrink-0" aria-hidden="true" />
                       Download
                     </Link>
                   </article>
@@ -431,31 +431,32 @@ export default async function BetaModPage({
             )}
           </section>
 
-          <section id="requirements" className="scroll-mt-24 border-b border-[var(--line)] pb-8">
+          <section id="requirements" className="scroll-mt-24">
             <SectionHeading title="Requirements" description="Other mods or tools the author says this mod needs. Check their installation instructions before testing; Beta Mods does not verify these dependencies." icon={ListChecks} />
             {requirements.length === 0 ? (
               <EmptyCopy>No external requirements have been recorded.</EmptyCopy>
             ) : (
-              <ul className="mt-5 divide-y divide-[var(--line)] border-y border-[var(--line)]">
+              <ul className="mt-5 space-y-1 rounded-lg bg-surface-soft p-3 sm:p-4">
                 {requirements.map((item) => (
-                  <li key={item.id} className="flex items-center justify-between gap-4 py-3.5 text-sm">
+                  <li key={item.id} className="flex items-start justify-between gap-4 rounded-md px-2 py-2.5 text-sm leading-6">
                     {item.nexusModUrl ? (
                       <a
                         href={item.nexusModUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="min-w-0 truncate font-medium text-[var(--text)] hover:text-[var(--accent)]"
+                        className="inline-flex min-w-0 items-start gap-2 font-medium text-text underline decoration-line-strong underline-offset-4 hover:text-accent-strong"
                       >
-                        {item.nexusModName}
+                        <span className="min-w-0 break-words">{item.nexusModName}</span>
+                        <ExternalLink aria-hidden="true" className="mt-1 h-4 w-4 shrink-0 text-muted" />
                       </a>
                     ) : (
-                      <span className="min-w-0 truncate font-medium text-[var(--text)]">
+                      <span className="min-w-0 break-words font-medium text-text">
                         {item.nexusModName}
                       </span>
                     )}
                     {isOwner && !readOnly && (
                       <form action={removeRequirement.bind(null, item.id)}>
-                        <button type="submit" className="text-xs text-[var(--muted)] hover:text-[var(--danger)]">
+                        <button type="submit" className="min-h-6 shrink-0 text-xs text-[var(--muted)] hover:text-[var(--danger)]">
                           Remove
                         </button>
                       </form>
@@ -509,9 +510,10 @@ export default async function BetaModPage({
               </p>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 {latestBuild ? <a href={`/mods/${mod.id}/promotion/download`} className="button-secondary">
-                  <Download className="h-4 w-4" aria-hidden="true" />
+                  <Download className="h-5 w-5 shrink-0" aria-hidden="true" />
                   Download release package
                 </a> : <a href="#files" className="button-secondary">Upload a build to create a release package</a>}
+                <Link href="/help/releasing" className="inline-flex min-h-11 items-center text-sm text-accent-strong hover:underline">Release guide and checklist</Link>
               </div>
               <form action={confirmPromotion} className="mt-5 grid gap-3 border-t border-[var(--line)] pt-5 sm:grid-cols-[minmax(0,1fr)_auto]">
                 {promote === "invalid" && (

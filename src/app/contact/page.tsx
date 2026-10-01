@@ -6,6 +6,7 @@ export default function ContactPage() {
       <p>For account help, privacy requests, ownership disputes, or problems with the site, email <a className="text-[var(--accent)] underline" href="mailto:admin.betamods@gmail.com">admin.betamods@gmail.com</a>.</p>
       <p>Include the relevant mod page URL and a description of the problem. Do not send passwords, login links, or API keys.</p>
       <p>To report a problem with a mod, use its Bug reports section. To report prohibited content or abuse, use Report this listing on its mod page.</p>
+      <p>For testing advice, release instructions and common account questions, see <Link href="/help" className="text-[var(--accent)] underline">Help</Link>.</p>
       <p><Link href="/rules" className="text-[var(--accent)] underline">Site rules</Link> · <Link href="/privacy" className="text-[var(--accent)] underline">Privacy</Link></p>
     </div>
   </main>;

@@ -4,6 +4,7 @@ import ContextHelp from "./context-help";
 import BrandMark from "./brand-mark";
 
 const footerLinks = [
+  { href: "/help", label: "Help" },
   { href: "/contact", label: "Contact" },
   { href: "/rules", label: "Rules" },
   { href: "/privacy", label: "Privacy" },
@@ -33,7 +34,7 @@ export default function Footer() {
             >
               <ShieldCheck
                 aria-hidden
-                className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                className="h-5 w-5 shrink-0 text-text-soft"
               />
             </ContextHelp>
             Uploads are malware-scanned before sharing. Scans cannot guarantee safety.

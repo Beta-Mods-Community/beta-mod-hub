@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  BookOpen,
   Bookmark,
   ChevronDown,
   LayoutDashboard,
@@ -74,6 +75,7 @@ export default function HeaderNav({
   const navigationLinks = [
     ...primaryLinks,
     ...(userId ? [{ href: "/following", label: "Following", icon: Bookmark }] : []),
+    { href: "/help", label: "Help", icon: BookOpen },
   ];
   const notificationLabel = `Notifications${unread > 0 ? `, ${unread} unread` : ""}`;
   const accountActive = accountLinks.some((link) => isCurrent(pathname, link.href));
@@ -127,7 +129,7 @@ export default function HeaderNav({
         onClick={() => setOpen(null)}
         className={menuLinkClass(active)}
       >
-        <Icon aria-hidden className="h-4 w-4" />
+        <Icon aria-hidden className="h-5 w-5 shrink-0" />
         {link.label}
       </Link>
     );
@@ -136,7 +138,7 @@ export default function HeaderNav({
   const signOut = (
     <form action={logoutAction} className="mt-1 border-t border-[var(--line)] pt-1">
       <button type="submit" className={menuLinkClass(false)}>
-        <LogOut aria-hidden className="h-4 w-4" />
+        <LogOut aria-hidden className="h-5 w-5 shrink-0" />
         Sign out
       </button>
     </form>
@@ -167,7 +169,7 @@ export default function HeaderNav({
               aria-label={notificationLabel}
               className={desktopLinkClass(isCurrent(pathname, "/notifications"))}
             >
-              <Bell aria-hidden className="h-4 w-4" />
+              <Bell aria-hidden className="h-5 w-5 shrink-0" />
               {unread > 0 && (
                 <span aria-hidden className="text-xs font-semibold text-[var(--accent-strong)]">
                   {unread > 99 ? "99+" : unread}
@@ -203,7 +205,7 @@ export default function HeaderNav({
 
       {!isCurrent(pathname, "/mods/new") && (
         <Link href="/mods/new" onClick={() => setOpen(null)} className="button-secondary !px-2.5 sm:!px-3.5">
-          <Upload aria-hidden className="hidden h-4 w-4 sm:block" />
+          <Upload aria-hidden className="hidden h-5 w-5 shrink-0 sm:block" />
           Post a beta
         </Link>
       )}
@@ -242,7 +244,7 @@ export default function HeaderNav({
                   onClick={() => setOpen(null)}
                   className={menuLinkClass(active)}
                 >
-                  <Icon aria-hidden className="h-4 w-4" />
+                  <Icon aria-hidden className="h-5 w-5 shrink-0" />
                   {link.label}
                 </Link>
               );
@@ -257,7 +259,7 @@ export default function HeaderNav({
                   onClick={() => setOpen(null)}
                   className={menuLinkClass(isCurrent(pathname, "/notifications"))}
                 >
-                  <Bell aria-hidden className="h-4 w-4" />
+                  <Bell aria-hidden className="h-5 w-5 shrink-0" />
                   Notifications
                   {unread > 0 && <span aria-hidden className="ml-auto text-xs text-[var(--accent-strong)]">{unread > 99 ? "99+" : unread}</span>}
                 </Link>
@@ -268,7 +270,7 @@ export default function HeaderNav({
               </>
             ) : (
               <Link href="/login" onClick={() => setOpen(null)} className={menuLinkClass(isCurrent(pathname, "/login"))}>
-                <LogIn aria-hidden className="h-4 w-4" />
+                <LogIn aria-hidden className="h-5 w-5 shrink-0" />
                 Sign in
               </Link>
             )}

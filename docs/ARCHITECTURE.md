@@ -41,7 +41,10 @@ Use `form-section` for field groups, `form-actions` for wrapping action rows,
 and `notice` with `notice-error`, `notice-success`, or `notice-info` for feedback.
 Keep field errors associated with their inputs. Native file inputs use `field`;
 do not replace them with a drop area that cannot be used from the keyboard.
-Important metadata and badges should be at least 12px. Reading text belongs in
+Important metadata should be at least 12px. State badges use 14px labels and
+20px icons; section emblems use 20px or 24px icons with room around them.
+Keep strokes legible and retain text labels rather than relying on color.
+Reading text belongs in
 the 14–16px range with enough line spacing for longer reports.
 
 `BrandMark` references the existing vector in `public/images`; do not redraw
@@ -71,6 +74,19 @@ source structure, generated markup, and pure positioning logic. They do not
 exercise a browser DOM, native popover events, layout, or screen-reader behavior.
 For affected UI, also check keyboard focus, hover, click/tap, dismissal, and
 narrow viewports with synthetic data. Report the checks actually performed.
+
+## Help content
+
+`/help` provides FAQs and links to `/help/testing`, `/help/authors`, and
+`/help/releasing`. Their plain-text content lives in `lib/help-content.ts`.
+Update that content alongside changes to the supported workflows. Limits shown
+by the upload forms remain authoritative; help copy must not become a second
+policy implementation.
+
+Guide pages and FAQs render on the server. `HelpTemplate` only copies selectable
+Markdown, and `ReleaseChecklist` holds reminders for the current page visit.
+Neither writes to a listing, saves progress, or approves a release. New help
+links from an editing form should preserve unsaved work.
 
 ## Accounts and authorization
 

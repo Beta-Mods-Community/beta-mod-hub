@@ -82,3 +82,15 @@ test("mod section links have an accessible name without a redundant visible labe
   assert.match(page, /SECTION_LINKS\.map/);
   assert.doesNotMatch(page, />On this page</);
 });
+
+test("mod sections use spacing rather than stacking separator rules", () => {
+  const page = readFileSync(new URL("../src/app/mods/[id]/page.tsx", import.meta.url), "utf8");
+  for (const id of ["overview", "files", "requirements"]) {
+    const section = page.match(new RegExp(`<section id="${id}"[^>]+>`))?.[0];
+    assert.ok(section);
+    assert.doesNotMatch(section, /border-[bty]/);
+  }
+  assert.match(page, /<ul className="mt-5 space-y-1 rounded-lg bg-surface-soft/);
+  assert.doesNotMatch(page, /divide-y divide-\[var\(--line\)\] border-y/);
+  assert.match(page, /<span className="min-w-0 break-words">\{item\.nexusModName\}/);
+});

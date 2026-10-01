@@ -66,7 +66,7 @@ export default async function BugReports({ betaModId, builds, viewerId, isOwner,
       <button className="button-secondary" type="submit">Filter reports</button>
     </form>}
     {hasFilters && <Link href={`/mods/${betaModId}#bugs`} className="mt-3 inline-block text-sm text-[var(--accent)] underline underline-offset-4">Clear filters</Link>}
-    <div className="mt-6 space-y-5">{reports.length === 0 ? <div className="border-t border-line py-6 text-sm leading-6 text-muted">
+    <div className="mt-6 space-y-5">{reports.length === 0 ? <div className="rounded-lg bg-surface-soft px-5 py-6 text-sm leading-6 text-muted">
       <p>{total > 0 ? "There are no reports on this page." : hasFilters ? "No reports match these filters." : "No bug reports yet."}</p>
       {total > 0 && <Link href={pageUrl(1)} className="mt-2 inline-block text-[var(--accent)] underline underline-offset-4">Go to the first page</Link>}
     </div> : reports.map(({ report, workflow, reporterName, buildVersion }) => {

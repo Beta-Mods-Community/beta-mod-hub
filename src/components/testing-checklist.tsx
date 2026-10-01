@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ChevronDown, ArrowUpRight } from "lucide-react";
 
 export default function TestingChecklist({ versionLabel }: { versionLabel: string }) {
@@ -28,6 +29,7 @@ export default function TestingChecklist({ versionLabel }: { versionLabel: strin
     </fieldset>
     <p className="mt-4 text-xs leading-5 text-muted">For this page visit only. These checks do not submit a vote or report.</p>
     <div className="mt-1 flex flex-wrap gap-x-5">
+      <Link href="/help/testing" className="inline-flex min-h-11 items-center text-sm font-medium text-accent-strong hover:underline underline-offset-4">Testing guide</Link>
       <a href="#requirements" className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-[var(--accent-strong)] hover:underline underline-offset-4">Requirements <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" /></a>
       <a href="#bugs" className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-[var(--accent-strong)] hover:underline underline-offset-4">Bug reports <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" /></a>
     </div>

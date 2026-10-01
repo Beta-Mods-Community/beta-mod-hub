@@ -13,6 +13,7 @@ The [hosted site](https://betamods.com) is in a small private beta. This reposit
 - Bug reports and readiness votes for each build, with private report attachments.
 - Author dashboards, moderation tools, and upload approvals and quotas for the pilot.
 - A downloadable Nexus release package containing the latest scanned build, scanned gallery media, a BBCode description, summary, readme, changelog, and requirements checklist.
+- Help guides for testers and authors, description templates, FAQs, and a manual Nexus release checklist.
 
 Authors review the release package and publish on Nexus themselves. The requirements file is a checklist for Nexus's search-and-link interface, not text to paste into a requirements field.
 
