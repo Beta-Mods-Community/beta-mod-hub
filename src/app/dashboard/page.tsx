@@ -3,13 +3,15 @@ import {
   ArrowUpRight,
   Bug,
   CheckCircle2,
-  ClipboardList,
+  ClipboardCheck,
   Clock3,
   FlaskConical,
+  Layers,
   UserCheck,
 } from "lucide-react";
 
 import StatusBadge from "@/components/status-badge";
+import SectionHeading from "@/components/section-heading";
 import SeverityBadge from "@/components/severity-badge";
 import ReportStatusBadge from "@/components/report-status-badge";
 import {
@@ -25,8 +27,8 @@ import { formatDate } from "@lib/format";
 export const metadata = { title: "Dashboard" };
 
 const TABS = [
-  { key: "building", label: "My mods", href: "/dashboard" },
-  { key: "testing", label: "Test history", href: "/dashboard?tab=testing" },
+  { key: "building", label: "My mods", href: "/dashboard", icon: Layers },
+  { key: "testing", label: "Test history", href: "/dashboard?tab=testing", icon: ClipboardCheck },
 ] as const;
 
 type Tab = (typeof TABS)[number]["key"];
@@ -75,12 +77,13 @@ export default async function DashboardPage({
                 key={item.key}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`relative pb-3 text-sm font-semibold transition-colors ${
+                className={`relative inline-flex items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
                   active
                     ? "text-[var(--text)]"
                     : "text-[var(--muted)] hover:text-[var(--text)]"
                 }`}
               >
+                <item.icon aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0" strokeWidth={1.8} />
                 {item.label}
                 {active && (
                   <span className="absolute inset-x-0 -bottom-px h-0.5 bg-[var(--accent)]" />
@@ -129,7 +132,7 @@ function BuildingPanel({
   return (
     <section className="py-8 sm:py-10" aria-labelledby="releases-heading">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 id="releases-heading" className="text-xl font-semibold text-text">Your mods</h2>
+        <SectionHeading id="releases-heading" title="Your mods" icon={Layers} />
         {myMods.length > 0 && (
           <p className="text-sm text-muted">
             {myMods.length} {myMods.length === 1 ? "project" : "projects"}
@@ -218,12 +221,7 @@ function TestingPanel({
 }) {
   return (
     <section className="py-8 sm:py-10">
-      <div className="flex items-center gap-3">
-        <span className="grid h-9 w-9 place-items-center rounded-md border border-[var(--line)] bg-[var(--surface)] text-[var(--accent)]">
-          <UserCheck className="h-4 w-4" aria-hidden="true" />
-        </span>
-        <h2 className="text-xl font-semibold text-text">Your votes</h2>
-      </div>
+      <SectionHeading title="Your votes" icon={UserCheck} />
 
       {votedMods.length === 0 ? (
         <EmptyState
@@ -283,12 +281,7 @@ function TestingPanel({
         </div>
       )}
 
-      <div className="mt-12 flex items-center gap-3">
-        <span className="grid h-9 w-9 place-items-center rounded-md border border-[var(--line)] bg-[var(--surface)] text-[var(--accent)]">
-          <ClipboardList className="h-4 w-4" aria-hidden="true" />
-        </span>
-        <h2 className="text-xl font-semibold text-text">Bugs you filed</h2>
-      </div>
+      <SectionHeading title="Bugs you filed" icon={Bug} className="mt-12" />
 
       {reports.length === 0 ? (
         <EmptyState

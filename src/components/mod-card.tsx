@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, PackageOpen } from "lucide-react";
+import { ArrowUpRight, Bug, FileArchive, UserCheck, UsersRound } from "lucide-react";
 
 import ModArtwork from "@/components/mod-artwork";
 import StatusBadge from "@/components/status-badge";
@@ -34,10 +34,10 @@ export default function ModCard({ mod, className = "", featured = false, heading
   const shownTags = mod.tags.slice(0, 3);
   const remainingTagCount = mod.tags.length - shownTags.length;
   const activity = [
-    mod.testerCount > 0 ? `${mod.testerCount} ${mod.testerCount === 1 ? "tester" : "testers"}` : null,
-    mod.openBugs > 0 ? `${mod.openBugs} open ${mod.openBugs === 1 ? "bug" : "bugs"}` : null,
-    mod.total > 0 ? `${mod.ready}/${mod.total} ready votes` : null,
-  ].filter(Boolean);
+    { icon: UsersRound, label: mod.testerCount > 0 ? `${mod.testerCount} ${mod.testerCount === 1 ? "tester" : "testers"}` : null },
+    { icon: Bug, label: mod.openBugs > 0 ? `${mod.openBugs} open ${mod.openBugs === 1 ? "bug" : "bugs"}` : null },
+    { icon: UserCheck, label: mod.total > 0 ? `${mod.ready}/${mod.total} ready votes` : null },
+  ].filter(item => item.label !== null);
   const excerpt = modExcerpt(mod.description);
   const Heading = headingLevel === 3 ? "h3" : "h2";
   const artworkClass = `aspect-[16/9] w-full ${featured ? "object-contain md:h-full md:aspect-auto" : "object-cover"}`;
@@ -74,9 +74,14 @@ export default function ModCard({ mod, className = "", featured = false, heading
 
         <div className="mt-auto pt-5">
           <div className="space-y-2 border-t border-line pt-4 text-xs leading-5 text-muted">
-            <p className="tabular-nums">{activity.length > 0 ? activity.join(" · ") : "No readiness votes yet"}</p>
+            {activity.length > 0 ? <ul aria-label="Testing activity" className="flex flex-wrap gap-x-4 gap-y-2 tabular-nums">
+              {activity.map(({ icon: Icon, label }) => <li key={label} className="inline-flex items-center gap-1.5">
+                <Icon aria-hidden="true" focusable="false" className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
+                <span>{label}</span>
+              </li>)}
+            </ul> : <p>No readiness votes yet</p>}
             <p className="flex min-w-0 items-start gap-1.5">
-              <PackageOpen aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+              <FileArchive aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.8} />
               <span>
                 {mod.buildCount === 0 ? "No build posted" : `${mod.buildCount} ${mod.buildCount === 1 ? "build" : "builds"} · latest ${formatDate(mod.lastBuildAt ?? mod.updatedAt)}`}
               </span>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Layers } from "lucide-react";
 
 import ModCard from "@/components/mod-card";
 import SectionHeading from "@/components/section-heading";
@@ -42,7 +42,7 @@ export default async function Home() {
       <section aria-labelledby="latest-heading" className="site-container py-10 sm:py-12">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
-            <SectionHeading id="latest-heading" title="Latest beta mods" className="sm:text-2xl" />
+            <SectionHeading id="latest-heading" title="Latest beta mods" icon={Layers} className="sm:text-2xl" />
           </div>
           <Link href="/browse" className="inline-flex min-h-11 items-center gap-2 self-start rounded-md text-sm font-medium text-text-soft transition hover:text-accent sm:self-auto">
             Browse all mods <ArrowRight className="h-4 w-4" />

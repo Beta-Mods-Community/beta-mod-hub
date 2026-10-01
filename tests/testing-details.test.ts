@@ -23,10 +23,11 @@ test("the checklist is scoped to the latest active build", () => {
   assert.match(page, /latestBuild && !readOnly && <TestingChecklist key=\{latestBuild\.id\} versionLabel=\{latestBuild\.versionLabel\}/);
 });
 
-test("section ornament is decorative and does not replace heading text", () => {
+test("section icons are decorative and do not replace heading text", () => {
   const source = component("section-heading");
   assert.match(source, /<h2/);
-  assert.match(source, /<svg aria-hidden="true" focusable="false"/);
+  assert.match(source, /icon: LucideIcon/);
+  assert.match(source, /<Icon aria-hidden="true" focusable="false"/);
   assert.match(source, /<span>\{title\}<\/span>/);
 });
 

@@ -4,10 +4,17 @@ import { notFound } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
 import {
   ArrowLeft,
+  Bell,
+  BookOpen,
+  Bug,
+  CircleCheck,
+  ClipboardCheck,
   Clock3,
   Download,
   ExternalLink,
   FileArchive,
+  ListChecks,
+  PackageCheck,
   ShieldCheck,
   UserRound,
   Wrench,
@@ -47,11 +54,11 @@ import { getSession } from "@lib/session";
 import { getUploadPermission } from "@lib/storage-usage";
 
 const SECTION_LINKS = [
-  { href: "#overview", label: "Overview" },
-  { href: "#files", label: "Files" },
-  { href: "#requirements", label: "Requirements" },
-  { href: "#bugs", label: "Bugs" },
-  { href: "#testing", label: "Testing" },
+  { href: "#overview", label: "Overview", icon: BookOpen },
+  { href: "#files", label: "Files", icon: FileArchive },
+  { href: "#requirements", label: "Requirements", icon: ListChecks },
+  { href: "#bugs", label: "Bugs", icon: Bug },
+  { href: "#testing", label: "Testing", icon: ClipboardCheck },
 ] as const;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -228,11 +235,12 @@ export default async function BetaModPage({
           <a
             key={item.href}
             href={item.href}
-            className="inline-flex min-h-11 shrink-0 items-center text-sm font-medium text-[var(--text-soft)] underline-offset-4 transition-colors hover:text-[var(--accent)] hover:underline"
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 text-sm font-medium text-[var(--text-soft)] underline-offset-4 transition-colors hover:text-[var(--accent)] hover:underline"
           >
-            {item.label}
+            <item.icon aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+            <span>{item.label}
             {item.href === "#files" && builds.length > 0 ? ` ${builds.length}` : ""}
-            {item.href === "#bugs" && openBugs > 0 ? ` ${openBugs}` : ""}
+            {item.href === "#bugs" && openBugs > 0 ? ` ${openBugs}` : ""}</span>
           </a>
         ))}
       </nav>
@@ -254,20 +262,18 @@ export default async function BetaModPage({
 
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1 lg:row-span-2">
           <section id="testing" className="panel scroll-mt-24 p-5" aria-labelledby="testing-heading">
-            <h2 id="testing-heading" className="text-lg font-semibold text-[var(--text)]">
-              Testing feedback
-            </h2>
+            <SectionHeading id="testing-heading" title="Testing feedback" icon={ClipboardCheck} compact />
             {latestBuild ? (
               <>
                 <p className="mt-1 text-xs text-[var(--muted)]">For build {latestBuild.versionLabel}</p>
                 <h3 className="sr-only">Tester verdicts</h3>
                 <dl className="mt-3 grid grid-cols-2 gap-4">
                   <div>
-                    <dt className="text-xs text-[var(--muted)]">Ready</dt>
+                    <dt className="flex items-center gap-1.5 text-xs text-[var(--muted)]"><CircleCheck aria-hidden="true" className="h-3.5 w-3.5" />Ready</dt>
                     <dd className="mt-1 text-2xl font-semibold tabular-nums">{tally.ready}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-[var(--muted)]">Not ready</dt>
+                    <dt className="flex items-center gap-1.5 text-xs text-[var(--muted)]"><Wrench aria-hidden="true" className="h-3.5 w-3.5" />Not ready</dt>
                     <dd className="mt-1 text-2xl font-semibold tabular-nums">{tally.total - tally.ready}</dd>
                   </div>
                 </dl>
@@ -289,6 +295,7 @@ export default async function BetaModPage({
                         aria-pressed={myVote === true}
                         className={myVote === true ? voteActiveClass : voteIdleClass}
                       >
+                        <CircleCheck aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
                         Ready
                       </button>
                     </form>
@@ -298,6 +305,7 @@ export default async function BetaModPage({
                         aria-pressed={myVote === false}
                         className={myVote === false ? voteActiveClass : voteIdleClass}
                       >
+                        <Wrench aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
                         Not ready
                       </button>
                     </form>
@@ -312,7 +320,7 @@ export default async function BetaModPage({
               </p>
             )}
             {!isOwner && !readOnly && <div className="mt-5 border-t border-[var(--line)] pt-5">
-              <h3 className="text-sm font-semibold">Follow this mod</h3>
+              <h3 className="flex items-center gap-2 text-sm font-semibold"><Bell aria-hidden="true" className="h-4 w-4 text-[var(--muted)]" />Follow this mod</h3>
               <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Get a notification here for new builds and retest requests.</p>
               {session ? <form action={setFollow.bind(null, mod.id, !following)}><button className="button-secondary mt-3 w-full">{following ? "Unfollow mod" : "Follow mod"}</button></form> : <Link href="/login" className="button-secondary mt-3 w-full">Sign in to follow</Link>}
             </div>}
@@ -329,7 +337,7 @@ export default async function BetaModPage({
 
           <section id="files" className="scroll-mt-24 border-b border-[var(--line)] pb-8">
             <div className="flex flex-wrap items-end justify-between gap-4">
-              <SectionHeading title="Test builds" />
+              <SectionHeading title="Test builds" icon={FileArchive} />
               <span className="text-xs text-[var(--muted)]">
                 {builds.length} {builds.length === 1 ? "build" : "builds"}
               </span>
@@ -399,7 +407,7 @@ export default async function BetaModPage({
           </section>
 
           <section id="requirements" className="scroll-mt-24 border-b border-[var(--line)] pb-8">
-            <SectionHeading title="Requirements" />
+            <SectionHeading title="Requirements" icon={ListChecks} />
             {requirements.length === 0 ? (
               <EmptyCopy>No external requirements have been recorded.</EmptyCopy>
             ) : (
@@ -470,7 +478,7 @@ export default async function BetaModPage({
 
           {isOwner && !readOnly && (
             <section className="border-t border-[var(--line)] pt-8">
-              <SectionHeading title="Publish on Nexus Mods" />
+              <SectionHeading title="Publish on Nexus Mods" icon={PackageCheck} />
               <p className="mt-4 text-sm leading-6 text-[var(--text-soft)]">
                 Download the latest build, description, requirements, and screenshots as a package to upload to Nexus Mods. Add the Nexus page URL here once it is published.
               </p>
@@ -519,6 +527,6 @@ function EmptyCopy({ children }: { children: React.ReactNode }) {
 }
 
 const voteIdleClass =
-  "min-h-11 w-full rounded-md border border-[var(--line-strong)] bg-[var(--surface-soft)] px-2 text-xs font-semibold text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]";
+  "inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-[var(--line-strong)] bg-[var(--surface-soft)] px-2 text-xs font-semibold text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]";
 const voteActiveClass =
-  "min-h-11 w-full rounded-md border border-[var(--accent)] bg-[var(--accent)] px-2 text-xs font-semibold text-[var(--accent-contrast)]";
+  "inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-[var(--accent)] bg-[var(--accent)] px-2 text-xs font-semibold text-[var(--accent-contrast)]";
