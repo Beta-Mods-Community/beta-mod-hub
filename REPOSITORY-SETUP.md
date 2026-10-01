@@ -40,7 +40,9 @@ All outside-contributor Actions runs require owner review and approval. Review
 the proposed code, dependencies, scripts, and workflow changes before approval.
 Do not use `pull_request_target` to execute untrusted code, pass secrets to fork
 jobs, or run them on production or self-hosted runners. CI cannot approve or
-merge its own pull requests. Test before merging, not by merging into `main`.
+merge its own pull requests. GitHub requires Actions to use full commit SHAs;
+review the referenced version when updating a pin. Test before merging, not
+by merging into `main`.
 
 Backups run in a separate private, owner-only operations repository. Backup
 credentials, encrypted archives, and recovery keys do not belong in this
@@ -49,12 +51,15 @@ operations access. See [Deployment](docs/DEPLOYMENT.md) for the operator guides.
 
 ## Current status
 
-As of September 30, 2026, the existing repository is public. Issues and pull
+As of October 1, 2026, the existing repository is public. Issues and pull
 requests are open to all GitHub users. The saved `main` protection rule was
 verified with owner review, both required checks, up-to-date branches, resolved
 conversations, and no force pushes or deletion. The default administrator
 bypass remains available to the owner. Actions requires approval for all
 external contributors; its default token is read-only and cannot approve PRs.
+Full-length Action SHA pinning, dependency alerts, secret scanning, secret
+push protection, and private vulnerability reporting are enabled. These checks
+do not replace review, and secret scanning does not detect every credential.
 
 Production and backups remain private. No contributor write or deployment
 access is granted by publication. Record the deployed revision in Render;

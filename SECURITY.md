@@ -1,6 +1,6 @@
 # Security reporting
 
-Email **admin.betamods@gmail.com** with the subject `Beta Mods security report`. If GitHub private vulnerability reporting is enabled for this repository, you can use that instead. Normal Issues and pull requests are public. Do not put sensitive evidence in them.
+Use [GitHub's private vulnerability reporting](https://github.com/Beta-Mods-Community/beta-mod-hub/security/advisories/new), or email **admin.betamods@gmail.com** with the subject `Beta Mods security report`. Normal Issues and pull requests are public. Do not put sensitive evidence in them.
 
 ## What to include
 

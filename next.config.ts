@@ -5,6 +5,18 @@ const nextConfig: NextConfig = {
   // Isolated local validation avoids locked OneDrive/dev cache entries.
   // Containers and ordinary start/build commands keep the default .next path.
   distDir: process.env.BETAMODS_BUILD_CHECK === "1" ? ".next-check" : ".next",
+  headers() {
+    return [{
+      source: "/:path*",
+      headers: [
+        // The application has no embedded-page workflow. Keep these independent
+        // of script/style policy so Next's hydration and form handling are unchanged.
+        { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        { key: "X-Frame-Options", value: "DENY" },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+      ],
+    }];
+  },
   ...(isCloudPilot() ? { cacheMaxMemorySize: 0, images: { unoptimized: true } } : {}),
   experimental: {
     serverActions: {
