@@ -3,6 +3,7 @@ import { before, test } from "node:test";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import postgres from "postgres";
 
 let tooling: typeof import("../scripts/dev-database.mjs");
 before(async () => { tooling = await import("../scripts/dev-database.mjs"); });
@@ -10,6 +11,9 @@ before(async () => { tooling = await import("../scripts/dev-database.mjs"); });
 const devUrl = "postgresql://fixture:unused@dev.example.test/app";
 const prodUrl = "postgresql://fixture:unused@production.example.test/app";
 const cloudUrl = "postgresql://fixture:unused@pilot.example.test/app";
+// The installed driver's runtime supports a socket factory, though its public
+// Options type omits it. Keep the test factory alongside the typed options.
+const offlineOptions = { max: 1, socket: () => assert.fail("Option parsing must not connect") };
 
 test("database isolation compares pooled and direct endpoints, not credentials or paths", () => {
   assert.doesNotThrow(() => tooling.assertDevDatabase(devUrl, prodUrl));
@@ -21,12 +25,57 @@ test("database isolation compares pooled and direct endpoints, not credentials o
     "postgresql://fixture:unused@PRODUCTION.EXAMPLE.TEST/app",
     prodUrl,
   ), /production endpoint/);
+  for (const hostname of ["production.example.test.", "PRODUCTION-POOLER.EXAMPLE.TEST."]) {
+    assert.throws(() => tooling.assertDevDatabase(
+      `postgresql://fixture:unused@${hostname}/app`, prodUrl,
+    ), /production endpoint/);
+  }
 });
 
 test("database isolation rejects missing, invalid and non-PostgreSQL configuration", () => {
   for (const value of [undefined, "", "not-a-url", "https://dev.example.test/app"]) {
     assert.throws(() => tooling.assertDevDatabase(value, prodUrl));
     assert.throws(() => tooling.assertDevDatabase(devUrl, value));
+  }
+});
+
+test("database isolation refuses driver fallback and failover targets", () => {
+  for (const value of [
+    "postgresql:///app",
+    "postgresql:/app",
+    "postgresql://fixture:unused@dev.example.test,production.example.test/app",
+    "postgresql://fixture:unused@production.example.test,dev.example.test/app",
+    "postgresql://fixture:unused@dev.example.test%2cproduction.example.test/app",
+  ]) {
+    assert.throws(() => tooling.assertDevDatabase(value, prodUrl), /single explicit hostname/);
+    assert.throws(() => tooling.assertDevDatabase(devUrl, value), /single explicit hostname/);
+  }
+});
+
+test("database guard rejects literal and encoded failover hosts recognized by postgres-js", async () => {
+  for (const separator of [",", "%2c", "%2C"]) {
+    const url = `postgresql://fixture:unused@dev.example.test${separator}production.example.test/app`;
+    const client = postgres(url, offlineOptions);
+    try {
+      assert.deepEqual(client.options.host, ["dev.example.test", "production.example.test"]);
+      assert.throws(() => tooling.assertDevDatabase(url, prodUrl), /single explicit hostname/);
+    } finally { await client.end(); }
+  }
+});
+
+test("URL query host parameters and single encoded hosts do not retarget postgres-js", async () => {
+  for (const [url, expectedHost] of [
+    [`${devUrl}?host=production.example.test`, "dev.example.test"],
+    [`${devUrl}?hostname=production.example.test`, "dev.example.test"],
+    [`${devUrl}?hostaddr=192.0.2.1`, "dev.example.test"],
+    ["postgresql://fixture:unused@%70roduction.example.test/app", "%70roduction.example.test"],
+    ["postgresql://fixture:unused@production.example.test%2e/app", "production.example.test%2e"],
+  ]) {
+    const client = postgres(url, offlineOptions);
+    try {
+      assert.deepEqual(client.options.host, [expectedHost]);
+      assert.doesNotThrow(() => tooling.assertDevDatabase(url, prodUrl));
+    } finally { await client.end(); }
   }
 });
 

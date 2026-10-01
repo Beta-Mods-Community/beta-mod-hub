@@ -63,7 +63,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 
 Save the result only in your private local configuration. Do not paste it into a report or commit it.
 
-For an existing development database, back it up and review the relevant SQL in `db/migrations`. Do not apply `schema.sql` over populated tables. `scripts/apply-migrations.mjs` is a maintainer tool: it reads `.env.local` and requires a distinct `.env.production` comparison endpoint. If `.env.cloud.local` supplies a database URL, that endpoint is also excluded. These checks compare hosts, including pooled/direct variants, not just database names. The script does not initialize an empty database. Do not invent a comparison value or request production credentials to get past a check. Use the fresh local setup above instead. Test migration changes against disposable data before submitting them.
+For an existing development database, back it up and review the relevant SQL in `db/migrations`. Do not apply `schema.sql` over populated tables. `scripts/apply-migrations.mjs` is a maintainer tool: it reads `.env.local` and requires a distinct `.env.production` comparison endpoint. If `.env.cloud.local` supplies a database URL, that endpoint is also excluded. These checks compare hosts, including pooled/direct variants and trailing DNS dots, not just database names. Each URL must name one explicit host; hostless URLs and failover host lists are rejected. The script does not initialize an empty database. Do not invent a comparison value or request production credentials to get past a check. Use the fresh local setup above instead. Test migration changes against disposable data before submitting them.
 
 ## Test uploads locally
 

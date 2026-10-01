@@ -99,9 +99,10 @@ if (-not (Test-Path $BackupDir)) { throw "backup dir not found: $BackupDir" }
 if (-not $Stamp) {
   $stamps = @()
   foreach ($pattern in @('neon-*.dump', 'r2-inventory-*.json', 'app-data-*.tgz')) {
-    $latest = Get-ChildItem -Path $BackupDir -Filter $pattern -ErrorAction SilentlyContinue |
+    $latest = Get-ChildItem -LiteralPath $BackupDir -Filter $pattern -File -ErrorAction SilentlyContinue |
+      Where-Object { $_.Name -match '^(neon|r2-inventory|app-data)-\d{4}-\d{2}-\d{2}\.(dump|json|tgz)$' } |
       Sort-Object Name -Descending | Select-Object -First 1
-    if ($latest) { $stamps += ($latest.Name -replace '^[a-z0-9-]+-|\.(dump|json|tgz)$', '') }
+    if ($latest) { $stamps += ($latest.Name -replace '^(neon|r2-inventory|app-data)-|\.(dump|json|tgz)$', '') }
   }
   if ($stamps.Count -eq 0) { throw "no backups found in $BackupDir" }
   $Stamp = ($stamps | Sort-Object -Descending | Select-Object -First 1)
@@ -189,7 +190,7 @@ if (-not $Confirm) {
 
 # --- stop the stack --------------------------------------------------------
 Write-Step 'stopping the app so nothing writes during the restore'
-& docker compose --env-file $EnvFile -f $ComposeFile -T down | Out-Host
+& docker compose --env-file $EnvFile -f $ComposeFile down | Out-Host
 if ($LASTEXITCODE -ne 0) { throw 'could not stop the stack' }
 
 # --- volume (quarantine scratch only) ---------------------------------------
@@ -229,7 +230,7 @@ if ($Which -in @('all', 'neon')) {
 
 # --- bring it back ---------------------------------------------------------
 Write-Step 'starting the stack again'
-& docker compose --env-file $EnvFile -f $ComposeFile -T up -d | Out-Host
+& docker compose --env-file $EnvFile -f $ComposeFile up -d | Out-Host
 if ($LASTEXITCODE -ne 0) { throw 'could not restart the stack' }
 
 Write-Host ''

@@ -9,10 +9,20 @@ export function readPrivateEnv(root, name) {
 
 export function databaseEndpoint(value) {
   let url;
-  try { url = new URL(value); }
+  let decodedHost;
+  try {
+    url = new URL(value);
+    decodedHost = decodeURIComponent(url.hostname);
+  }
   catch { throw new Error("Invalid database URL in a private environment file. Check its format without printing credentials."); }
   if (!["postgres:", "postgresql:"].includes(url.protocol)) throw new Error("Expected a PostgreSQL URL.");
-  return url.hostname.toLowerCase().replace(/-pooler(?=\.)/, "");
+  // postgres-js accepts failover lists and falls back to PGHOST for hostless
+  // URLs. Neither has a single explicit endpoint that this guard can compare.
+  if (!url.hostname || decodedHost.includes(",")) {
+    throw new Error("Database isolation requires a single explicit hostname; hostless and multi-host URLs are not supported.");
+  }
+  // A terminal DNS dot names the same host, including a pooled Neon endpoint.
+  return url.hostname.toLowerCase().replace(/\.$/, "").replace(/-pooler(?=\.)/, "");
 }
 
 export function assertDevDatabase(dev, production) {

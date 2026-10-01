@@ -174,11 +174,11 @@ try {
   // ---- 5. Mod page shows reputation next to bug reporters ---------------
   const modPage = await fetch(modUrl, { headers: { Cookie: cookie } });
   const modHtml = await modPage.text();
-  const reporterBadges = (modHtml.match(/★/g) ?? []).length;
+  const reporterBadges = (modHtml.match(/aria-label="About reputation [^"]+"/g) ?? []).length;
   check(
     "mod page shows reporter reputation badges",
     reporterBadges >= 2,
-    `found ${reporterBadges} stars`,
+    `found ${reporterBadges} reputation badges`,
   );
 } catch (error) {
   console.error("ERROR:", error.message);
