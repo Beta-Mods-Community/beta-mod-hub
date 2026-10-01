@@ -9,9 +9,8 @@ const nextConfig: NextConfig = {
     return [{
       source: "/:path*",
       headers: [
-        // The application has no embedded-page workflow. Keep these independent
-        // of script/style policy so Next's hydration and form handling are unchanged.
-        { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        // Preserve route-specific CSP. Next's config headers take precedence,
+        // so a global CSP here would replace the access gate's stricter policy.
         { key: "X-Frame-Options", value: "DENY" },
         { key: "X-Content-Type-Options", value: "nosniff" },
       ],
