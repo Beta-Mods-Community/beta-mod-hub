@@ -272,11 +272,27 @@ export default async function BetaModPage({
                 <h3 className="sr-only">Tester verdicts</h3>
                 <dl className="mt-3 grid grid-cols-2 gap-4">
                   <div>
-                    <dt className="text-xs text-[var(--muted)]"><ContextHelp title="Ready votes" description="Testers who consider this build ready for release based on their testing. These votes apply only to this build and do not guarantee compatibility." className="inline-flex items-center gap-1.5"><CircleCheck aria-hidden="true" className="h-3.5 w-3.5" />Ready</ContextHelp></dt>
+                    <dt className="text-xs text-[var(--muted)]">
+                      <ContextHelp
+                        title="Ready votes"
+                        description="Testers who consider this build ready for release based on their testing. These votes apply only to this build and do not guarantee compatibility."
+                        className="inline-flex items-center gap-1.5"
+                      >
+                        <CircleCheck aria-hidden="true" className="h-3.5 w-3.5" />Ready
+                      </ContextHelp>
+                    </dt>
                     <dd className="mt-1 text-2xl font-semibold tabular-nums">{tally.ready}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-[var(--muted)]"><ContextHelp title="Not ready votes" description="Testers who think this build needs more work before release. Bug reports provide details about the problems they found." className="inline-flex items-center gap-1.5"><Wrench aria-hidden="true" className="h-3.5 w-3.5" />Not ready</ContextHelp></dt>
+                    <dt className="text-xs text-[var(--muted)]">
+                      <ContextHelp
+                        title="Not ready votes"
+                        description="Testers who think this build needs more work before release. Bug reports provide details about the problems they found."
+                        className="inline-flex items-center gap-1.5"
+                      >
+                        <Wrench aria-hidden="true" className="h-3.5 w-3.5" />Not ready
+                      </ContextHelp>
+                    </dt>
                     <dd className="mt-1 text-2xl font-semibold tabular-nums">{tally.total - tally.ready}</dd>
                   </div>
                 </dl>
@@ -323,7 +339,16 @@ export default async function BetaModPage({
               </p>
             )}
             {!isOwner && !readOnly && <div className="mt-5 border-t border-[var(--line)] pt-5">
-              <h3 aria-label="Follow this mod" className="flex items-center gap-2 text-sm font-semibold"><ContextHelp title="Follow this mod" description="Following adds this mod to your Following page and gives you notifications here for new builds, bugs marked fixed, and its release on Nexus. Use the follow button below to change your choice." label="About following this mod" className="inline-flex text-[var(--muted)]"><Bell aria-hidden="true" className="h-4 w-4" /></ContextHelp>Follow this mod</h3>
+              <h3 aria-label="Follow this mod" className="flex items-center gap-2 text-sm font-semibold">
+                <ContextHelp
+                  title="Follow this mod"
+                  description="Following adds this mod to your Following page and gives you notifications here for new builds, bugs marked fixed, and its release on Nexus. Use the follow button below to change your choice."
+                  label="About following this mod"
+                  className="inline-flex text-[var(--muted)]"
+                >
+                  <Bell aria-hidden="true" className="h-4 w-4" />
+                </ContextHelp>Follow this mod
+              </h3>
               <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Get a notification here for new builds, reported fixes, and release on Nexus.</p>
               {session ? <form action={setFollow.bind(null, mod.id, !following)}><button className="button-secondary mt-3 w-full">{following ? "Unfollow mod" : "Follow mod"}</button></form> : <Link href="/login" className="button-secondary mt-3 w-full">Sign in to follow</Link>}
             </div>}
@@ -363,7 +388,12 @@ export default async function BetaModPage({
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <ContextHelp title={`Build ${build.versionLabel}`} description="A versioned mod archive uploaded by the author. Check its changelog and the mod's requirements before installing, and use the Download link to get the file." label={`About build ${build.versionLabel}`} className="inline-flex text-[var(--accent)]">
+                        <ContextHelp
+                          title={`Build ${build.versionLabel}`}
+                          description="A versioned mod archive uploaded by the author. Check its changelog and the mod's requirements before installing, and use the Download link to get the file."
+                          label={`About build ${build.versionLabel}`}
+                          className="inline-flex text-[var(--accent)]"
+                        >
                           <FileArchive className="h-4 w-4" aria-hidden="true" />
                         </ContextHelp>
                         <h3 className="font-semibold text-[var(--text)]">

@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 import { helpPosition } from "../lib/help-position";
 
 test("help fits beside its trigger and flips above near the bottom", () => {
@@ -55,13 +56,35 @@ test("help renders a named non-submit button tied to a hidden native tooltip", (
 test("help supports hover, focus and tap without submitting an action", () => {
   // Structural guards complement browser interaction checks, not simulate them.
   const source = readFileSync(new URL("../src/components/context-help.tsx", import.meta.url), "utf8");
-  assert.match(source, /onPointerEnter=\{event => \{ if \(event\.pointerType !== "touch"\) show\(\); \}\}/);
-  assert.match(source, /onFocus=\{event => \{ if \(event\.currentTarget\.matches\(":focus-visible"\)\) show\(\); \}\}/);
-  assert.match(source, /event\.preventDefault\(\)/);
-  assert.match(source, /pinned\.current = true; show\(\)/);
-  assert.match(source, /overPanel\.current = true; cancelClose\(\)/);
-  assert.match(source, /if \(!overPanel\.current\) hide\(\)/);
-  assert.match(source, /event\.key === "Tab"\) hide\(\)/);
+  const parsed = ts.createSourceFile("context-help.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const functions = new Map<string, string>();
+  const bindings = new Map<string, ts.Expression>();
+  function visit(node: ts.Node) {
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) functions.set(node.name.text, node.body.getText(parsed));
+    if (ts.isJsxOpeningElement(node)) {
+      for (const attribute of node.attributes.properties) {
+        if (ts.isJsxAttribute(attribute) && attribute.initializer && ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
+          bindings.set(`${node.tagName.getText(parsed)}:${attribute.name.getText(parsed)}`, attribute.initializer.expression);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(parsed);
+  function handler(tag: string, event: string) {
+    const expression = bindings.get(`${tag}:${event}`);
+    assert.ok(expression, `Missing ${tag} ${event} handler`);
+    const body = ts.isIdentifier(expression) ? functions.get(expression.text) : expression.getText(parsed);
+    assert.ok(body, `Missing body for ${tag} ${event}`);
+    return body.replace(/\s+/g, " ");
+  }
+  assert.match(handler("button", "onPointerEnter"), /if \(event\.pointerType !== "touch"\) show\(\)/);
+  assert.match(handler("button", "onFocus"), /if \(event\.currentTarget\.matches\(":focus-visible"\)\) show\(\)/);
+  assert.match(handler("button", "onClick"), /event\.preventDefault\(\)/);
+  assert.match(handler("button", "onClick"), /pinned\.current = true; show\(\)/);
+  assert.match(handler("span", "onPointerEnter"), /overPanel\.current = true; cancelClose\(\)/);
+  assert.match(handler("button", "onBlur"), /if \(!overPanel\.current\) hide\(\)/);
+  assert.match(handler("button", "onKeyDown"), /event\.key === "Tab"\) hide\(\)/);
   assert.match(source, /document\.addEventListener\("keydown", dismissOnTab\)/);
   assert.match(source, /document\.removeEventListener\("keydown", dismissOnTab\)/);
   assert.match(source, /popover="auto"/);

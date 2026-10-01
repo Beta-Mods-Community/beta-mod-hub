@@ -134,7 +134,12 @@ function BuildingPanel({
   return (
     <section className="py-8 sm:py-10" aria-labelledby="releases-heading">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <SectionHeading id="releases-heading" title="Your mods" description="Mods you have posted, with open bug counts across their builds and readiness votes for each latest build. Open a mod to review feedback or manage its testing." icon={Layers} />
+        <SectionHeading
+          id="releases-heading"
+          title="Your mods"
+          description="Mods you have posted, with open bug counts across their builds and readiness votes for each latest build. Open a mod to review feedback or manage its testing."
+          icon={Layers}
+        />
         {myMods.length > 0 && (
           <p className="text-sm text-muted">
             {myMods.length} {myMods.length === 1 ? "project" : "projects"}
@@ -223,7 +228,11 @@ function TestingPanel({
 }) {
   return (
     <section className="py-8 sm:py-10">
-      <SectionHeading title="Your votes" description="Your most recent readiness vote for each mod. Votes stay attached to the build you tested, so a newer build needs a fresh test and vote." icon={UserCheck} />
+      <SectionHeading
+        title="Your votes"
+        description="Your most recent readiness vote for each mod. Votes stay attached to the build you tested, so a newer build needs a fresh test and vote."
+        icon={UserCheck}
+      />
 
       {votedMods.length === 0 ? (
         <EmptyState
@@ -290,7 +299,12 @@ function TestingPanel({
         </div>
       )}
 
-      <SectionHeading title="Bugs you filed" description="Bug reports you submitted, including the affected build and current status. Open the mod to read the author's response or record a retest." icon={Bug} className="mt-12" />
+      <SectionHeading
+        title="Bugs you filed"
+        description="Bug reports you submitted, including the affected build and current status. Open the mod to read the author's response or record a retest."
+        icon={Bug}
+        className="mt-12"
+      />
 
       {reports.length === 0 ? (
         <EmptyState

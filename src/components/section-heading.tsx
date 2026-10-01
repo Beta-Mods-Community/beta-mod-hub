@@ -13,7 +13,12 @@ export default function SectionHeading({ title, description, icon: Icon, id, com
   const iconClassName = "grid h-8 w-8 shrink-0 place-items-center rounded-md border border-accent/20 bg-accent-soft text-accent-strong";
 
   return <h2 id={id} aria-label={description ? title : undefined} className={`flex items-center gap-3 font-semibold tracking-tight text-[var(--text)] ${compact ? "text-lg" : "text-xl"} ${className}`}>
-    {description ? <ContextHelp title={title} description={description} label={`About ${title}`} className={iconClassName}>{icon}</ContextHelp> : <span className={iconClassName}>{icon}</span>}
+    {description ? <ContextHelp
+      title={title}
+      description={description}
+      label={`About ${title}`}
+      className={iconClassName}
+    >{icon}</ContextHelp> : <span className={iconClassName}>{icon}</span>}
     <span>{title}</span>
   </h2>;
 }

@@ -1,16 +1,38 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  type ToggleEvent,
+} from "react";
 import { helpPosition } from "@lib/help-position";
 
-/** Non-action help only. Children must not contain links or other controls. */
-export default function ContextHelp({ title, description, label, className = "", children }: {
+type ContextHelpProps = {
   title: string;
   description: string;
   label?: string;
   className?: string;
   children: ReactNode;
-}) {
+};
+
+function positionHelpPanel(anchor: DOMRect, panel: HTMLSpanElement) {
+  const next = helpPosition(anchor, panel.getBoundingClientRect(), {
+    width: document.documentElement.clientWidth,
+    height: window.innerHeight,
+  });
+  panel.style.left = `${next.left}px`;
+  panel.style.top = `${next.top}px`;
+}
+
+/** Non-action help only. Children must not contain links or other controls. */
+export default function ContextHelp({ title, description, label, className = "", children }: ContextHelpProps) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLSpanElement>(null);
@@ -25,11 +47,7 @@ export default function ContextHelp({ title, description, label, className = "",
 
   function position() {
     if (!trigger.current || !panel.current?.matches(":popover-open")) return;
-    const anchor = trigger.current.getBoundingClientRect();
-    const bounds = panel.current.getBoundingClientRect();
-    const next = helpPosition(anchor, bounds, { width: document.documentElement.clientWidth, height: window.innerHeight });
-    panel.current.style.left = `${next.left}px`;
-    panel.current.style.top = `${next.top}px`;
+    positionHelpPanel(trigger.current.getBoundingClientRect(), panel.current);
   }
 
   function show() {
@@ -53,6 +71,52 @@ export default function ContextHelp({ title, description, label, className = "",
     }, 180);
   }
 
+  function handleTriggerPointerEnter(event: PointerEvent<HTMLButtonElement>) {
+    if (event.pointerType !== "touch") show();
+  }
+
+  function handleTriggerFocus(event: FocusEvent<HTMLButtonElement>) {
+    if (event.currentTarget.matches(":focus-visible")) show();
+  }
+
+  function handleTriggerBlur() {
+    if (!overPanel.current) hide();
+  }
+
+  function handleTriggerKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (event.key === "Tab") hide();
+  }
+
+  function handleTriggerClick(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    if (pinned.current && panel.current?.matches(":popover-open")) {
+      hide();
+    } else {
+      pinned.current = true;
+      show();
+    }
+  }
+
+  function handlePanelPointerEnter() {
+    overPanel.current = true;
+    cancelClose();
+  }
+
+  function handlePanelPointerLeave() {
+    overPanel.current = false;
+    leave();
+  }
+
+  function handlePanelToggle(event: ToggleEvent<HTMLSpanElement>) {
+    const visible = event.newState === "open";
+    setOpen(visible);
+    if (!visible) {
+      pinned.current = false;
+      overPanel.current = false;
+      cancelClose();
+    }
+  }
+
   useEffect(() => () => clearTimeout(closeTimer.current), []);
 
   useEffect(() => {
@@ -65,10 +129,7 @@ export default function ContextHelp({ title, description, label, className = "",
         panel.current.hidePopover();
         return;
       }
-      const bounds = panel.current.getBoundingClientRect();
-      const next = helpPosition(anchor, bounds, { width: document.documentElement.clientWidth, height: window.innerHeight });
-      panel.current.style.left = `${next.left}px`;
-      panel.current.style.top = `${next.top}px`;
+      positionHelpPanel(anchor, panel.current);
     }
     function dismissOnTab(event: KeyboardEvent) {
       if (event.key === "Tab" && panel.current?.matches(":popover-open")) panel.current.hidePopover();
@@ -92,16 +153,12 @@ export default function ContextHelp({ title, description, label, className = "",
       aria-describedby={id}
       aria-expanded={open}
       className={`context-help-trigger min-h-6 min-w-6 cursor-help rounded-sm ${className}`}
-      onPointerEnter={event => { if (event.pointerType !== "touch") show(); }}
+      onPointerEnter={handleTriggerPointerEnter}
       onPointerLeave={leave}
-      onFocus={event => { if (event.currentTarget.matches(":focus-visible")) show(); }}
-      onBlur={() => { if (!overPanel.current) hide(); }}
-      onKeyDown={event => { if (event.key === "Tab") hide(); }}
-      onClick={event => {
-        event.preventDefault();
-        if (pinned.current && panel.current?.matches(":popover-open")) hide();
-        else { pinned.current = true; show(); }
-      }}
+      onFocus={handleTriggerFocus}
+      onBlur={handleTriggerBlur}
+      onKeyDown={handleTriggerKeyDown}
+      onClick={handleTriggerClick}
     >{children}</button>
     <span
       ref={panel}
@@ -109,13 +166,9 @@ export default function ContextHelp({ title, description, label, className = "",
       popover="auto"
       role="tooltip"
       className="context-help-panel"
-      onPointerEnter={() => { overPanel.current = true; cancelClose(); }}
-      onPointerLeave={() => { overPanel.current = false; leave(); }}
-      onToggle={event => {
-        const visible = event.newState === "open";
-        setOpen(visible);
-        if (!visible) { pinned.current = false; overPanel.current = false; cancelClose(); }
-      }}
+      onPointerEnter={handlePanelPointerEnter}
+      onPointerLeave={handlePanelPointerLeave}
+      onToggle={handlePanelToggle}
     >
       <span className="block text-sm font-semibold text-text">{title}</span>
       <span className="mt-2 block text-sm font-normal leading-6 text-text-soft">{description}</span>
