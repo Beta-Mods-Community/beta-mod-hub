@@ -10,29 +10,24 @@ import { sanitizeFilename } from "./storage";
 import { isCloudPilot, MiB } from "./pilot";
 
 /**
- * Promotion package generation — the spec's "The promotion package".
- *
- * Nexus's Upload API can push a file to a mod page that ALREADY exists; it
- * cannot create a new page. So promotion ships a downloadable zip the author
- * walks through top-to-bottom when creating their Nexus page:
+ * Generates review material for manual publication on Nexus Mods.
+ * This module does not create pages, upload to Nexus or confirm publication.
  *
  *   promotion-<slug>/
- *   ├── description.bbcode.txt   paste into Nexus's Description field (BBCode)
- *   ├── summary.txt              paste into the short description field
- *   ├── readme.txt               paste into Nexus's Docs step
- *   ├── changelog.txt            paste into Nexus's Articles/changelog step
- *   ├── requirements.txt         dependency checklist (search-and-link, not paste)
- *   ├── files/                   the mod archive, ready to drag into Files
+ *   ├── description.bbcode.txt   review conversion in the destination editor
+ *   ├── summary.txt              reviewable short description
+ *   ├── readme.txt               plain-text project details
+ *   ├── changelog.txt            latest build's recorded changes
+ *   ├── requirements.txt         dependency checklist, not an import format
+ *   ├── files/                   mod archive to extract and upload separately
  *   └── media/                   scanned screenshots, numbered in gallery order
  *
- * The note in the spec is load-bearing: no browser automation against
- * nexusmods.com, and the package stays the flow even if the API scope grows —
- * manual steps just get shed one at a time.
+ * The outer ZIP is a preparation package, not the mod's installable archive.
  */
 
 /**
- * Nexus short-description character limit, enforced at generation time per the
- * spec ("validate at generation time, not just at paste time").
+ * Beta Mods' summary cap. The destination site's current form rules still
+ * need checking; this is not a claim about every Nexus editor or API.
  */
 export const NEXUS_SUMMARY_LIMIT = 250;
 export const CLOUD_PROMOTION_INPUT_LIMIT_BYTES = 32 * MiB;
@@ -156,8 +151,7 @@ function plainText(md: string): string {
 /**
  * Summary for the short-description field: the first non-empty line of the
  * description, flattened to plain text. Returns null (and thus package
- * failure at generation time) when it exceeds the Nexus limit — per the spec,
- * that's caught here, not at paste time.
+ * failure at generation time) when it exceeds this exporter's limit.
  */
 export function deriveSummary(description: string): { summary: string } | null {
   const first = description
@@ -247,8 +241,8 @@ function buildTextFiles(input: PromotionPackageInput, summary: string) {
 
   const requirementsText =
     requirements.length === 0
-      ? "No requirements recorded here. Add your mod's dependencies on Nexus\n" +
-        "after publishing (search-and-link in the Requirements step).\n"
+      ? "No requirements are recorded in Beta Mods. Check your mod's dependencies\n" +
+        "and add them to the Nexus page before publishing. This file is a checklist, not an automatic import.\n"
       : requirements
           .map(
             (req) =>
@@ -301,7 +295,7 @@ export async function buildPromotionPackage(
       ok: false,
       error:
         `The description's first line is over ${NEXUS_SUMMARY_LIMIT} characters. ` +
-        "Shorten it so the generated summary fits Nexus's short-description limit.",
+        "Shorten it to fit Beta Mods' release-package summary limit.",
     };
   }
 

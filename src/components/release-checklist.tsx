@@ -1,26 +1,21 @@
-"use client";
-
-import { useState } from "react";
+import { CircleCheck } from "lucide-react";
 import { releaseChecklist } from "@lib/help-content";
 
 export default function ReleaseChecklist() {
-  const [checked, setChecked] = useState<string[]>([]);
   return (
-    <fieldset className="panel p-5 sm:p-6">
-      <legend className="px-2 text-lg font-semibold text-text">Before you publish</legend>
-      <p id="release-checklist-help" className="mb-4 text-sm leading-6 text-muted">For this page visit only. This does not approve a release, publish your mod, or change its status.</p>
-      <div className="space-y-1">
+    <div className="panel p-5 sm:p-6">
+      <h2 className="text-lg font-semibold text-text">Before you publish</h2>
+      <p className="mt-3 text-sm leading-6 text-muted">Review these points as you prepare your release.</p>
+      <ul className="mt-4 space-y-3">
         {releaseChecklist.map((item) => (
-          <label key={item} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md p-2 text-sm leading-6 text-text-soft hover:bg-surface-raised">
-            <input type="checkbox" checked={checked.includes(item)} onChange={(event) => {
-              const isChecked = event.target.checked;
-              setChecked((previous) => isChecked ? [...previous, item] : previous.filter((value) => value !== item));
-            }} aria-describedby="release-checklist-help" className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent)]" />
-            <span>{item}</span>
-          </label>
+          <li key={item} className="flex items-start gap-3 text-sm leading-6 text-text-soft">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-accent/25 bg-linear-to-br from-accent/15 to-accent/5 text-accent-strong">
+              <CircleCheck aria-hidden="true" focusable="false" className="h-5 w-5" strokeWidth={2} />
+            </span>
+            <span className="min-w-0 pt-1">{item}</span>
+          </li>
         ))}
-      </div>
-      <p role="status" className="mt-5 border-t border-line pt-4 text-sm font-medium text-accent-strong">{checked.length} of {releaseChecklist.length} checked</p>
-    </fieldset>
+      </ul>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { helpFaqs, helpGuides, helpTemplates, releaseChecklist } from "../lib/help-content";
+import { helpFaqs, helpGuides, helpTemplates, helpReview, releaseChecklist } from "../lib/help-content";
 
 const anchorPattern = /^[a-z]+(?:-[a-z]+)*$/;
 
@@ -72,4 +72,37 @@ test("release checklist contains distinct reminders and FAQs defer to current fo
   assert.ok(limits);
   assert.match(limits.answer, /Each upload form shows its current file limits/);
   assert.doesNotMatch(limits.answer, /\d+\s*(?:MiB|GiB|entries)/);
+});
+
+test("external advice has named primary references and a recorded review date", () => {
+  assert.match(helpReview.date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(Number.isNaN(Date.parse(helpReview.date)), false);
+  assert.ok(helpReview.label.trim());
+  const references = [
+    ...helpGuides.flatMap(guide => guide.sections.flatMap(section => section.sources ?? [])),
+    ...helpFaqs.flatMap(faq => faq.sources ?? []),
+  ];
+  assert.ok(references.length >= 4);
+  for (const reference of references) {
+    const url = new URL(reference.url);
+    assert.equal(url.protocol, "https:");
+    assert.ok(["help.nexusmods.com", "transloadit.com"].includes(url.hostname));
+    assert.ok(reference.title.trim());
+  }
+  const release = helpGuides.find(guide => guide.slug === "releasing")!;
+  assert.ok(release.sections.find(section => section.id === "nexus-publishing-rules")?.sources?.length);
+  assert.ok(release.sections.find(section => section.id === "publish-and-confirm")?.sources?.length);
+});
+
+test("help qualifies voting, pilot archive support and the manual Nexus handoff", () => {
+  const content = JSON.stringify({ helpGuides, helpFaqs });
+  assert.match(content, /change your vote while that build is the latest/);
+  assert.match(content, /BSA, BA2, and PAK/);
+  assert.match(content, /direct binary save uploads are not supported/);
+  assert.match(content, /Beta Mods pilot restrictions, not a list of everything Nexus accepts/);
+  assert.match(content, /Beta Mods' exporter limits the summary to 250 characters/);
+  assert.match(content, /Do not upload the outer package as the mod file/);
+  assert.match(content, /Nexus performs its own security checks/);
+  assert.match(content, /Credit alone is not permission/);
+  assert.doesNotMatch(content, /Nexus (?:cannot|can't) (?:create|upload)/);
 });

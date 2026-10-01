@@ -27,6 +27,7 @@ import DeleteModButton from "@/components/delete-mod-button";
 import ModGallery from "@/components/mod-gallery";
 import ModMediaManager from "@/components/mod-media-manager";
 import Markdown from "@/components/markdown";
+import ReleaseReadinessChecklist from "@/components/release-readiness-checklist";
 import ReportContentForm from "@/components/report-content-form";
 import SectionHeading from "@/components/section-heading";
 import TestingChecklist from "@/components/testing-checklist";
@@ -508,6 +509,7 @@ export default async function BetaModPage({
               <p className="mt-4 text-sm leading-6 text-[var(--text-soft)]">
                 Download the latest build, description, requirements, and screenshots as a package to upload to Nexus Mods. Add the Nexus page URL here once it is published.
               </p>
+              <ReleaseReadinessChecklist key={`${mod.id}:${latestBuild?.id ?? "no-build"}`} />
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 {latestBuild ? <a href={`/mods/${mod.id}/promotion/download`} className="button-secondary">
                   <Download className="h-5 w-5 shrink-0" aria-hidden="true" />

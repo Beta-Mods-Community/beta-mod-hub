@@ -1,11 +1,14 @@
 export type HelpGuideSlug = "testing" | "authors" | "releasing";
 
+export type HelpSource = { title: string; url: string };
+
 export type HelpSection = {
   id: string;
   title: string;
   paragraphs?: readonly string[];
   steps?: readonly string[];
   bullets?: readonly string[];
+  sources?: readonly HelpSource[];
 };
 
 export type HelpGuide = {
@@ -19,7 +22,18 @@ export type HelpFaq = {
   id: string;
   question: string;
   answer: string;
+  sources?: readonly HelpSource[];
 };
+
+// Update after reviewing both the implementation and the linked source material.
+export const helpReview = { date: "2026-10-01", label: "October 1, 2026" };
+
+const sources = {
+  authorGuidance: { title: "Nexus Mods: author guidance", url: "https://help.nexusmods.com/article/136-best-practices-for-mod-authors" },
+  submissionRules: { title: "Nexus Mods: file submission rules", url: "https://help.nexusmods.com/article/28-file-submission-guidelines" },
+  quarantine: { title: "Nexus Mods: archives and quarantine", url: "https://help.nexusmods.com/article/117-why-has-my-mod-been-quarantined" },
+  scanner: { title: "Transloadit: malware scanning", url: "https://transloadit.com/docs/robots/file-virusscan/" },
+} satisfies Record<string, HelpSource>;
 
 export type HelpTemplate = {
   id: "testing-brief" | "known-issues";
@@ -40,7 +54,7 @@ export const helpGuides: readonly HelpGuide[] = [
         id: "before-you-test",
         title: "Before you test",
         paragraphs: [
-          "Beta builds can be unstable. Read the author's installation instructions, requirements, known issues, and testing goals. Back up your saves and use a separate test profile where possible. A passed malware scan does not guarantee safety or compatibility.",
+          "Beta builds can be unstable. Read the author's installation instructions, requirements, known issues, and testing goals. Back up your saves and use a separate test profile where your game and mod manager support it. Check that test saves are kept separate; a profile is not a backup. A passed malware scan does not guarantee safety or compatibility.",
         ],
         steps: [
           "Check that the mod supports your game version and setup. If the requirements are unclear, do not assume compatibility.",
@@ -65,7 +79,7 @@ export const helpGuides: readonly HelpGuide[] = [
         title: "Vote on the build you tested",
         paragraphs: [
           "Choose Ready or Not ready based on your testing of the latest build. A vote is not a guarantee that the mod works for everyone. If it is not ready, a bug report gives the author information a vote alone cannot provide.",
-          "Each tester has one vote per build and can change that vote. Earlier votes stay in testing history but do not count toward a newer build. If a new build arrives while your page is open, test it before voting again. Authors cannot vote on their own mods.",
+          "Each tester has one vote per build. You can change your vote while that build is the latest. Earlier votes stay in testing history but do not count toward a newer build. If a new build arrives while your page is open, test it before voting again. Authors cannot vote on their own mods.",
         ],
       },
       {
@@ -96,13 +110,14 @@ export const helpGuides: readonly HelpGuide[] = [
         title: "Give testers a clear starting point",
         paragraphs: [
           "Sign in, verify your email, and choose Post a beta. Add a title, game, status, tags, and description. You can add requirements and upload files after creating the page.",
-          "Start the description with a one-sentence summary of no more than 250 characters. The release exporter uses its first nonempty line as the summary, so put the summary before a heading such as About.",
+          "Start the description with a plain-text, one-sentence summary of no more than 250 characters. This is Beta Mods' export limit. The exporter uses the first nonempty line, so put your summary before a heading such as About.",
         ],
         bullets: [
           "Explain installation and removal, supported game versions, dependencies, known issues, and exactly what you want tested.",
           "Use Alpha, Beta, or Release candidate to describe the stage of your work. These are author-selected labels, not automatic quality ratings.",
-          "Credit contributors and only share files or images you have permission to distribute. Keep your own copy of the project.",
+          "Credit contributors and only share files or images you have permission to distribute. Credit does not replace permission. Keep your own copy of the project and any permission records.",
         ],
+        sources: [sources.authorGuidance, sources.submissionRules],
       },
       {
         id: "upload-a-test-build",
@@ -152,9 +167,22 @@ export const helpGuides: readonly HelpGuide[] = [
         ],
         bullets: [
           "Check the latest build, unresolved reports, installation and removal instructions, compatibility notes, permissions, and credits.",
-          "Update the description and requirements. Keep its first nonempty line to a useful summary of no more than 250 characters; the exporter rejects a longer summary.",
+          "Update the description and requirements. Beta Mods' exporter limits the summary to 250 characters from the first nonempty line. Check Nexus's current form requirements when pasting it there.",
           "Check the latest changelog and gallery captions. The package includes the latest scanned build, not every earlier build.",
         ],
+      },
+      {
+        id: "nexus-publishing-rules",
+        title: "Check Nexus's publishing rules",
+        paragraphs: [
+          "Nexus's rules apply separately from Beta Mods. Its uploads are intended for public sharing, not private storage or distribution to a closed tester group. A working beta can still have known issues, but describe its limitations honestly; do not publish an empty placeholder.",
+        ],
+        bullets: [
+          "Check permission to distribute every included asset and image, give the required credits, and choose reuse permissions for your own work. Credit alone is not permission.",
+          "Use accurate categories and tags, including any required adult-content or AI-use tags. Check the current submission rules rather than guessing which tags apply.",
+          "List dependencies and useful version notes, explain optional files, and provide installation instructions. Beta Mods does not complete these Nexus fields for you.",
+        ],
+        sources: [sources.submissionRules, sources.authorGuidance],
       },
       {
         id: "package-contents",
@@ -163,22 +191,25 @@ export const helpGuides: readonly HelpGuide[] = [
           "As the mod author, use Download release package in Publish on Nexus Mods. You need an uploaded build first. Open the ZIP and review the files before using them.",
         ],
         bullets: [
-          "description.bbcode.txt: a best-effort conversion of your description. Review the formatting before pasting it.",
+          "description.bbcode.txt: a best-effort conversion of your description. Use the destination editor's supported formatting options, preview the result, and correct any tags that do not render as intended.",
           "summary.txt: text derived from the description's first nonempty line. Copy the summary itself, not the review note beneath it.",
           "readme.txt and changelog.txt: a plain-text project description and the latest build's recorded changelog.",
           "requirements.txt: a dependency checklist for you to enter on Nexus, not an automatic import.",
-          "files/: the latest scanned mod archive. The outer release-package ZIP also contains supporting text and is not a replacement for that archive.",
+          "files/: the latest scanned mod archive. Extract the outer release-package ZIP and use the archive inside files/ for the mod upload. Do not upload the outer package as the mod file.",
           "media/: scanned gallery images in order, plus captions.txt when images are present. Reports, private attachments, and votes are not included.",
         ],
+        sources: [sources.quarantine],
       },
       {
         id: "publish-and-confirm",
         title: "Publish first, then confirm",
         steps: [
-          "Create or update your Nexus mod page yourself, following its current publishing requirements. Add the reviewed description, files, images, dependencies, permissions, and credits.",
-          "Check that the published page and downloads are the release you intended to share.",
+          "Create or update your Nexus mod page yourself, following the current upload form. Add the reviewed description and summary, upload the mod archive from files/, and add the gallery images separately. Complete dependencies, permissions, credits, categories, and tags.",
+          "Preview the description and check the selected files and images before publishing. Nexus performs its own security checks; passing Beta Mods' scan does not bypass them or guarantee acceptance.",
+          "Check that the published page and available downloads are the release you intended to share. If Nexus quarantines a file, follow its review instructions rather than repeatedly deleting and re-uploading it.",
           "Back on Beta Mods, enter the full live Nexus mod page URL and choose Mark as published.",
         ],
+        sources: [sources.quarantine],
         paragraphs: [
           "Downloading the package does not change your listing's status. Mark as published closes new uploads and feedback, removes the mod from Browse, and keeps a read-only beta record with a link to the Nexus release. Confirm only after the release is live.",
         ],
@@ -209,7 +240,7 @@ export const helpFaqs: readonly HelpFaq[] = [
   {
     id: "upload-limits",
     question: "What files can I upload in the cloud pilot?",
-    answer: "Builds must be ZIP files. Encrypted and nested archives are not accepted. Screenshots use PNG, JPEG, or WebP. Attachments support UTF-8 text/logs, JSON/INI, or ZIP, not binary saves. Each upload form shows its current file limits. Uploads are also subject to storage and attempt limits, so check any message before trying again.",
+    answer: "Builds must be standard ZIP files. Encrypted or nested archives and packed game containers such as BSA, BA2, and PAK are not supported in this pilot. Screenshots use PNG, JPEG, or WebP. Attachments accept UTF-8 TXT/LOG/JSON/INI files or a ZIP that passes archive validation; direct binary save uploads are not supported. Each upload form shows its current file limits. Storage and attempt limits also apply. These are Beta Mods pilot restrictions, not a list of everything Nexus accepts.",
   },
   {
     id: "upload-wait",
@@ -220,6 +251,7 @@ export const helpFaqs: readonly HelpFaq[] = [
     id: "attachment-privacy",
     question: "Who can see a bug report and its attachment?",
     answer: "The report text is visible to visitors who can access the mod page. Attachment downloads are limited to the reporter and mod author. In the cloud pilot, files also go to Transloadit for scanning. Remove personal information and do not upload confidential material you do not want that service to process.",
+    sources: [sources.scanner],
   },
   {
     id: "build-votes",
@@ -242,6 +274,11 @@ export const helpFaqs: readonly HelpFaq[] = [
     answer: "Check your spam folder and that the address in Account settings is correct. Account settings lets you resend verification when email delivery is available. For a wrong address or continued delivery problems, contact the administrator. Never send your password, verification link, or reset link in a support message.",
   },
   {
+    id: "expired-account-link",
+    question: "Why has my verification or password-reset link stopped working?",
+    answer: "Verification links expire after 24 hours and password-reset links after 30 minutes. Requesting a new link replaces the previous link of that kind. Use the newest email and request another link if it has expired. Resetting or changing your password also signs out existing sessions. Never share these links with anyone.",
+  },
+  {
     id: "where-to-get-help",
     question: "Where should I report a problem?",
     answer: "Use the mod's Bug reports section for a problem with a build. Use Report this listing for prohibited content or abuse. The Contact page is for account help, privacy requests, ownership disputes, or a problem with Beta Mods itself. Include the relevant page URL and what happened, but no passwords or private login links.",
@@ -249,20 +286,20 @@ export const helpFaqs: readonly HelpFaq[] = [
 ];
 
 export const releaseChecklist: readonly string[] = [
-  "I have tested the latest build and confirmed it is the version I intend to release.",
-  "I have reviewed reports and retests, and documented any unresolved issues.",
-  "I have checked installation, removal, game-version support, and dependencies.",
-  "I have checked permissions and credits for the files and images I am sharing.",
-  "I have reviewed the exported summary, description, changelog, archive, and screenshots.",
-  "Before marking the beta as published, I will check the live Nexus page and its downloads.",
+  "Test the latest build and confirm it is the version you intend to release.",
+  "Review reports and retests, and document any unresolved issues.",
+  "Check installation, removal, game-version support, and dependencies.",
+  "Check permissions, credits, and required tags for your files and images.",
+  "Review the exported summary, description, changelog, archive, and screenshots.",
+  "Check the live Nexus page and its downloads before marking the beta as published.",
 ];
 
 export const helpTemplates: readonly HelpTemplate[] = [
   {
     id: "testing-brief",
     title: "Testing brief",
-    description: "Paste into your mod description and replace every bracketed prompt. Keep the opening summary under 250 characters.",
-    markdown: `[One sentence describing what this mod changes. Keep this line under 250 characters.]
+    description: "Paste into your mod description and replace every bracketed prompt. Keep the opening summary to 250 characters or fewer.",
+    markdown: `[One sentence describing what this mod changes. Use 250 characters or fewer.]
 
 ## Setup
 - Game and version: [supported versions]

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ChevronDown, CircleHelp, Mail } from "lucide-react";
 import { HelpGuideCards } from "@/components/help-navigation";
 import SectionHeading from "@/components/section-heading";
-import { helpFaqs } from "@lib/help-content";
+import HelpSources from "@/components/help-sources";
+import { helpFaqs, helpReview } from "@lib/help-content";
 
 export const metadata = {
   title: "Help",
@@ -27,7 +28,10 @@ export default function HelpPage() {
                   {faq.question}
                   <ChevronDown aria-hidden="true" className="h-5 w-5 shrink-0 text-muted transition-transform group-open/faq:rotate-180" />
                 </summary>
-                <p className="pb-5 pr-2 text-sm leading-7 text-text-soft">{faq.answer}</p>
+                <div className="pb-5 pr-2">
+                  <p className="text-sm leading-7 text-text-soft">{faq.answer}</p>
+                  <HelpSources sources={faq.sources} />
+                </div>
               </details>
             ))}
           </div>
@@ -44,6 +48,7 @@ export default function HelpPage() {
           <div className="mt-4 flex gap-5 border-t border-line pt-4 text-sm"><Link href="/rules" className="text-accent-strong hover:underline">Site rules</Link><Link href="/privacy" className="text-accent-strong hover:underline">Privacy</Link></div>
         </aside>
       </div>
+      <p className="mt-10 text-xs leading-6 text-muted">Checked <time dateTime={helpReview.date}>{helpReview.label}</time>. Beta Mods instructions describe this site&apos;s current features. Linked services may change their requirements.</p>
     </main>
   );
 }

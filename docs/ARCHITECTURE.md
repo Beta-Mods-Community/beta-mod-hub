@@ -83,10 +83,17 @@ Update that content alongside changes to the supported workflows. Limits shown
 by the upload forms remain authoritative; help copy must not become a second
 policy implementation.
 
-Guide pages and FAQs render on the server. `HelpTemplate` only copies selectable
-Markdown, and `ReleaseChecklist` holds reminders for the current page visit.
-Neither writes to a listing, saves progress, or approves a release. New help
-links from an editing form should preserve unsaved work.
+Guide pages, FAQs, and the static `ReleaseChecklist` render on the server.
+`HelpTemplate` only copies selectable Markdown. The interactive
+`ReleaseReadinessChecklist` lives beside the owner's release controls and holds
+reminders for the current page visit. Neither interactive component writes to a
+listing, saves progress, or approves a release. New help links from an editing
+form should preserve unsaved work.
+
+External publishing guidance links to primary sources through `HelpSources`.
+Update `helpReview` only after checking both the implementation and those
+references. Keep app constraints, such as the release package's 250-character
+summary limit, distinct from third-party rules.
 
 ## Accounts and authorization
 

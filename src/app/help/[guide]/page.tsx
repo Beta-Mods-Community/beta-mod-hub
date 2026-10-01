@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import HelpNavigation from "@/components/help-navigation";
 import HelpTemplate from "@/components/help-template";
+import HelpSources from "@/components/help-sources";
 import ReleaseChecklist from "@/components/release-checklist";
-import { helpGuides, helpTemplates } from "@lib/help-content";
+import { helpGuides, helpTemplates, helpReview } from "@lib/help-content";
 
 type Props = { params: Promise<{ guide: string }> };
 
@@ -55,6 +56,7 @@ export default async function HelpGuidePage({ params }: Props) {
                   {section.steps && <ol className="list-decimal space-y-3 pl-5 marker:font-semibold marker:text-accent-strong">{section.steps.map((step) => <li key={step} className="pl-2">{step}</li>)}</ol>}
                   {section.bullets && <ul className="list-disc space-y-2 pl-5 marker:text-accent-strong">{section.bullets.map((item) => <li key={item} className="pl-2">{item}</li>)}</ul>}
                 </div>
+                <HelpSources sources={section.sources} />
               </section>
             ))}
             {guide.slug === "authors" && (
@@ -70,6 +72,7 @@ export default async function HelpGuidePage({ params }: Props) {
             <Link href="/help" className="inline-flex min-h-11 items-center text-accent-strong hover:underline">Questions and support</Link>
             {guide.slug === "releasing" ? <a href="https://help.nexusmods.com/article/136-best-practices-for-mod-authors" className="inline-flex min-h-11 items-center text-accent-strong hover:underline">Nexus Mods author guidance</a> : <Link href={guide.slug === "testing" ? "/browse" : "/mods/new"} className="inline-flex min-h-11 items-center text-accent-strong hover:underline">{guide.slug === "testing" ? "Browse beta mods" : "Post a beta"}</Link>}
           </footer>
+          <p className="mt-4 text-xs leading-6 text-muted">Checked <time dateTime={helpReview.date}>{helpReview.label}</time>. Beta Mods instructions describe this site&apos;s current features. Linked services may change their requirements.</p>
         </article>
       </div>
     </main>
